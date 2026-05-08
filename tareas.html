@@ -102,8 +102,10 @@
         </select>
       </div>
     </div>
-    <div class="form-row"><label>Asignar a (correo del conductor)</label>
-      <input class="field" id="t-para" placeholder="conductor@gmail.com"/>
+    <div class="form-row"><label>Asignar a</label>
+      <select class="field" id="t-para-sel">
+        <option value="" disabled selected>Seleccionar conductor...</option>
+      </select>
     </div>
     <div class="form-row"><label>Fecha de Vencimiento</label><input class="field" type="date" id="t-fecha"/></div>
     <div class="modal-actions">
@@ -121,16 +123,32 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
 <script>
-let _email='', _isAdmin=false, _curTab='pending';
+let _email='', _isAdmin=false, _curTab='pending', _users=[];
 const iconMap={checklist:'✅',charla:'📚',viaje:'📋',otro:'📌'};
 const tipoLabel={checklist:'Checklist',charla:'Charla',viaje:'Hoja de Ruta',otro:'General'};
 
 requireAuth(async(user,data)=>{
   _email=data.correo_electronico||data.email||user.email;
-  _isAdmin=data.role==='admin';
+  _isAdmin=isViewerRole(data.role);  // admin + administrativo + administrativo.conductor
   if(_isAdmin){
     document.getElementById('btn-new').style.display='block';
     document.getElementById('t-assign').style.display='block';
+    // Cargar lista de usuarios para el dropdown del modal
+    const snap=await db.collection('users').get();
+    snap.forEach(d=>{
+      const u=d.data();
+      const em=u.correo_electronico||u.email||'';
+      if(em) _users.push({email:em,name:u.nombre||u.name||em});
+    });
+    // Rellenar select de usuarios en modal
+    const sel=document.getElementById('t-para-sel');
+    if(sel){
+      _users.forEach(u=>{
+        const o=document.createElement('option');
+        o.value=u.email; o.textContent=u.name+' ('+u.email+')';
+        sel.appendChild(o);
+      });
+    }
   }
   loadTasks('pending');
 });
@@ -222,7 +240,7 @@ function closeModal(){document.getElementById('modal-task').classList.remove('op
 
 async function saveTask(){
   const titulo=document.getElementById('t-titulo').value.trim();
-  const para=document.getElementById('t-para').value.trim();
+  const para=document.getElementById('t-para-sel').value.trim();
   if(!titulo||!para){showToast('Completa título y destinatario','error');return;}
   const fechaVal=document.getElementById('t-fecha').value;
   try{

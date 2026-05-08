@@ -164,14 +164,16 @@ function showTab(tab){
 }
 
 async function loadUsers(){
-  const snap=await db.collection('users').orderBy('nombre').get();
+  const snap=await db.collection('users').get();
   const c=document.getElementById('tab-content');
   if(snap.empty){c.innerHTML='<div class="empty">Sin usuarios registrados.</div>';return;}
+  let docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));
+  docs.sort((a,b)=>(a.nombre||a.name||'').localeCompare(b.nombre||b.name||'','es'));
   let rows='';
-  snap.forEach(d=>{
-    const u=d.data();const id=d.id;
-    const rolClass=u.rol==='admin'||u.role==='admin'?'p-admin':'p-conductor';
-    const rolLabel=(u.rol||u.role||'conductor').charAt(0).toUpperCase()+(u.rol||u.role||'conductor').slice(1);
+  docs.forEach(d=>{
+    const u=d, id=d.id;
+    const rolClass=isViewerRole(u.rol||u.role)?'p-admin':'p-conductor';
+    const rolLabel=(u.rol||u.role||'conductor');
     const estClass=u.estado==='Activo'?'p-activo':'p-inactivo';
     rows+=`<tr>
       <td><strong>${u.nombre||u.name||'—'}</strong><br><small style="color:var(--text2)">${u.correo_electronico||u.email||'—'}</small></td>
@@ -179,10 +181,13 @@ async function loadUsers(){
       <td>${u.area||'—'}</td>
       <td><span class="pill ${rolClass}">${rolLabel}</span></td>
       <td><span class="pill ${estClass}">${u.estado||'Activo'}</span></td>
-      <td><button class="btn-sm" onclick="editUser('${id}')">✏️ Editar</button></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn-sm" onclick="editUser('${id}')">✏️ Editar</button>
+        <button class="btn-sm danger" onclick="deleteUser('${id}','${(u.nombre||u.name||'').replace(/'/g,'')}')"  >🗑️ Eliminar</button>
+      </td>
     </tr>`;
   });
-  c.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Nombre / Correo</th><th>RUT</th><th>Área</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  c.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Nombre / Correo</th><th>RUT</th><th>Área</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 async function editUser(id){
