@@ -12,8 +12,8 @@
 .btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
 .main{max-width:700px;margin:0 auto;padding:20px 16px 80px}
 .page-header{margin-bottom:24px}.page-header h2{font-size:1.3rem;font-weight:700}.page-header p{color:var(--text2);font-size:.83rem;margin-top:4px}
-.tab-row{display:flex;gap:8px;margin-bottom:20px}
-.tab-btn{flex:1;padding:9px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:.82rem;font-family:'Inter',sans-serif;transition:.2s}
+.tab-row{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tab-btn{flex:1;min-width:100px;padding:9px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:.82rem;font-family:'Inter',sans-serif;transition:.2s}
 .tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
 .section-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}
 .section-card h3{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:16px}
@@ -31,7 +31,6 @@
 .client-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
 .client-item{display:flex;gap:8px;align-items:center}
 .client-item input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.83rem;font-family:'Inter',sans-serif;outline:none}
-.client-item input:focus{border-color:var(--primary)}
 .btn-add{background:transparent;border:1px dashed var(--border);color:var(--text2);padding:8px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif;width:100%;transition:.2s}
 .btn-add:hover{border-color:var(--primary);color:var(--text)}
 .btn-remove{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#FCA5A5;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:.9rem;flex-shrink:0}
@@ -43,6 +42,8 @@
 .trip-id{font-size:.75rem;color:var(--text2)}.trip-dist{font-size:.95rem;font-weight:700;color:var(--accent);margin:4px 0}
 .trip-meta{font-size:.78rem;color:var(--text2)}
 .badge-conf{background:rgba(16,185,129,.15);color:#6EE7B7;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
+.badge-obs{background:rgba(245,158,11,.15);color:#FCD34D;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
+.badge-inc{background:rgba(239,68,68,.15);color:#FCA5A5;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 #toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
@@ -61,15 +62,16 @@
 <div class="main">
   <div class="page-header"><h2>📋 Hoja de Ruta</h2><p>Registro de viaje y despacho diario</p></div>
   <div class="tab-row">
-    <button class="tab-btn active" onclick="showTab('form')">Nuevo Viaje</button>
-    <button class="tab-btn" onclick="showTab('history')">Mis Viajes</button>
+    <button class="tab-btn active" id="tbtn-form" onclick="showTab('form')">Nuevo Viaje</button>
+    <button class="tab-btn" id="tbtn-history" onclick="showTab('history')">Mis Viajes</button>
+    <button class="tab-btn" id="tbtn-admin" style="display:none" onclick="showTab('admin')">📊 Todos los Viajes</button>
   </div>
 
   <!-- FORMULARIO -->
   <div id="tab-form">
     <div class="section-card">
       <h3>📋 Datos del Viaje</h3>
-      <div class="form-row"><label>ID Viaje</label><input class="field" id="id_viaje" placeholder="Ej: 07052026" readonly/></div>
+      <div class="form-row"><label>ID Viaje</label><input class="field" id="id_viaje" readonly/></div>
       <div class="form-row"><label>Conductor</label><input class="field" id="nombre_conductor_viaje" readonly/></div>
       <div class="row-2">
         <div class="form-row"><label>Patente</label><input class="field" id="patente" placeholder="KZGZ57" style="text-transform:uppercase"/></div>
@@ -121,13 +123,23 @@
         </select>
       </div>
     </div>
-
     <button class="btn-submit" id="btn-submit" onclick="submitViaje()">📋 Registrar Hoja de Ruta</button>
   </div>
 
-  <!-- HISTORIAL -->
+  <!-- MIS VIAJES -->
   <div id="tab-history" style="display:none">
     <div id="history-list"><div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div></div>
+  </div>
+
+  <!-- ADMIN: todos los viajes -->
+  <div id="tab-admin" style="display:none">
+    <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:.8rem;color:var(--text2);white-space:nowrap">Filtrar conductor:</label>
+      <select id="filter-conductor" class="field" style="flex:1;max-width:320px" onchange="loadAdminViajes()">
+        <option value="">Todos los conductores</option>
+      </select>
+    </div>
+    <div id="admin-viajes-list"><div style="color:var(--text2);text-align:center;padding:32px">Selecciona un filtro o carga todos</div></div>
   </div>
 </div>
 <div id="toast-container"></div>
@@ -138,23 +150,40 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
 <script>
-let _email='', _name='';
+let _email='', _name='', _isViewer=false;
+
 requireAuth(async(user,data)=>{
   _email=data.correo_electronico||data.email||user.email;
   _name=data.name||data.nombre||'';
+  _isViewer=isViewerRole(data.role);
   document.getElementById('user-name').textContent=_name;
   document.getElementById('nombre_conductor_viaje').value=_name;
   const now=new Date();
   document.getElementById('id_viaje').value=String(now.getDate()).padStart(2,'0')+String(now.getMonth()+1).padStart(2,'0')+now.getFullYear();
   const vs=await db.collection('vehiculos').where('conductor','==',_email).limit(1).get();
   if(!vs.empty) document.getElementById('patente').value=vs.docs[0].data().patente||'';
+  if(_isViewer){
+    document.getElementById('tbtn-admin').style.display='block';
+    const usersSnap=await db.collection('users').get();
+    const sel=document.getElementById('filter-conductor');
+    usersSnap.forEach(d=>{
+      const u=d.data(), em=u.correo_electronico||u.email||'';
+      if(em){const o=document.createElement('option');o.value=em;o.textContent=u.nombre||u.name||em;sel.appendChild(o);}
+    });
+  }
 });
+
 function showTab(t){
-  document.getElementById('tab-form').style.display=t==='form'?'block':'none';
-  document.getElementById('tab-history').style.display=t==='history'?'block':'none';
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='form')||(i===1&&t==='history')));
+  ['form','history','admin'].forEach(id=>{
+    const el=document.getElementById('tab-'+id);if(el)el.style.display=t===id?'block':'none';
+  });
+  ['form','history','admin'].forEach(id=>{
+    const b=document.getElementById('tbtn-'+id);if(b)b.classList.toggle('active',t===id);
+  });
   if(t==='history') loadHistory();
+  if(t==='admin') loadAdminViajes();
 }
+
 function addClient(){
   const li=document.getElementById('client-list');
   const d=document.createElement('div');d.className='client-item';
@@ -164,6 +193,7 @@ function addClient(){
 function removeClient(btn){btn.parentElement.remove();}
 function toggleFuel(on){document.getElementById('fuel-fields').style.display=on?'block':'none';}
 function previewImg(inp){const img=document.getElementById('img-preview');if(inp.files[0]){img.src=URL.createObjectURL(inp.files[0]);img.style.display='block';}}
+
 async function submitViaje(){
   const patente=document.getElementById('patente').value.trim().toUpperCase();
   const dist=document.getElementById('nombre_distribuidor').value.trim();
@@ -179,55 +209,68 @@ async function submitViaje(){
     const fotoFile=document.getElementById('foto_combustible').files[0];
     if(hasFuel&&fotoFile){
       const ref=storage.ref(`facturas/${Date.now()}_${fotoFile.name}`);
-      await ref.put(fotoFile);
-      fotoUrl=await ref.getDownloadURL();
+      await ref.put(fotoFile);fotoUrl=await ref.getDownloadURL();
     }
-    const data={
+    await db.collection('viajes').add({
       id_viaje:document.getElementById('id_viaje').value,
-      correo_conductor:_email,
-      nombre_conductor_viaje:_name,
-      patente,
-      nombre_distribuidor:dist,
-      km_inicial:kmI,
-      km_final_viaje:kmF,
+      correo_conductor:_email, nombre_conductor_viaje:_name, patente,
+      nombre_distribuidor:dist, km_inicial:kmI, km_final_viaje:kmF,
       cant_guias:parseInt(document.getElementById('cant_guias').value)||0,
-      clientes_despacho:clients,
-      carga_combustible_viaje:hasFuel,
+      clientes_despacho:clients, carga_combustible_viaje:hasFuel,
       litros_combustible:hasFuel?parseFloat(document.getElementById('litros_combustible').value)||0:0,
       monto_combustible:hasFuel?parseFloat(document.getElementById('monto_combustible').value)||0:0,
-      factura_combustible:hasFuel?document.getElementById('factura_combustible').value:fotoUrl,
+      factura_combustible:hasFuel?document.getElementById('factura_combustible').value:'',
+      foto_combustible_url:fotoUrl,
       detalle_devoluciones:document.getElementById('detalle_devoluciones').value,
       estado_viaje:document.getElementById('estado_viaje').value,
       fecha_viaje:firebase.firestore.FieldValue.serverTimestamp(),
-    };
-    await db.collection('viajes').add(data);
+    });
     showToast('✅ Hoja de ruta guardada','success');
     setTimeout(()=>window.location.href='dashboard.html',1500);
-  }catch(e){
-    btn.disabled=false;btn.innerHTML='📋 Registrar Hoja de Ruta';
-    showToast('Error: '+e.message,'error');
-  }
+  }catch(e){btn.disabled=false;btn.innerHTML='📋 Registrar Hoja de Ruta';showToast('Error: '+e.message,'error');}
 }
-async function loadHistory(){
-  const snap=await db.collection('viajes').where('correo_conductor','==',_email).orderBy('fecha_viaje','desc').limit(20).get();
-  const list=document.getElementById('history-list');
-  if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';return;}
-  list.innerHTML='';
-  snap.forEach(d=>{
-    const r=d.data();
-    const km=(r.km_final_viaje||0)-(r.km_inicial||0);
-    list.innerHTML+=`<div class="trip-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div>
-          <div class="trip-id">🚛 ${r.patente||'—'} · ID: ${r.id_viaje||'—'}</div>
-          <div class="trip-dist">${r.nombre_distribuidor||'—'}</div>
-          <div class="trip-meta">📅 ${formatDate(r.fecha_viaje)} · ${km} km recorridos · ${r.cant_guias||0} guías · ${(r.clientes_despacho||[]).length} clientes</div>
-          ${r.carga_combustible_viaje?`<div class="trip-meta" style="margin-top:4px">⛽ ${r.litros_combustible}L · $${(r.monto_combustible||0).toLocaleString('es-CL')}</div>`:''}
-        </div>
-        <span class="badge-conf">${r.estado_viaje||'—'}</span>
+
+function tripCard(r){
+  const km=(r.km_final_viaje||0)-(r.km_inicial||0);
+  const badgeCls=r.estado_viaje==='Conforme'?'badge-conf':r.estado_viaje==='Incidente'?'badge-inc':'badge-obs';
+  return `<div class="trip-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="trip-id">🚛 ${r.patente||'—'} · ${r.nombre_conductor_viaje||r.correo_conductor||''} · ID: ${r.id_viaje||'—'}</div>
+        <div class="trip-dist">${r.nombre_distribuidor||'—'}</div>
+        <div class="trip-meta">📅 ${formatDate(r.fecha_viaje)} · ${km} km · ${r.cant_guias||0} guías · ${(r.clientes_despacho||[]).length} clientes</div>
+        ${r.carga_combustible_viaje?`<div class="trip-meta" style="margin-top:4px">⛽ ${r.litros_combustible}L · $${(r.monto_combustible||0).toLocaleString('es-CL')}</div>`:''}
       </div>
-    </div>`;
-  });
+      <span class="${badgeCls}">${r.estado_viaje||'—'}</span>
+    </div>
+  </div>`;
+}
+
+async function loadHistory(){
+  const list=document.getElementById('history-list');
+  list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div>';
+  try{
+    const snap=await db.collection('viajes').where('correo_conductor','==',_email).get();
+    if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';return;}
+    let docs=[];snap.forEach(d=>docs.push(d.data()));
+    docs.sort((a,b)=>(b.fecha_viaje?.toMillis?.()??0)-(a.fecha_viaje?.toMillis?.()??0));
+    list.innerHTML=docs.map(tripCard).join('');
+  }catch(e){list.innerHTML=`<div style="color:var(--text2);text-align:center;padding:32px">Error: ${e.message}</div>`;}
+}
+
+async function loadAdminViajes(){
+  const list=document.getElementById('admin-viajes-list');
+  list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div>';
+  const filtro=document.getElementById('filter-conductor').value;
+  try{
+    let snap=filtro
+      ? await db.collection('viajes').where('correo_conductor','==',filtro).get()
+      : await db.collection('viajes').get();
+    if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes.</div>';return;}
+    let docs=[];snap.forEach(d=>docs.push(d.data()));
+    docs.sort((a,b)=>(b.fecha_viaje?.toMillis?.()??0)-(a.fecha_viaje?.toMillis?.()??0));
+    list.innerHTML=docs.map(tripCard).join('');
+  }catch(e){list.innerHTML=`<div style="color:var(--text2);text-align:center;padding:32px">Error: ${e.message}</div>`;}
 }
 </script>
 </body>

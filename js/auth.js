@@ -48,10 +48,23 @@ function requireAuth(callback) {
   });
 }
 
-// ── Solo admins ───────────────────────────────────────────────
+// ── Helpers de rol ────────────────────────────────────────────
+function isAdminRole(role) {
+  return role === 'admin';
+}
+function isViewerRole(role) {
+  // admin, administrativo y administrativo.conductor tienen acceso a reportes
+  return ['admin','administrativo','administrativo.conductor'].includes((role||'').toLowerCase());
+}
+function isConductorRole(role) {
+  // conductor y administrativo.conductor pueden registrar viajes/checklists
+  return ['conductor','administrativo.conductor'].includes((role||'').toLowerCase());
+}
+
+// ── Panel admin/administrativo ────────────────────────────────
 function requireAdmin(callback) {
   requireAuth((user, data) => {
-    if (data.role !== 'admin') { window.location.href = '/dashboard.html'; return; }
+    if (!isViewerRole(data.role)) { window.location.href = '/dashboard.html'; return; }
     if (callback) callback(user, data);
   });
 }

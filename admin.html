@@ -84,6 +84,7 @@ tr:hover td{background:var(--surface2)}
     <button class="tab-btn active" onclick="showTab('users')" id="tb-users">👥 Usuarios</button>
     <button class="tab-btn" onclick="showTab('checklists')" id="tb-checklists">✅ Checklists</button>
     <button class="tab-btn" onclick="showTab('viajes')" id="tb-viajes">📋 Viajes</button>
+    <button class="tab-btn" onclick="showTab('notif')" id="tb-notif">🔔 Notificaciones <span id="notif-badge" style="background:var(--danger);color:#fff;border-radius:10px;font-size:.65rem;padding:2px 6px;margin-left:4px;display:none">0</span></button>
   </div>
 
   <div id="tab-content"><div class="empty">Cargando…</div></div>
@@ -101,7 +102,12 @@ tr:hover td{background:var(--surface2)}
     <div class="form-row"><label>Área</label><input class="field" id="u-area"/></div>
     <div class="row-2">
       <div class="form-row"><label>Rol</label>
-        <select class="field" id="u-rol"><option value="conductor">Conductor</option><option value="admin">Administrador</option></select>
+        <select class="field" id="u-rol">
+          <option value="conductor">Conductor</option>
+          <option value="administrativo">Administrativo</option>
+          <option value="administrativo.conductor">Administrativo.Conductor</option>
+          <option value="admin">Administrador (Admin)</option>
+        </select>
       </div>
       <div class="form-row"><label>Estado</label>
         <select class="field" id="u-estado"><option value="Activo">Activo</option><option value="Inactivo">Inactivo</option></select>
@@ -127,16 +133,21 @@ requireAdmin(async(user,data)=>{loadStats();showTab('users');});
 async function loadStats(){
   const today=new Date();today.setHours(0,0,0,0);
   const ts=firebase.firestore.Timestamp.fromDate(today);
-  const [u,v,ck,t]=await Promise.all([
+  const [u,v,ck,t,notif]=await Promise.all([
     db.collection('users').get(),
     db.collection('vehiculos').get(),
     db.collection('chequeo_operacional').where('fecha_chequeo','>=',ts).get(),
-    db.collection('tareas').where('estado','==','pendiente').get()
+    db.collection('tareas').where('estado','==','pendiente').get(),
+    db.collection('notificaciones').where('leida','==',false).get()
   ]);
   document.getElementById('s-users').textContent=u.size;
   document.getElementById('s-vehicles').textContent=v.size;
   document.getElementById('s-checklists').textContent=ck.size;
   document.getElementById('s-tasks').textContent=t.size;
+  // Badge notificaciones
+  const badge=document.getElementById('notif-badge');
+  if(notif.size>0){badge.textContent=notif.size;badge.style.display='inline';}
+  else{badge.style.display='none';}
 }
 
 let _curTab='users';
@@ -148,6 +159,7 @@ function showTab(tab){
   c.innerHTML='<div class="empty"><span class="spinner"></span></div>';
   if(tab==='users') loadUsers();
   else if(tab==='checklists') loadChecklists();
+  else if(tab==='notif') loadNotificaciones();
   else loadViajes();
 }
 
@@ -203,22 +215,26 @@ async function saveUser(){
 function closeModal(){document.getElementById('modal-user').classList.remove('open');}
 
 async function loadChecklists(){
-  const snap=await db.collection('chequeo_operacional').orderBy('fecha_chequeo','desc').limit(30).get();
+  const snap=await db.collection('chequeo_operacional').get();
   const c=document.getElementById('tab-content');
   if(snap.empty){c.innerHTML='<div class="empty">Sin checklists registrados.</div>';return;}
+  let docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));
+  docs.sort((a,b)=>(b.fecha_chequeo?.toMillis?.()??0)-(a.fecha_chequeo?.toMillis?.()??0));
   c.innerHTML='';
-  snap.forEach(d=>{
-    const r=d.data();
+  docs.forEach(r=>{
     const obs=[
-      r.chequeo_frenos!=='Check'?'Frenos: '+r.chequeo_frenos:'',
-      r.chequeo_neumaticos!=='Check'?'Neumáticos: '+r.chequeo_neumaticos:'',
+      r.chequeo_frenos&&r.chequeo_frenos!=='Check'?'Frenos: '+r.chequeo_frenos:'',
       !r.condicion_fisica?'⚠️ Condición física':'',
       !r.descanso_operador?'⚠️ Descanso insuficiente':'',
+      r.medicamentos_chequeo?'💊 Medicamentos: '+(r.medicamentos_detalle||'Sí'):'',
     ].filter(Boolean).join(' · ')||'Sin observaciones críticas';
     c.innerHTML+=`<div class="ck-item">
       <div class="ck-top">
         <div><div class="ck-plate">🚛 ${r.patente_chequeo||'—'}</div><div class="ck-name">👤 ${r.nombre_operador||'—'}</div></div>
-        <span class="pill p-activo">✅ OK</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn-sm" onclick="downloadChecklist('${r.id}',${JSON.stringify(r).replace(/'/g,'’')})">⬇️ PDF</button>
+          <button class="btn-sm danger" onclick="deleteChecklist('${r.id}')">🗑️</button>
+        </div>
       </div>
       <div class="ck-date">📅 ${formatDate(r.fecha_chequeo)} · ⛽ ${r.nivel_combustible||'—'}</div>
       <div style="font-size:.75rem;color:var(--text2);margin-top:4px">${obs}</div>
@@ -227,12 +243,14 @@ async function loadChecklists(){
 }
 
 async function loadViajes(){
-  const snap=await db.collection('viajes').orderBy('fecha_viaje','desc').limit(30).get();
   const c=document.getElementById('tab-content');
+  const snap=await db.collection('viajes').get();
   if(snap.empty){c.innerHTML='<div class="empty">Sin viajes registrados.</div>';return;}
-  c.innerHTML='<div class="table-wrap"><table><thead><tr><th>Conductor</th><th>Patente</th><th>Distribuidor</th><th>Km</th><th>Clientes</th><th>Estado</th></tr></thead><tbody id="viajes-body"></tbody></table></div>';
-  snap.forEach(d=>{
-    const r=d.data();const km=(r.km_final_viaje||0)-(r.km_inicial||0);
+  let docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));
+  docs.sort((a,b)=>(b.fecha_viaje?.toMillis?.()??0)-(a.fecha_viaje?.toMillis?.()??0));
+  c.innerHTML='<div class="table-wrap"><table><thead><tr><th>Conductor</th><th>Patente</th><th>Distribuidor</th><th>Km</th><th>Clientes</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="viajes-body"></tbody></table></div>';
+  docs.forEach(r=>{
+    const km=(r.km_final_viaje||0)-(r.km_inicial||0);
     document.getElementById('viajes-body').innerHTML+=`<tr>
       <td>${r.nombre_conductor_viaje||'—'}<br><small style="color:var(--text2)">${formatDate(r.fecha_viaje)}</small></td>
       <td><strong>${r.patente||'—'}</strong></td>
@@ -240,9 +258,113 @@ async function loadViajes(){
       <td>${km} km</td>
       <td>${(r.clientes_despacho||[]).length}</td>
       <td><span class="pill ${r.estado_viaje==='Conforme'?'p-activo':'p-inactivo'}">${r.estado_viaje||'—'}</span></td>
+      <td><button class="btn-sm danger" onclick="deleteViaje('${r.id}')">🗑️</button></td>
     </tr>`;
   });
+}
+
+// ── Eliminar registros ──────────────────────────────────────────
+async function deleteUser(id, nombre){
+  if(!confirm(`¿Eliminar usuario "${nombre}"? Esta acción no se puede deshacer.`)) return;
+  try{
+    await db.collection('users').doc(id).delete();
+    showToast('🗑️ Usuario eliminado','success'); loadUsers();
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+async function deleteChecklist(id){
+  if(!confirm('¿Eliminar este checklist? Esta acción no se puede deshacer.')) return;
+  try{
+    await db.collection('chequeo_operacional').doc(id).delete();
+    showToast('🗑️ Checklist eliminado','success'); loadChecklists();
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+async function deleteViaje(id){
+  if(!confirm('¿Eliminar este viaje? Esta acción no se puede deshacer.')) return;
+  try{
+    await db.collection('viajes').doc(id).delete();
+    showToast('🗑️ Viaje eliminado','success'); loadViajes();
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+// ── Descargar Checklist como PDF ────────────────────────────────
+function downloadChecklist(id, r){
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Checklist ${r.patente_chequeo||''} - ${formatDate(r.fecha_chequeo)}</title>
+  <style>
+    body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;color:#111;font-size:13px}
+    h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#555;margin-bottom:20px}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    th{background:#1B4B9B;color:#fff;padding:7px 10px;text-align:left;font-size:11px}
+    td{padding:7px 10px;border-bottom:1px solid #ddd}
+    .ok{color:#059669;font-weight:700}.warn{color:#D97706;font-weight:700}
+    .footer{margin-top:30px;font-size:11px;color:#888;border-top:1px solid #ddd;padding-top:12px}
+    @media print{body{margin:20px}}
+  </style></head><body>
+  <h1>🚛 Checklist Operacional — SILOG SpA</h1>
+  <h2>Vehículo: ${r.patente_chequeo||'—'} &nbsp;|&nbsp; Operador: ${r.nombre_operador||'—'} &nbsp;|&nbsp; Fecha: ${formatDate(r.fecha_chequeo)}</h2>
+  <table>
+    <tr><th colspan="2">DATOS GENERALES</th></tr>
+    <tr><td>Km Registro</td><td>${r.km_registro||'—'}</td></tr>
+    <tr><td>Nivel Combustible</td><td>${r.nivel_combustible||'—'}</td></tr>
+  </table>
+  <table>
+    <tr><th colspan="2">MECÁNICA / SEGURIDAD</th></tr>
+    <tr><td>Frenos</td><td>${r.chequeo_frenos||'—'}</td></tr>
+    <tr><td>Dirección</td><td>${r.chequeo_direccion||'—'}</td></tr>
+    <tr><td>Neumáticos</td><td>${r.chequeo_neumaticos||'—'}</td></tr>
+    <tr><td>Aceite</td><td>${r.chequeo_nivel_aceite||'—'}</td></tr>
+    <tr><td>Refrigerante</td><td>${r.chequeo_nivel_refrigerante||'—'}</td></tr>
+    <tr><td>Extintor</td><td>${r.chequeo_extintor||'—'}</td></tr>
+    <tr><td>Luces</td><td>${r.chequeo_luces||'—'}</td></tr>
+    <tr><td>Cinturón</td><td>${r.chequeo_cinturon||'—'}</td></tr>
+  </table>
+  <table>
+    <tr><th colspan="2">ESTADO OPERADOR</th></tr>
+    <tr><td>Condición Física</td><td class="${r.condicion_fisica?'ok':'warn'}">${r.condicion_fisica?'✅ OK':'⚠️ Comprometida'}</td></tr>
+    <tr><td>Descanso</td><td class="${r.descanso_operador?'ok':'warn'}">${r.descanso_operador?'✅ OK':'⚠️ Insuficiente'}</td></tr>
+    <tr><td>Consumo Medicamentos</td><td>${r.medicamentos_chequeo?'Sí — '+( r.medicamentos_detalle||'Sin detalle'):'No'}</td></tr>
+  </table>
+  ${r.chequeo_observaciones?`<p><strong>Observaciones:</strong> ${r.chequeo_observaciones}</p>`:''}
+  <div class="footer">Generado el ${new Date().toLocaleString('es-CL')} — Silog SpA Ops Manager</div>
+  </body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(),500);
+}
+
+// ── Notificaciones de Checklists ────────────────────────────────
+async function loadNotificaciones(){
+  const c=document.getElementById('tab-content');
+  const snap=await db.collection('notificaciones').where('tipo','==','checklist').get();
+  if(snap.empty){c.innerHTML='<div class="empty">Sin notificaciones.</div>';return;}
+  let docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));
+  docs.sort((a,b)=>(b.fecha?.toMillis?.()??0)-(a.fecha?.toMillis?.()??0));
+  c.innerHTML='';
+  docs.forEach(n=>{
+    c.innerHTML+=`<div class="ck-item" style="${n.leida?'opacity:.6':''}">
+      <div class="ck-top">
+        <div>
+          <div class="ck-plate">${n.leida?'':'🔴 '} ${n.mensaje||'Checklist recibido'}</div>
+          <div class="ck-name">👤 ${n.nombre_operador||n.operador||'—'} · 🚛 ${n.patente||'—'}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          ${!n.leida?`<button class="btn-sm" onclick="marcarLeida('${n.id}')">✅ Leída</button>`:'<span class="pill p-activo" style="font-size:.68rem">Leída</span>'}
+          <button class="btn-sm danger" onclick="deleteNotif('${n.id}')">🗑️</button>
+        </div>
+      </div>
+      <div class="ck-date">📅 ${formatDate(n.fecha)}</div>
+    </div>`;
+  });
+}
+async function marcarLeida(id){
+  await db.collection('notificaciones').doc(id).update({leida:true});
+  loadNotificaciones(); loadStats();
+}
+async function deleteNotif(id){
+  await db.collection('notificaciones').doc(id).delete();
+  loadNotificaciones(); loadStats();
 }
 </script>
 </body>
 </html>
+
