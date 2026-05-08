@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+    function userEmail() {
+      return request.auth.token.email;
+    }
+    // Rol desde custom claim (sincronizado por Cloud Function)
+    function userRol() {
+      return request.auth.token.get('rol', 'conductor').lower();
+    }
+    function isViewer() {
+      return userRol() in ['admin', 'administrativo', 'administrativo.conductor'];
+    }
+    function isAdmin() {
+      return userRol() == 'admin';
+    }
+
+    // ── Usuarios ──────────────────────────────────────────────────
+    // Todos los autenticados pueden leer (necesario para autocompletar patentes, nombres)
+    // Solo admin puede escribir (crear/editar/eliminar usuarios)
+    match /users/{uid} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && isAdmin();
+      allow update: if isAuth() && (isAdmin() || request.auth.uid == uid);
+      allow delete: if isAuth() && isAdmin();
+    }
+
+    // ── Viajes ────────────────────────────────────────────────────
+    match /viajes/{id} {
+      allow create: if isAuth();
+      // Conductor lee solo sus propios viajes; admin/viewer lee todos
+      allow read:   if isAuth() && (isViewer() || resource.data.correo_conductor == userEmail());
+      allow update, delete: if isAuth() && isViewer();
+    }
+
+    // ── Checklists ────────────────────────────────────────────────
+    match /chequeo_operacional/{id} {
+      allow create: if isAuth();
+      allow read:   if isAuth() && (isViewer() || resource.data.operador == userEmail());
+      allow update, delete: if isAuth() && isViewer();
+    }
+
+    // ── Tareas ────────────────────────────────────────────────────
+    match /tareas/{id} {
+      // Conductores pueden crear sus propias tareas (ej. charla del día)
+      // Admins pueden crear tareas para cualquiera
+      allow create: if isAuth() && (isViewer() || request.resource.data.asignado_a == userEmail());
+      allow read:   if isAuth() && (isViewer() || resource.data.asignado_a == userEmail());
+      allow update: if isAuth() && (isViewer() || resource.data.asignado_a == userEmail());
+      allow delete: if isAuth() && isViewer();
+    }
+
+    // ── Charlas leídas ────────────────────────────────────────────
+    match /charlas_leidas/{id} {
+      allow create: if isAuth() && request.resource.data.operador == userEmail();
+      allow read:   if isAuth() && (isViewer() || resource.data.operador == userEmail());
+      allow update: if isAuth() && isViewer();
+      allow delete: if isAuth() && isViewer();
+    }
+
+    // ── Notificaciones ────────────────────────────────────────────
+    match /notificaciones/{id} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAuth() && isViewer();
+    }
+
+    // ── Vehículos ─────────────────────────────────────────────────
+    match /vehiculos/{id} {
+      allow read:  if isAuth();
+      allow write: if isAuth() && isViewer();
+    }
+
+    // ── Inventario ────────────────────────────────────────────────
+    match /inventario/{id} {
+      allow read:  if isAuth();
+      allow write: if isAuth() && isViewer();
+    }
+
+    // ── Correos / Formularios / Planillas ─────────────────────────
+    match /correos/{id}     { allow read, write: if isAuth() && isViewer(); }
+    match /formularios/{id} { allow read, write: if isAuth(); }
+    match /planillas/{id}   { allow read, write: if isAuth() && isViewer(); }
+  }
+}

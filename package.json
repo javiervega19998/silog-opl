@@ -1,0 +1,25 @@
+{
+  "name": "silog-ops",
+  "version": "1.0.0",
+  "description": "",
+  "main": "sw.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://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O@github.com/javiervega19998/silog-opl.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/javiervega19998/silog-opl/issues"
+  },
+  "homepage": "https://github.com/javiervega19998/silog-opl#readme",
+  "dependencies": {
+    "firebase-admin": "^13.9.0",
+    "firebase-functions": "^7.2.5"
+  }
+}

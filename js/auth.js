@@ -1,8 +1,84 @@
 // ══════════════════════════════════════════════
-// AUTH HELPERS — SILOG SpA v2
+// AUTH HELPERS — SILOG SpA v3
 // ══════════════════════════════════════════════
 let currentUser     = null;
 let currentUserData = null;
+
+// ── Sanitización XSS ─────────────────────────────────────────
+// Escapa caracteres peligrosos antes de insertar en innerHTML
+function sanitize(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#39;');
+}
+
+// ── Loading global ────────────────────────────────────────────
+function showLoading(msg = 'Cargando…') {
+  let el = document.getElementById('global-loader');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'global-loader';
+    el.style.cssText = [
+      'position:fixed;inset:0;background:rgba(6,13,31,.85)',
+      'backdrop-filter:blur(6px);z-index:9998',
+      'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px'
+    ].join(';');
+    el.innerHTML = `
+      <div style="width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#F47920;border-radius:50%;animation:spin .7s linear infinite"></div>
+      <span id="loader-msg" style="color:#E8EEF8;font-family:'Inter',sans-serif;font-size:.9rem">${sanitize(msg)}</span>
+    `;
+    document.body.appendChild(el);
+  } else {
+    document.getElementById('loader-msg').textContent = msg;
+    el.style.display = 'flex';
+  }
+}
+function hideLoading() {
+  const el = document.getElementById('global-loader');
+  if (el) el.style.display = 'none';
+}
+
+// ── Banner offline / online ───────────────────────────────────
+(function initOfflineBanner() {
+  function createBanner() {
+    let b = document.getElementById('offline-banner');
+    if (b) return b;
+    b = document.createElement('div');
+    b.id = 'offline-banner';
+    b.style.cssText = [
+      'position:fixed;bottom:0;left:0;right:0;z-index:9997',
+      'background:#D97706;color:#fff;text-align:center',
+      'padding:10px 16px;font-family:Inter,sans-serif;font-size:.83rem',
+      'font-weight:600;display:none;align-items:center;justify-content:center;gap:8px'
+    ].join(';');
+    b.innerHTML = '⚠️ Sin conexión — los datos se guardarán al reconectar';
+    document.body.appendChild(b);
+    return b;
+  }
+  function update() {
+    const b = createBanner();
+    if (!navigator.onLine) {
+      b.style.display = 'flex';
+    } else {
+      if (b.style.display !== 'none') {
+        showToast('✅ Conexión restaurada', 'success');
+      }
+      b.style.display = 'none';
+    }
+  }
+  window.addEventListener('offline', update);
+  window.addEventListener('online',  update);
+  // Chequeo inicial después de que el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', update);
+  } else {
+    update();
+  }
+})();
 
 // ── Normaliza campos Firestore → formato interno ──────────────
 function normalizeUserData(raw) {
@@ -20,21 +96,34 @@ function normalizeUserData(raw) {
 
 // ── Obtiene datos del usuario desde Firestore ─────────────────
 async function getUserData(user) {
-  // 1) Por UID
-  let snap = await db.collection('users').doc(user.uid).get();
-  if (snap.exists) return normalizeUserData(snap.data());
+  try {
+    // 1) Por UID (principal — más rápido)
+    let snap = await db.collection('users').doc(user.uid).get();
+    if (snap.exists) return normalizeUserData(snap.data());
 
-  // 2) Por correo_electronico
-  const q1 = await db.collection('users')
-    .where('correo_electronico', '==', user.email).limit(1).get();
-  if (!q1.empty) return normalizeUserData(q1.docs[0].data());
+    // 2) Por correo_electronico
+    const q1 = await db.collection('users')
+      .where('correo_electronico', '==', user.email).limit(1).get();
+    if (!q1.empty) return normalizeUserData(q1.docs[0].data());
 
-  // 3) Por email (campo inglés)
-  const q2 = await db.collection('users')
-    .where('email', '==', user.email).limit(1).get();
-  if (!q2.empty) return normalizeUserData(q2.docs[0].data());
+    // 3) Por email (campo inglés)
+    const q2 = await db.collection('users')
+      .where('email', '==', user.email).limit(1).get();
+    if (!q2.empty) return normalizeUserData(q2.docs[0].data());
 
-  // 4) Perfil mínimo si no existe documento
+    // 4) Revisar custom claim del token (si ya fue asignado vía Cloud Function)
+    const token = await user.getIdTokenResult();
+    if (token.claims.rol) {
+      return normalizeUserData({
+        nombre: user.displayName || user.email,
+        rol: token.claims.rol,
+        area: token.claims.area || 'Operaciones',
+      });
+    }
+  } catch (e) {
+    console.warn('[auth] getUserData error:', e.message);
+  }
+  // 5) Perfil mínimo si no existe documento
   return normalizeUserData({ nombre: user.displayName || user.email, rol: 'conductor', area: 'Operaciones' });
 }
 
@@ -50,14 +139,12 @@ function requireAuth(callback) {
 
 // ── Helpers de rol ────────────────────────────────────────────
 function isAdminRole(role) {
-  return role === 'admin';
+  return (role || '').toLowerCase() === 'admin';
 }
 function isViewerRole(role) {
-  // admin, administrativo y administrativo.conductor tienen acceso a reportes
   return ['admin','administrativo','administrativo.conductor'].includes((role||'').toLowerCase());
 }
 function isConductorRole(role) {
-  // conductor y administrativo.conductor pueden registrar viajes/checklists
   return ['conductor','administrativo.conductor'].includes((role||'').toLowerCase());
 }
 
@@ -106,13 +193,14 @@ function renderNavbar(userData) {
   const initials    = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   if (avatarEl) avatarEl.textContent = initials;
   if (nameEl)   nameEl.textContent   = displayName;
-  if (roleEl)   roleEl.textContent   = userData.role === 'admin'
+  if (roleEl)   roleEl.textContent   = isViewerRole(userData.role)
     ? `Administrador · ${userData.area}`
     : `Conductor · ${userData.area}`;
 }
 
-// ── Cerrar sesión ─────────────────────────────────────────────
+// ── Cerrar sesión (con confirmación) ─────────────────────────
 function logout() {
+  if (!confirm('¿Cerrar sesión? Asegúrate de haber guardado tu trabajo.')) return;
   auth.signOut().then(() => { window.location.href = '/index.html'; });
 }
 
@@ -122,7 +210,7 @@ function showToast(msg, type = 'info') {
   if (!container) {
     container = document.createElement('div');
     container.id = 'toast-container';
-    container.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;';
+    container.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:320px;';
     document.body.appendChild(container);
   }
   const toast = document.createElement('div');
@@ -130,7 +218,48 @@ function showToast(msg, type = 'info') {
   toast.textContent = msg;
   container.appendChild(toast);
   setTimeout(() => toast.classList.add('show'), 10);
-  setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3200);
+  setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
+}
+
+// ── Exportar a CSV ────────────────────────────────────────────
+function exportCSV(docs, nombreArchivo = 'reporte') {
+  if (!docs || !docs.length) { showToast('Sin datos para exportar', 'info'); return; }
+  // Aplana objetos anidados y excluye campos internos de Firestore
+  const exclude = ['id'];
+  const flatten = (obj, prefix = '') => {
+    return Object.keys(obj).reduce((acc, k) => {
+      if (exclude.includes(k)) return acc;
+      const val = obj[k];
+      const key = prefix ? `${prefix}_${k}` : k;
+      if (val && typeof val === 'object' && val.toDate) {
+        // Timestamp de Firestore
+        acc[key] = formatDate(val);
+      } else if (Array.isArray(val)) {
+        acc[key] = val.join(' | ');
+      } else if (val && typeof val === 'object') {
+        Object.assign(acc, flatten(val, key));
+      } else {
+        acc[key] = val ?? '';
+      }
+      return acc;
+    }, {});
+  };
+  const flat = docs.map(d => flatten(d));
+  const keys = [...new Set(flat.flatMap(Object.keys))];
+  const header = keys.join(';');
+  const rows   = flat.map(r => keys.map(k => {
+    const v = String(r[k] ?? '').replace(/;/g, ',').replace(/\n/g, ' ');
+    return `"${v}"`;
+  }).join(';'));
+  const csv = '\uFEFF' + [header, ...rows].join('\n'); // BOM para Excel
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${nombreArchivo}_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📥 CSV descargado', 'success');
 }
 
 // ── Utilidades de fecha ───────────────────────────────────────

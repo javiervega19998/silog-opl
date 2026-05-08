@@ -87,6 +87,16 @@ tr:hover td{background:var(--surface2)}
     <button class="tab-btn" onclick="showTab('notif')" id="tb-notif">🔔 Notificaciones <span id="notif-badge" style="background:var(--danger);color:#fff;border-radius:10px;font-size:.65rem;padding:2px 6px;margin-left:4px;display:none">0</span></button>
   </div>
 
+  <!-- Toolbar exportar + paginación -->
+  <div id="tab-toolbar" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;gap:8px">
+      <button class="btn-sm" id="btn-csv" onclick="exportCurrentTab()" style="display:none">📥 CSV</button>
+      <button class="btn-sm" id="btn-prev" onclick="changePage(-1)" style="display:none">← Anterior</button>
+      <button class="btn-sm" id="btn-next" onclick="changePage(1)" style="display:none">Siguiente →</button>
+    </div>
+    <span id="page-info" style="font-size:.78rem;color:var(--text2)"></span>
+  </div>
+
   <div id="tab-content"><div class="empty">Cargando…</div></div>
 </div>
 
@@ -150,18 +160,71 @@ async function loadStats(){
   else{badge.style.display='none';}
 }
 
-let _curTab='users';
+// ── Estado de paginación ────────────────────────────────────────
+const PAGE_SIZE = 20;
+let _curTab = 'users';
+let _allDocs = [];  // todos los docs del tab actual (para paginar en JS)
+let _curPage = 0;   // página actual (0-indexed)
+
 function showTab(tab){
-  _curTab=tab;
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  _curTab = tab;
+  _curPage = 0;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tb-'+tab).classList.add('active');
-  const c=document.getElementById('tab-content');
-  c.innerHTML='<div class="empty"><span class="spinner"></span></div>';
-  if(tab==='users') loadUsers();
-  else if(tab==='checklists') loadChecklists();
-  else if(tab==='notif') loadNotificaciones();
-  else loadViajes();
+  const c = document.getElementById('tab-content');
+  c.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  // Mostrar/ocultar botones de toolbar según el tab
+  const hasCsv  = ['checklists','viajes','users'].includes(tab);
+  document.getElementById('btn-csv').style.display  = hasCsv ? 'block' : 'none';
+  document.getElementById('page-info').textContent   = '';
+  document.getElementById('btn-prev').style.display  = 'none';
+  document.getElementById('btn-next').style.display  = 'none';
+  if(tab === 'users')       loadUsers();
+  else if(tab === 'checklists') loadChecklists();
+  else if(tab === 'notif')  loadNotificaciones();
+  else                      loadViajes();
 }
+
+function updatePagination(){
+  const total = _allDocs.length;
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const from  = _curPage * PAGE_SIZE + 1;
+  const to    = Math.min((_curPage+1) * PAGE_SIZE, total);
+  document.getElementById('page-info').textContent = total > 0 ? `${from}-${to} de ${total}` : '';
+  document.getElementById('btn-prev').style.display = _curPage > 0 ? 'block' : 'none';
+  document.getElementById('btn-next').style.display = (_curPage+1) < pages ? 'block' : 'none';
+}
+
+function changePage(dir){
+  const pages = Math.ceil(_allDocs.length / PAGE_SIZE);
+  _curPage = Math.max(0, Math.min(_curPage + dir, pages - 1));
+  renderCurrentPage();
+}
+
+function renderCurrentPage(){
+  const slice = _allDocs.slice(_curPage * PAGE_SIZE, (_curPage+1) * PAGE_SIZE);
+  if(_curTab === 'users')       renderUsersPage(slice);
+  else if(_curTab === 'checklists') renderChecklistsPage(slice);
+  else if(_curTab === 'viajes')     renderViajesPage(slice);
+  updatePagination();
+}
+
+function exportCurrentTab(){
+  const names = { users:'usuarios', checklists:'checklists', viajes:'viajes' };
+  exportCSV(_allDocs, names[_curTab] || _curTab);
+}
+
+// ── Sincronizar Custom Claims (fuerza refresco de tokens) ─────────
+async function syncClaimsAll(){
+  if(!confirm('Esto sincroniza los roles de TODOS los usuarios con Firebase Auth. ¿Continuar?')) return;
+  try{
+    showToast('⏳ Sincronizando claims...', 'info');
+    const fn = firebase.functions().httpsCallable('syncAllClaims');
+    const result = await fn({});
+    showToast(`✅ ${result.data.updated} usuarios sincronizados`, 'success');
+  }catch(e){ showToast('Error: '+e.message, 'error'); }
+}
+
 
 async function loadUsers(){
   const snap=await db.collection('users').get();
@@ -248,24 +311,31 @@ async function loadChecklists(){
 }
 
 async function loadViajes(){
-  const c=document.getElementById('tab-content');
-  const snap=await db.collection('viajes').get();
-  if(snap.empty){c.innerHTML='<div class="empty">Sin viajes registrados.</div>';return;}
-  let docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));
-  docs.sort((a,b)=>(b.fecha_viaje?.toMillis?.()??0)-(a.fecha_viaje?.toMillis?.()??0));
-  c.innerHTML='<div class="table-wrap"><table><thead><tr><th>Conductor</th><th>Patente</th><th>Distribuidor</th><th>Km</th><th>Clientes</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="viajes-body"></tbody></table></div>';
-  docs.forEach(r=>{
-    const km=(r.km_final_viaje||0)-(r.km_inicial||0);
-    document.getElementById('viajes-body').innerHTML+=`<tr>
-      <td>${r.nombre_conductor_viaje||'—'}<br><small style="color:var(--text2)">${formatDate(r.fecha_viaje)}</small></td>
-      <td><strong>${r.patente||'—'}</strong></td>
-      <td>${r.nombre_distribuidor||'—'}</td>
+  const c = document.getElementById('tab-content');
+  const snap = await db.collection('viajes').get();
+  if(snap.empty){ c.innerHTML='<div class="empty">Sin viajes registrados.</div>'; return; }
+  _allDocs = [];
+  snap.forEach(d => _allDocs.push({id:d.id,...d.data()}));
+  _allDocs.sort((a,b) => (b.fecha_viaje?.toMillis?.()??0)-(a.fecha_viaje?.toMillis?.()??0));
+  renderCurrentPage();
+}
+
+function renderViajesPage(docs){
+  const c = document.getElementById('tab-content');
+  let rows = '';
+  docs.forEach(r => {
+    const km = (r.km_final_viaje||0)-(r.km_inicial||0);
+    rows += `<tr>
+      <td>${sanitize(r.nombre_conductor_viaje||'—')}<br><small style="color:var(--text2)">${formatDate(r.fecha_viaje)}</small></td>
+      <td><strong>${sanitize(r.patente||'—')}</strong></td>
+      <td>${sanitize(r.nombre_distribuidor||'—')}</td>
       <td>${km} km</td>
       <td>${(r.clientes_despacho||[]).length}</td>
-      <td><span class="pill ${r.estado_viaje==='Conforme'?'p-activo':'p-inactivo'}">${r.estado_viaje||'—'}</span></td>
+      <td><span class="pill ${r.estado_viaje==='Conforme'?'p-activo':'p-inactivo'}">${sanitize(r.estado_viaje||'—')}</span></td>
       <td><button class="btn-sm danger" onclick="deleteViaje('${r.id}')">🗑️</button></td>
     </tr>`;
   });
+  c.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Conductor</th><th>Patente</th><th>Distribuidor</th><th>Km</th><th>Clientes</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 // ── Eliminar registros ──────────────────────────────────────────
