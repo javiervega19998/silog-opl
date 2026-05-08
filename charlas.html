@@ -10,40 +10,43 @@
 .nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .nav-brand{font-weight:800;font-size:1rem}.nav-brand span{color:var(--accent)}
 .btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
-.main{max-width:900px;margin:0 auto;padding:20px 16px 80px}
-.page-header{margin-bottom:24px}.page-header h2{font-size:1.3rem;font-weight:700}.page-header p{color:var(--text2);font-size:.83rem;margin-top:4px}
-.info-banner{background:rgba(27,75,155,.12);border:1px solid rgba(27,75,155,.3);border-radius:12px;padding:14px 16px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start}
-.info-banner p{font-size:.83rem;line-height:1.5}
-.drive-btn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:700;font-size:.9rem;margin-bottom:24px;transition:.2s}
-.drive-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(27,75,155,.4)}
+.main{max-width:960px;margin:0 auto;padding:20px 16px 80px}
+.page-header{margin-bottom:20px}.page-header h2{font-size:1.3rem;font-weight:700}.page-header p{color:var(--text2);font-size:.83rem;margin-top:4px}
 .section-title{font-size:.8rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
-.charlas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:28px}
-.charla-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;transition:.2s;cursor:pointer}
-.charla-card:hover{border-color:var(--primary);transform:translateY(-2px)}
+/* Charla del día */
+#charla-hoy-banner{display:none;background:linear-gradient(135deg,rgba(244,121,32,.15),rgba(27,75,155,.15));border:1px solid rgba(244,121,32,.4);border-radius:14px;padding:16px 20px;margin-bottom:20px;align-items:center;gap:14px;cursor:pointer}
+/* Grid de tarjetas */
+.charlas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:28px}
+.charla-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;transition:.2s;cursor:pointer;position:relative}
+.charla-card:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 4px 20px rgba(27,75,155,.2)}
 .charla-card.read{border-left:3px solid var(--success)}
-.charla-icon{font-size:2rem;margin-bottom:10px}
-.charla-title{font-size:.9rem;font-weight:600;margin-bottom:4px}
-.charla-date{font-size:.72rem;color:var(--text2)}
-.charla-status{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+.charla-num{font-size:.7rem;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.charla-icon{font-size:1.8rem;margin-bottom:8px}
+.charla-title{font-size:.85rem;font-weight:600;margin-bottom:10px;line-height:1.3}
+.charla-status{display:flex;align-items:center;justify-content:space-between}
 .badge-read{background:rgba(16,185,129,.15);color:#6EE7B7;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600}
 .badge-unread{background:rgba(245,158,11,.15);color:#FCD34D;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600}
-.btn-read{background:var(--success);border:none;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:600;font-family:'Inter',sans-serif}
-/* Charlas ficticias */
-.charlas-data{display:none}
-/* Modal PDF viewer */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+.btn-quick-done{background:transparent;border:1px solid var(--success);color:#6EE7B7;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.72rem;font-family:'Inter',sans-serif}
+/* Progreso */
+.progress-bar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:24px}
+/* Modal PDF */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;padding:12px}
 .modal-overlay.open{display:flex}
-.modal-pdf{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:800px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
-.modal-pdf-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.modal-pdf-header h3{font-size:1rem;font-weight:700}
+.modal-pdf{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:860px;height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-header h3{font-size:.95rem;font-weight:700;flex:1;margin-right:12px}
 .btn-close{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#FCA5A5;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.8rem}
-.modal-pdf-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;text-align:center}
-.pdf-actions{padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:10px}
-.btn-open-drive{flex:1;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:.88rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
-.btn-mark-read{flex:1;padding:11px;border:none;border-radius:10px;background:var(--success);color:#fff;font-size:.88rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+.pdf-frame-wrap{flex:1;background:#1a1a2e;position:relative;overflow:hidden}
+.pdf-frame-wrap iframe{width:100%;height:100%;border:none;display:block}
+.pdf-fallback{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;pointer-events:none}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0}
+.btn-drive{flex:1;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:.88rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+.btn-done{flex:1;padding:11px;border:none;border-radius:10px;background:var(--success);color:#fff;font-size:.88rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+.btn-done:disabled{opacity:.5;cursor:not-allowed}
+/* Toast */
 #toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
 .toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
-.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}.toast-info{border-color:var(--primary);color:#93C5FD}
 </style>
 </head>
 <body>
@@ -54,35 +57,26 @@
 <div class="main">
   <div class="page-header">
     <h2>📚 Charlas de 5 Minutos</h2>
-    <p>Capacitaciones de 5 minutos — léelas y márcalas como completadas</p>
+    <p>Lee el documento PDF y márcalo como completado para que quede registrado.</p>
   </div>
-
-  <div class="info-banner">
-    <span style="font-size:1.5rem">ℹ️</span>
-    <p>Las charlas están alojadas en <strong>Google Drive</strong>. Haz clic en cada tarjeta para abrirla. Una vez leída, márcala como completada para que quede registrado en el sistema.</p>
-  </div>
-
-  <a class="drive-btn" href="https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8" target="_blank">
-    📁 Abrir Carpeta Completa en Google Drive →
-  </a>
 
   <!-- Banner charla del día -->
-  <div id="charla-hoy-banner" style="display:none;background:linear-gradient(135deg,rgba(244,121,32,.15),rgba(27,75,155,.15));border:1px solid rgba(244,121,32,.4);border-radius:14px;padding:16px 20px;margin-bottom:20px;align-items:center;gap:14px;cursor:pointer" onclick="document.getElementById('btn-ver-charla-hoy').click()">
+  <div id="charla-hoy-banner">
     <span id="charla-hoy-icon" style="font-size:2rem">📚</span>
     <div style="flex:1">
-      <div style="font-size:.75rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.5px">📅 Charla del día — Asignada automáticamente</div>
+      <div style="font-size:.75rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.5px">📅 Charla del día</div>
       <div id="charla-hoy-nombre" style="font-size:.95rem;font-weight:600;margin-top:3px">—</div>
     </div>
     <button id="btn-ver-charla-hoy" style="background:var(--accent);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600;font-family:'Inter',sans-serif;white-space:nowrap">Ver ahora →</button>
   </div>
 
-  <p class="section-title">Charlas Disponibles</p>
+  <p class="section-title">Charlas Disponibles (<span id="charlas-count">0</span>)</p>
   <div class="charlas-grid" id="charlas-grid">
-    <div style="color:var(--text2);text-align:center;padding:32px;grid-column:1/-1">Cargando charlas…</div>
+    <div style="color:var(--text2);text-align:center;padding:32px;grid-column:1/-1">Cargando…</div>
   </div>
 
   <p class="section-title">📊 Mi Progreso</p>
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:24px">
+  <div class="progress-bar-wrap">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <span style="font-size:.85rem;font-weight:600">Charlas completadas</span>
       <span id="progress-label" style="font-size:.85rem;color:var(--text2)">0 / 0</span>
@@ -93,21 +87,24 @@
   </div>
 </div>
 
-<!-- Modal -->
+<!-- Modal PDF viewer -->
 <div class="modal-overlay" id="modal-charla">
   <div class="modal-pdf">
-    <div class="modal-pdf-header">
-      <h3 id="modal-charla-title">—</h3>
+    <div class="modal-header">
+      <h3 id="modal-title">—</h3>
       <button class="btn-close" onclick="closeModal()">✕ Cerrar</button>
     </div>
-    <div class="modal-pdf-body">
-      <div style="font-size:4rem">📄</div>
-      <p style="font-size:.95rem;font-weight:600" id="modal-charla-name">—</p>
-      <p style="color:var(--text2);font-size:.83rem">Haz clic en "Abrir en Drive" para leer el PDF completo, luego márcalo como completado.</p>
+    <div class="pdf-frame-wrap">
+      <div class="pdf-fallback" id="pdf-fallback">
+        <div style="font-size:3rem">📄</div>
+        <p style="font-size:.9rem;font-weight:600" id="pdf-fallback-title"></p>
+        <p style="color:var(--text2);font-size:.82rem">Si el PDF no carga, ábrelo directamente con el botón de abajo.</p>
+      </div>
+      <iframe id="pdf-iframe" src="" allow="autoplay" style="position:relative;z-index:2"></iframe>
     </div>
-    <div class="pdf-actions">
-      <button class="btn-open-drive" id="btn-open-drive">📄 Abrir en Drive</button>
-      <button class="btn-mark-read" id="btn-mark-read">✅ Marcar Completada</button>
+    <div class="modal-footer">
+      <button class="btn-drive" id="btn-drive-open">📄 Abrir en Drive</button>
+      <button class="btn-done" id="btn-mark-done">✅ Marcar Completada</button>
     </div>
   </div>
 </div>
@@ -120,41 +117,69 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
 <script>
-// Charlas predefinidas de seguridad — se pueden ampliar/editar
+// ── Convierte link de Drive a URL embebible ────────────────────
+function driveEmbed(url){
+  // Extrae el file ID de cualquier formato de Drive
+  let id = '';
+  const m1 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(m1) id = m1[1];
+  else if(m2) id = m2[1];
+  return id ? `https://drive.google.com/file/d/${id}/preview` : url;
+}
+function driveView(url){
+  let id = '';
+  const m1 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(m1) id = m1[1];
+  else if(m2) id = m2[1];
+  return id ? `https://drive.google.com/file/d/${id}/view` : url;
+}
+
+// ── Catálogo de 31 Charlas ─────────────────────────────────────
 const CHARLAS = [
-  {id:'ch1',titulo:'Uso Correcto del Cinturón de Seguridad',icon:'🔒',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
-  {id:'ch2',titulo:'Manejo Defensivo en Zona Urbana',icon:'🚗',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
-  {id:'ch3',titulo:'Uso del Extintor de Incendios',icon:'🧯',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
-  {id:'ch4',titulo:'Prevención de Fatiga al Volante',icon:'😴',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
-  {id:'ch5',titulo:'Protocolo ante Accidentes de Tránsito',icon:'🚨',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
-  {id:'ch6',titulo:'Carga y Descarga Segura de Mercadería',icon:'📦',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
+  {id:'ch01',n:1,titulo:'Charla de 5 Minutos N°1',icon:'📋',url:'https://drive.google.com/open?id=1oauk9OvdYC4WXDHQcPQxmXl2gdDUH2sU'},
+  {id:'ch02',n:2,titulo:'Charla de 5 Minutos N°2',icon:'📋',url:'https://drive.google.com/open?id=1emxu90YLm8yvcwObEehOgWD6DVf8XewL'},
+  {id:'ch03',n:3,titulo:'Charla de 5 Minutos N°3',icon:'📋',url:'https://drive.google.com/open?id=1TT9j7CC7HbJs5MLoYY1XUomIbHCuy9zP'},
+  {id:'ch04',n:4,titulo:'Charla de 5 Minutos N°4',icon:'📋',url:'https://drive.google.com/open?id=1yM6UTNY_9wyhuDp2Mz7zednU7MMxbYwc'},
+  {id:'ch05',n:5,titulo:'Charla de 5 Minutos N°5',icon:'📋',url:'https://drive.google.com/open?id=1spkySOSbH8_ZKirOPTJ-UuulBJV-Je9n'},
+  {id:'ch06',n:6,titulo:'Charla de 5 Minutos N°6',icon:'📋',url:'https://drive.google.com/open?id=1MRKTbYyGtF-8b7Mvtq_RvrnHu10hcbq2'},
+  {id:'ch07',n:7,titulo:'Charla de 5 Minutos N°7',icon:'📋',url:'https://drive.google.com/open?id=1e657FEtVxzpsnLJks-XQHra6A-EgUywQ'},
+  {id:'ch08',n:8,titulo:'Charla de 5 Minutos N°8',icon:'📋',url:'https://drive.google.com/open?id=1qvRdh2ZT9izY12v85QKpNNXqWdbkTMob'},
+  {id:'ch09',n:9,titulo:'Charla de 5 Minutos N°9',icon:'📋',url:'https://drive.google.com/open?id=1G24rjtjIJWrmICNz_Ll4SESi8-Em75YM'},
+  {id:'ch10',n:10,titulo:'Charla de 5 Minutos N°10',icon:'📋',url:'https://drive.google.com/file/d/16R4pwOoYGMBGNDXVhvfVPzEc28AYa9dP/view'},
+  {id:'ch11',n:11,titulo:'Charla de 5 Minutos N°11',icon:'📋',url:'https://drive.google.com/open?id=1KiXV9m-1H-RjUXHFmPpi8uCSwrgpExsS'},
+  {id:'ch12',n:12,titulo:'Charla de 5 Minutos N°12',icon:'📋',url:'https://drive.google.com/open?id=1ZDaSsAIZiWsXSEtNoKucBn39RyIKCgiE'},
+  {id:'ch13',n:13,titulo:'Charla de 5 Minutos N°13',icon:'📋',url:'https://drive.google.com/open?id=1aZUwCSQ8pDjoNBsHo09ZJVvu4I6sWefL'},
+  {id:'ch14',n:14,titulo:'Charla de 5 Minutos N°14',icon:'📋',url:'https://drive.google.com/open?id=12XBW7pFZRz09NOJT6ZYItvgVKPVAZLsV'},
+  {id:'ch15',n:15,titulo:'Charla de 5 Minutos N°15',icon:'📋',url:'https://drive.google.com/file/d/1XumyTCZHGBDX8qiHiUvDLcbZ7-8Qj5FZ/view'},
+  {id:'ch16',n:16,titulo:'Charla de 5 Minutos N°16',icon:'📋',url:'https://drive.google.com/open?id=16xOpBMf3zQYr1qsHl_t_Buv_08TCgv8-'},
+  {id:'ch17',n:17,titulo:'Charla de 5 Minutos N°17',icon:'📋',url:'https://drive.google.com/file/d/1HDYnBZFZ7jY60xcXBI5163O3zQlNOh7w/view'},
+  {id:'ch18',n:18,titulo:'Charla de 5 Minutos N°18',icon:'📋',url:'https://drive.google.com/file/d/1s_8lTslHjsdjDSn5AxwQ1Oe5rfFET2rP/view'},
+  {id:'ch19',n:19,titulo:'Charla de 5 Minutos N°19',icon:'📋',url:'https://drive.google.com/file/d/1G7AkotlMKTYWGJ8lcC3f16sRewEwBrLI/view'},
+  {id:'ch20',n:20,titulo:'Charla de 5 Minutos N°20',icon:'📋',url:'https://drive.google.com/file/d/1YOE0sFys0obDKo-K1FlfOlqfb2LCw-Yj/view'},
+  {id:'ch21',n:21,titulo:'Charla de 5 Minutos N°21',icon:'📋',url:'https://drive.google.com/open?id=1NHadoqKib6624TKfQZK_qQIJcbo2NzLf'},
+  {id:'ch22',n:22,titulo:'Charla de 5 Minutos N°22',icon:'📋',url:'https://drive.google.com/file/d/1_bskJJEqxzezfwQbAU7aKs4Ec_rgzSPX/view'},
+  {id:'ch23',n:23,titulo:'Charla de 5 Minutos N°23',icon:'📋',url:'https://drive.google.com/open?id=1oMAh_Y9SPo1WOULKg9tWbe5qcDaF5_mB'},
+  {id:'ch24',n:24,titulo:'Charla de 5 Minutos N°24',icon:'📋',url:'https://drive.google.com/open?id=1RyuEhshZ8nKnmUNr8YZD7xwtb8tK6M6Z'},
+  {id:'ch25',n:25,titulo:'Charla de 5 Minutos N°25',icon:'📋',url:'https://drive.google.com/file/d/1Fr-MPERu5Zj21UrMaH4v-F9soVXRKeFe/view'},
+  {id:'ch26',n:26,titulo:'Charla de 5 Minutos N°26',icon:'📋',url:'https://drive.google.com/open?id=1WT7ChBMWnwqez9QLnkgfMBQ6KwR2rjB2'},
+  {id:'ch27',n:27,titulo:'Charla de 5 Minutos N°27',icon:'📋',url:'https://drive.google.com/open?id=1VZiJf4iYPkbxTUuOlRUerKpzr8tqYyVX'},
+  {id:'ch28',n:28,titulo:'Charla de 5 Minutos N°28',icon:'📋',url:'https://drive.google.com/open?id=1Er5Jth080QEZP0I11O-rSCy2oCZD7wJy'},
+  {id:'ch29',n:29,titulo:'Charla de 5 Minutos N°29',icon:'📋',url:'https://drive.google.com/open?id=1OMCJrd4GQJBqGGQTLFGfxZZOaj5_4dc5'},
+  {id:'ch30',n:30,titulo:'Charla de 5 Minutos N°30',icon:'📋',url:'https://drive.google.com/file/d/1qdvk5BTTAI4gMd7_blXkkW1OvaEALvnq/view'},
+  {id:'ch31',n:31,titulo:'Charla de 5 Minutos N°31',icon:'📋',url:'https://drive.google.com/open?id=1qdvk5BTTAI4gMd7_blXkkW1OvaEALvnq'},
 ];
 
-// Feriados legales Chile 2026 y 2027 (formato MM-DD)
+// Feriados Chile 2026-2027 (MM-DD)
 const FERIADOS_CL = new Set([
   '01-01','04-03','04-04','05-01','05-21','06-29','07-16','08-15',
   '09-18','09-19','10-12','10-27','11-01','12-08','12-25',
-  '01-01','03-26','03-27','05-01','05-21','06-29','07-16','08-15',
-  '09-18','09-19','10-11','11-01','12-08','12-25'
+  '03-26','03-27','10-11'
 ]);
-
-function isFeriado(date){
-  const mm=String(date.getMonth()+1).padStart(2,'0');
-  const dd=String(date.getDate()).padStart(2,'0');
-  return FERIADOS_CL.has(`${mm}-${dd}`);
-}
-
-function esLaborable(date){
-  const dow=date.getDay(); // 0=Dom,6=Sab
-  return dow>=1 && dow<=5 && !isFeriado(date);
-}
-
-// Devuelve la charla del día según rotación (índice basado en día del año)
-function getCharlaDelDia(date){
-  const start=new Date(date.getFullYear(),0,1);
-  const dayOfYear=Math.floor((date-start)/86400000);
-  return CHARLAS[dayOfYear % CHARLAS.length];
-}
+function isFeriado(d){ const mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0'); return FERIADOS_CL.has(`${mm}-${dd}`); }
+function esLaborable(d){ const w=d.getDay(); return w>=1&&w<=5&&!isFeriado(d); }
+function getCharlaDelDia(d){ const s=new Date(d.getFullYear(),0,1); return CHARLAS[Math.floor((d-s)/86400000)%CHARLAS.length]; }
 
 let _email='', _readIds=new Set(), _currentCharla=null;
 
@@ -163,38 +188,29 @@ requireAuth(async(user,data)=>{
   const snap=await db.collection('charlas_leidas').where('operador','==',_email).get();
   snap.forEach(d=>_readIds.add(d.data().charla_id));
 
-  // Auto-asignar charla del día si es laborable
+  // Charla del día
   const hoy=new Date();
   if(esLaborable(hoy)){
-    const charlaHoy=getCharlaDelDia(hoy);
-    const fechaStr=hoy.toISOString().split('T')[0]; // YYYY-MM-DD
-    // Verificar si ya existe tarea para hoy
-    const existeSnap=await db.collection('tareas')
-      .where('asignado_a','==',_email)
-      .where('tipo','==','charla')
-      .where('referencia','==',charlaHoy.id+'-'+fechaStr).get();
-    if(existeSnap.empty){
+    const ch=getCharlaDelDia(hoy);
+    const fechaStr=hoy.toISOString().split('T')[0];
+    const existe=await db.collection('tareas').where('asignado_a','==',_email).where('tipo','==','charla').where('referencia','==',ch.id+'-'+fechaStr).get();
+    if(existe.empty){
       await db.collection('tareas').add({
-        titulo:`📚 Charla del día: ${charlaHoy.titulo}`,
-        descripcion:'Lee la charla de seguridad de 5 minutos asignada para hoy.',
-        tipo:'charla',
-        prioridad:'alta',
-        asignado_a:_email,
-        asignado_por:'sistema',
-        estado:'pendiente',
-        referencia:charlaHoy.id+'-'+fechaStr,
-        charla_id:charlaHoy.id,
+        titulo:`📚 Charla del día: ${ch.titulo}`,
+        descripcion:'Lee la charla de 5 minutos asignada para hoy.',
+        tipo:'charla', prioridad:'alta', asignado_a:_email, asignado_por:'sistema',
+        estado:'pendiente', referencia:ch.id+'-'+fechaStr, charla_id:ch.id,
         fecha_creacion:firebase.firestore.FieldValue.serverTimestamp(),
         fecha_vencimiento:firebase.firestore.Timestamp.fromDate(new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate(),23,59,0)),
       });
     }
-    // Destacar la charla del día
-    document.getElementById('charla-hoy-banner').style.display='flex';
-    document.getElementById('charla-hoy-nombre').textContent=charlaHoy.titulo;
-    document.getElementById('charla-hoy-icon').textContent=charlaHoy.icon;
-    document.getElementById('btn-ver-charla-hoy').onclick=()=>openCharla(charlaHoy.id);
+    const banner=document.getElementById('charla-hoy-banner');
+    banner.style.display='flex';
+    document.getElementById('charla-hoy-nombre').textContent=ch.titulo;
+    document.getElementById('btn-ver-charla-hoy').onclick=()=>openCharla(ch.id);
   }
 
+  document.getElementById('charlas-count').textContent=CHARLAS.length;
   renderCharlas();
 });
 
@@ -203,40 +219,52 @@ function renderCharlas(){
   grid.innerHTML='';
   CHARLAS.forEach(c=>{
     const read=_readIds.has(c.id);
-    grid.innerHTML+=`
-    <div class="charla-card ${read?'read':''}" onclick="openCharla('${c.id}')">
+    grid.innerHTML+=`<div class="charla-card ${read?'read':''}" onclick="openCharla('${c.id}')">
+      <div class="charla-num">N° ${c.n}</div>
       <div class="charla-icon">${c.icon}</div>
       <div class="charla-title">${c.titulo}</div>
-      <div class="charla-date">Charla de seguridad 5 min</div>
       <div class="charla-status">
         <span class="${read?'badge-read':'badge-unread'}">${read?'✅ Completada':'⏳ Pendiente'}</span>
-        ${!read?`<button class="btn-read" onclick="event.stopPropagation();markRead('${c.id}')">Completar</button>`:''}
+        ${!read?`<button class="btn-quick-done" onclick="event.stopPropagation();markRead('${c.id}')">✓ Listo</button>`:''}
       </div>
     </div>`;
   });
-  const done=_readIds.size, total=CHARLAS.length;
+  const done=[...CHARLAS].filter(c=>_readIds.has(c.id)).length;
+  const total=CHARLAS.length;
   document.getElementById('progress-label').textContent=`${done} / ${total}`;
-  document.getElementById('progress-bar').style.width=total?`${(done/total)*100}%`:'0%';
+  document.getElementById('progress-bar').style.width=`${(done/total)*100}%`;
 }
 
 function openCharla(id){
   _currentCharla=CHARLAS.find(c=>c.id===id);
   if(!_currentCharla) return;
-  document.getElementById('modal-charla-title').textContent='📚 '+_currentCharla.titulo;
-  document.getElementById('modal-charla-name').textContent=_currentCharla.titulo;
-  document.getElementById('btn-open-drive').onclick=()=>window.open(_currentCharla.driveUrl,'_blank');
-  document.getElementById('btn-mark-read').onclick=()=>markRead(id);
+  document.getElementById('modal-title').textContent=`📚 ${_currentCharla.titulo}`;
+  document.getElementById('pdf-fallback-title').textContent=_currentCharla.titulo;
+  // Cargar iframe con preview embebido
+  const embedUrl=driveEmbed(_currentCharla.url);
+  const viewUrl=driveView(_currentCharla.url);
+  document.getElementById('pdf-iframe').src=embedUrl;
+  document.getElementById('btn-drive-open').onclick=()=>window.open(viewUrl,'_blank');
+  const btnDone=document.getElementById('btn-mark-done');
+  btnDone.disabled=_readIds.has(id);
+  btnDone.textContent=_readIds.has(id)?'✅ Ya Completada':'✅ Marcar Completada';
+  btnDone.onclick=()=>markRead(id);
   document.getElementById('modal-charla').classList.add('open');
 }
-function closeModal(){document.getElementById('modal-charla').classList.remove('open');}
+
+function closeModal(){
+  document.getElementById('modal-charla').classList.remove('open');
+  document.getElementById('pdf-iframe').src=''; // libera recursos
+}
 
 async function markRead(id){
   if(_readIds.has(id)){showToast('Ya marcada como completada','info');closeModal();return;}
+  const c=CHARLAS.find(x=>x.id===id);
   try{
     await db.collection('charlas_leidas').add({
       charla_id:id,
       operador:_email,
-      titulo:CHARLAS.find(c=>c.id===id)?.titulo||'',
+      titulo:c?.titulo||'',
       fecha_lectura:firebase.firestore.FieldValue.serverTimestamp(),
     });
     _readIds.add(id);
@@ -245,6 +273,9 @@ async function markRead(id){
     showToast('✅ Charla marcada como completada','success');
   }catch(e){showToast('Error: '+e.message,'error');}
 }
+
+// Cerrar modal con Escape
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeModal();});
 </script>
 </body>
 </html>
