@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Administración</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B;}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:1rem}.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
+.main{max-width:900px;margin:0 auto;padding:20px 16px 80px}
+.page-header{margin-bottom:20px}.page-header h2{font-size:1.3rem;font-weight:700}
+.tab-row{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tab-btn{padding:9px 18px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:.82rem;font-family:'Inter',sans-serif;transition:.2s}
+.tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.section-title{font-size:.8rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+/* Tabla usuarios */
+.table-wrap{overflow-x:auto;border-radius:14px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:.83rem}
+th{background:var(--surface2);padding:12px 14px;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:600}
+td{padding:12px 14px;border-top:1px solid var(--border)}
+tr:hover td{background:var(--surface2)}
+.pill{padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600}
+.p-admin{background:rgba(244,121,32,.15);color:#FDBA74}
+.p-conductor{background:rgba(37,99,235,.15);color:#93C5FD}
+.p-activo{background:rgba(16,185,129,.15);color:#6EE7B7}
+.p-inactivo{background:rgba(239,68,68,.15);color:#FCA5A5}
+.btn-sm{padding:4px 10px;border-radius:6px;font-size:.72rem;cursor:pointer;font-family:'Inter',sans-serif;border:1px solid var(--border);background:transparent;color:var(--text2)}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm.danger{border-color:rgba(239,68,68,.3);color:#FCA5A5}
+.btn-sm.danger:hover{background:rgba(239,68,68,.1)}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:1rem;font-weight:700;margin-bottom:18px;color:var(--accent)}
+.form-row{margin-bottom:12px}.form-row label{display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;font-family:'Inter',sans-serif;outline:none}
+.field:focus{border-color:var(--primary)}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:10px;margin-top:18px}
+.btn-save{flex:1;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:.88rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+.btn-cancel-m{flex:1;padding:11px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text2);font-size:.88rem;cursor:pointer;font-family:'Inter',sans-serif}
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px}
+@media(min-width:600px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.s-blue::before{background:var(--primary-light,#2563EB)}.s-orange::before{background:var(--accent)}.s-green::before{background:var(--success)}.s-red::before{background:var(--danger)}
+.stat-icon{font-size:1.4rem;margin-bottom:6px}.stat-value{font-size:1.8rem;font-weight:800}.stat-label{font-size:.72rem;color:var(--text2);margin-top:2px}
+/* Checklist list */
+.ck-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px}
+.ck-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.ck-plate{font-weight:700;color:var(--accent);font-size:.9rem}
+.ck-name{font-size:.8rem;color:var(--text2)}
+.ck-date{font-size:.72rem;color:var(--text2);margin-top:4px}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{color:var(--text2);text-align:center;padding:32px;font-size:.85rem}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> SpA · Admin</div>
+  <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+</nav>
+<div class="main">
+  <div class="page-header"><h2>⚙️ Panel de Administración</h2></div>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="admin-stats">
+    <div class="stat-card s-blue"><div class="stat-icon">👥</div><div class="stat-value" id="s-users">—</div><div class="stat-label">Usuarios</div></div>
+    <div class="stat-card s-orange"><div class="stat-icon">🚛</div><div class="stat-value" id="s-vehicles">—</div><div class="stat-label">Vehículos</div></div>
+    <div class="stat-card s-green"><div class="stat-icon">✅</div><div class="stat-value" id="s-checklists">—</div><div class="stat-label">Checklists Hoy</div></div>
+    <div class="stat-card s-red"><div class="stat-icon">📋</div><div class="stat-value" id="s-tasks">—</div><div class="stat-label">Tareas Pendientes</div></div>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('users')" id="tb-users">👥 Usuarios</button>
+    <button class="tab-btn" onclick="showTab('checklists')" id="tb-checklists">✅ Checklists</button>
+    <button class="tab-btn" onclick="showTab('viajes')" id="tb-viajes">📋 Viajes</button>
+  </div>
+
+  <div id="tab-content"><div class="empty">Cargando…</div></div>
+</div>
+
+<!-- Modal editar usuario -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal">
+    <h3>✏️ Editar Usuario</h3>
+    <input type="hidden" id="u-docid"/>
+    <div class="row-2">
+      <div class="form-row"><label>Nombre</label><input class="field" id="u-nombre"/></div>
+      <div class="form-row"><label>RUT</label><input class="field" id="u-rut"/></div>
+    </div>
+    <div class="form-row"><label>Área</label><input class="field" id="u-area"/></div>
+    <div class="row-2">
+      <div class="form-row"><label>Rol</label>
+        <select class="field" id="u-rol"><option value="conductor">Conductor</option><option value="admin">Administrador</option></select>
+      </div>
+      <div class="form-row"><label>Estado</label>
+        <select class="field" id="u-estado"><option value="Activo">Activo</option><option value="Inactivo">Inactivo</option></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel-m" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveUser()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+requireAdmin(async(user,data)=>{loadStats();showTab('users');});
+
+async function loadStats(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const ts=firebase.firestore.Timestamp.fromDate(today);
+  const [u,v,ck,t]=await Promise.all([
+    db.collection('users').get(),
+    db.collection('vehiculos').get(),
+    db.collection('chequeo_operacional').where('fecha_chequeo','>=',ts).get(),
+    db.collection('tareas').where('estado','==','pendiente').get()
+  ]);
+  document.getElementById('s-users').textContent=u.size;
+  document.getElementById('s-vehicles').textContent=v.size;
+  document.getElementById('s-checklists').textContent=ck.size;
+  document.getElementById('s-tasks').textContent=t.size;
+}
+
+let _curTab='users';
+function showTab(tab){
+  _curTab=tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tb-'+tab).classList.add('active');
+  const c=document.getElementById('tab-content');
+  c.innerHTML='<div class="empty"><span class="spinner"></span></div>';
+  if(tab==='users') loadUsers();
+  else if(tab==='checklists') loadChecklists();
+  else loadViajes();
+}
+
+async function loadUsers(){
+  const snap=await db.collection('users').orderBy('nombre').get();
+  const c=document.getElementById('tab-content');
+  if(snap.empty){c.innerHTML='<div class="empty">Sin usuarios registrados.</div>';return;}
+  let rows='';
+  snap.forEach(d=>{
+    const u=d.data();const id=d.id;
+    const rolClass=u.rol==='admin'||u.role==='admin'?'p-admin':'p-conductor';
+    const rolLabel=(u.rol||u.role||'conductor').charAt(0).toUpperCase()+(u.rol||u.role||'conductor').slice(1);
+    const estClass=u.estado==='Activo'?'p-activo':'p-inactivo';
+    rows+=`<tr>
+      <td><strong>${u.nombre||u.name||'—'}</strong><br><small style="color:var(--text2)">${u.correo_electronico||u.email||'—'}</small></td>
+      <td>${u.rut||'—'}</td>
+      <td>${u.area||'—'}</td>
+      <td><span class="pill ${rolClass}">${rolLabel}</span></td>
+      <td><span class="pill ${estClass}">${u.estado||'Activo'}</span></td>
+      <td><button class="btn-sm" onclick="editUser('${id}')">✏️ Editar</button></td>
+    </tr>`;
+  });
+  c.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Nombre / Correo</th><th>RUT</th><th>Área</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+async function editUser(id){
+  const d=await db.collection('users').doc(id).get();
+  if(!d.exists)return;const u=d.data();
+  document.getElementById('u-docid').value=id;
+  document.getElementById('u-nombre').value=u.nombre||u.name||'';
+  document.getElementById('u-rut').value=u.rut||'';
+  document.getElementById('u-area').value=u.area||'';
+  document.getElementById('u-rol').value=(u.rol||u.role||'conductor').toLowerCase();
+  document.getElementById('u-estado').value=u.estado||'Activo';
+  document.getElementById('modal-user').classList.add('open');
+}
+
+async function saveUser(){
+  const id=document.getElementById('u-docid').value;
+  if(!id)return;
+  try{
+    await db.collection('users').doc(id).update({
+      nombre:document.getElementById('u-nombre').value.trim(),
+      rut:document.getElementById('u-rut').value.trim(),
+      area:document.getElementById('u-area').value.trim(),
+      rol:document.getElementById('u-rol').value,
+      estado:document.getElementById('u-estado').value,
+    });
+    closeModal();showToast('✅ Usuario actualizado','success');loadUsers();
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+function closeModal(){document.getElementById('modal-user').classList.remove('open');}
+
+async function loadChecklists(){
+  const snap=await db.collection('chequeo_operacional').orderBy('fecha_chequeo','desc').limit(30).get();
+  const c=document.getElementById('tab-content');
+  if(snap.empty){c.innerHTML='<div class="empty">Sin checklists registrados.</div>';return;}
+  c.innerHTML='';
+  snap.forEach(d=>{
+    const r=d.data();
+    const obs=[
+      r.chequeo_frenos!=='Check'?'Frenos: '+r.chequeo_frenos:'',
+      r.chequeo_neumaticos!=='Check'?'Neumáticos: '+r.chequeo_neumaticos:'',
+      !r.condicion_fisica?'⚠️ Condición física':'',
+      !r.descanso_operador?'⚠️ Descanso insuficiente':'',
+    ].filter(Boolean).join(' · ')||'Sin observaciones críticas';
+    c.innerHTML+=`<div class="ck-item">
+      <div class="ck-top">
+        <div><div class="ck-plate">🚛 ${r.patente_chequeo||'—'}</div><div class="ck-name">👤 ${r.nombre_operador||'—'}</div></div>
+        <span class="pill p-activo">✅ OK</span>
+      </div>
+      <div class="ck-date">📅 ${formatDate(r.fecha_chequeo)} · ⛽ ${r.nivel_combustible||'—'}</div>
+      <div style="font-size:.75rem;color:var(--text2);margin-top:4px">${obs}</div>
+    </div>`;
+  });
+}
+
+async function loadViajes(){
+  const snap=await db.collection('viajes').orderBy('fecha_viaje','desc').limit(30).get();
+  const c=document.getElementById('tab-content');
+  if(snap.empty){c.innerHTML='<div class="empty">Sin viajes registrados.</div>';return;}
+  c.innerHTML='<div class="table-wrap"><table><thead><tr><th>Conductor</th><th>Patente</th><th>Distribuidor</th><th>Km</th><th>Clientes</th><th>Estado</th></tr></thead><tbody id="viajes-body"></tbody></table></div>';
+  snap.forEach(d=>{
+    const r=d.data();const km=(r.km_final_viaje||0)-(r.km_inicial||0);
+    document.getElementById('viajes-body').innerHTML+=`<tr>
+      <td>${r.nombre_conductor_viaje||'—'}<br><small style="color:var(--text2)">${formatDate(r.fecha_viaje)}</small></td>
+      <td><strong>${r.patente||'—'}</strong></td>
+      <td>${r.nombre_distribuidor||'—'}</td>
+      <td>${km} km</td>
+      <td>${(r.clientes_despacho||[]).length}</td>
+      <td><span class="pill ${r.estado_viaje==='Conforme'?'p-activo':'p-inactivo'}">${r.estado_viaje||'—'}</span></td>
+    </tr>`;
+  });
+}
+</script>
+</body>
+</html>

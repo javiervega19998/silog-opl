@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Charlas de Seguridad</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:1rem}.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
+.main{max-width:900px;margin:0 auto;padding:20px 16px 80px}
+.page-header{margin-bottom:24px}.page-header h2{font-size:1.3rem;font-weight:700}.page-header p{color:var(--text2);font-size:.83rem;margin-top:4px}
+.info-banner{background:rgba(27,75,155,.12);border:1px solid rgba(27,75,155,.3);border-radius:12px;padding:14px 16px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start}
+.info-banner p{font-size:.83rem;line-height:1.5}
+.drive-btn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:700;font-size:.9rem;margin-bottom:24px;transition:.2s}
+.drive-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(27,75,155,.4)}
+.section-title{font-size:.8rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+.charlas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:28px}
+.charla-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;transition:.2s;cursor:pointer}
+.charla-card:hover{border-color:var(--primary);transform:translateY(-2px)}
+.charla-card.read{border-left:3px solid var(--success)}
+.charla-icon{font-size:2rem;margin-bottom:10px}
+.charla-title{font-size:.9rem;font-weight:600;margin-bottom:4px}
+.charla-date{font-size:.72rem;color:var(--text2)}
+.charla-status{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+.badge-read{background:rgba(16,185,129,.15);color:#6EE7B7;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600}
+.badge-unread{background:rgba(245,158,11,.15);color:#FCD34D;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600}
+.btn-read{background:var(--success);border:none;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:600;font-family:'Inter',sans-serif}
+/* Charlas ficticias */
+.charlas-data{display:none}
+/* Modal PDF viewer */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal-pdf{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:800px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-pdf-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-pdf-header h3{font-size:1rem;font-weight:700}
+.btn-close{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#FCA5A5;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.8rem}
+.modal-pdf-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;text-align:center}
+.pdf-actions{padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:10px}
+.btn-open-drive{flex:1;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:.88rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+.btn-mark-read{flex:1;padding:11px;border:none;border-radius:10px;background:var(--success);color:#fff;font-size:.88rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> SpA</div>
+  <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+</nav>
+<div class="main">
+  <div class="page-header">
+    <h2>📚 Charlas de Seguridad</h2>
+    <p>Capacitaciones de 5 minutos — léelas y márcalas como completadas</p>
+  </div>
+
+  <div class="info-banner">
+    <span style="font-size:1.5rem">ℹ️</span>
+    <p>Las charlas están alojadas en <strong>Google Drive</strong>. Haz clic en cada tarjeta para abrirla. Una vez leída, márcala como completada para que quede registrado en el sistema.</p>
+  </div>
+
+  <a class="drive-btn" href="https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8" target="_blank">
+    📁 Abrir Carpeta Completa en Google Drive →
+  </a>
+
+  <!-- Banner charla del día -->
+  <div id="charla-hoy-banner" style="display:none;background:linear-gradient(135deg,rgba(244,121,32,.15),rgba(27,75,155,.15));border:1px solid rgba(244,121,32,.4);border-radius:14px;padding:16px 20px;margin-bottom:20px;align-items:center;gap:14px;cursor:pointer" onclick="document.getElementById('btn-ver-charla-hoy').click()">
+    <span id="charla-hoy-icon" style="font-size:2rem">📚</span>
+    <div style="flex:1">
+      <div style="font-size:.75rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.5px">📅 Charla del día — Asignada automáticamente</div>
+      <div id="charla-hoy-nombre" style="font-size:.95rem;font-weight:600;margin-top:3px">—</div>
+    </div>
+    <button id="btn-ver-charla-hoy" style="background:var(--accent);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600;font-family:'Inter',sans-serif;white-space:nowrap">Ver ahora →</button>
+  </div>
+
+  <p class="section-title">Charlas Disponibles</p>
+  <div class="charlas-grid" id="charlas-grid">
+    <div style="color:var(--text2);text-align:center;padding:32px;grid-column:1/-1">Cargando charlas…</div>
+  </div>
+
+  <p class="section-title">📊 Mi Progreso</p>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:.85rem;font-weight:600">Charlas completadas</span>
+      <span id="progress-label" style="font-size:.85rem;color:var(--text2)">0 / 0</span>
+    </div>
+    <div style="height:8px;background:var(--surface2);border-radius:4px;overflow:hidden">
+      <div id="progress-bar" style="height:100%;background:linear-gradient(90deg,var(--success),#34D399);border-radius:4px;width:0%;transition:.5s"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-charla">
+  <div class="modal-pdf">
+    <div class="modal-pdf-header">
+      <h3 id="modal-charla-title">—</h3>
+      <button class="btn-close" onclick="closeModal()">✕ Cerrar</button>
+    </div>
+    <div class="modal-pdf-body">
+      <div style="font-size:4rem">📄</div>
+      <p style="font-size:.95rem;font-weight:600" id="modal-charla-name">—</p>
+      <p style="color:var(--text2);font-size:.83rem">Haz clic en "Abrir en Drive" para leer el PDF completo, luego márcalo como completado.</p>
+    </div>
+    <div class="pdf-actions">
+      <button class="btn-open-drive" id="btn-open-drive">📄 Abrir en Drive</button>
+      <button class="btn-mark-read" id="btn-mark-read">✅ Marcar Completada</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+// Charlas predefinidas de seguridad — se pueden ampliar/editar
+const CHARLAS = [
+  {id:'ch1',titulo:'Uso Correcto del Cinturón de Seguridad',icon:'🔒',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
+  {id:'ch2',titulo:'Manejo Defensivo en Zona Urbana',icon:'🚗',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
+  {id:'ch3',titulo:'Uso del Extintor de Incendios',icon:'🧯',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
+  {id:'ch4',titulo:'Prevención de Fatiga al Volante',icon:'😴',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
+  {id:'ch5',titulo:'Protocolo ante Accidentes de Tránsito',icon:'🚨',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
+  {id:'ch6',titulo:'Carga y Descarga Segura de Mercadería',icon:'📦',driveUrl:'https://drive.google.com/drive/folders/1y_B0hQFnyCIZqww8ZYw6K7yaCiFhWxX8'},
+];
+
+// Feriados legales Chile 2026 y 2027 (formato MM-DD)
+const FERIADOS_CL = new Set([
+  '01-01','04-03','04-04','05-01','05-21','06-29','07-16','08-15',
+  '09-18','09-19','10-12','10-27','11-01','12-08','12-25',
+  '01-01','03-26','03-27','05-01','05-21','06-29','07-16','08-15',
+  '09-18','09-19','10-11','11-01','12-08','12-25'
+]);
+
+function isFeriado(date){
+  const mm=String(date.getMonth()+1).padStart(2,'0');
+  const dd=String(date.getDate()).padStart(2,'0');
+  return FERIADOS_CL.has(`${mm}-${dd}`);
+}
+
+function esLaborable(date){
+  const dow=date.getDay(); // 0=Dom,6=Sab
+  return dow>=1 && dow<=5 && !isFeriado(date);
+}
+
+// Devuelve la charla del día según rotación (índice basado en día del año)
+function getCharlaDelDia(date){
+  const start=new Date(date.getFullYear(),0,1);
+  const dayOfYear=Math.floor((date-start)/86400000);
+  return CHARLAS[dayOfYear % CHARLAS.length];
+}
+
+let _email='', _readIds=new Set(), _currentCharla=null;
+
+requireAuth(async(user,data)=>{
+  _email=data.correo_electronico||data.email||user.email;
+  const snap=await db.collection('charlas_leidas').where('operador','==',_email).get();
+  snap.forEach(d=>_readIds.add(d.data().charla_id));
+
+  // Auto-asignar charla del día si es laborable
+  const hoy=new Date();
+  if(esLaborable(hoy)){
+    const charlaHoy=getCharlaDelDia(hoy);
+    const fechaStr=hoy.toISOString().split('T')[0]; // YYYY-MM-DD
+    // Verificar si ya existe tarea para hoy
+    const existeSnap=await db.collection('tareas')
+      .where('asignado_a','==',_email)
+      .where('tipo','==','charla')
+      .where('referencia','==',charlaHoy.id+'-'+fechaStr).get();
+    if(existeSnap.empty){
+      await db.collection('tareas').add({
+        titulo:`📚 Charla del día: ${charlaHoy.titulo}`,
+        descripcion:'Lee la charla de seguridad de 5 minutos asignada para hoy.',
+        tipo:'charla',
+        prioridad:'alta',
+        asignado_a:_email,
+        asignado_por:'sistema',
+        estado:'pendiente',
+        referencia:charlaHoy.id+'-'+fechaStr,
+        charla_id:charlaHoy.id,
+        fecha_creacion:firebase.firestore.FieldValue.serverTimestamp(),
+        fecha_vencimiento:firebase.firestore.Timestamp.fromDate(new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate(),23,59,0)),
+      });
+    }
+    // Destacar la charla del día
+    document.getElementById('charla-hoy-banner').style.display='flex';
+    document.getElementById('charla-hoy-nombre').textContent=charlaHoy.titulo;
+    document.getElementById('charla-hoy-icon').textContent=charlaHoy.icon;
+    document.getElementById('btn-ver-charla-hoy').onclick=()=>openCharla(charlaHoy.id);
+  }
+
+  renderCharlas();
+});
+
+function renderCharlas(){
+  const grid=document.getElementById('charlas-grid');
+  grid.innerHTML='';
+  CHARLAS.forEach(c=>{
+    const read=_readIds.has(c.id);
+    grid.innerHTML+=`
+    <div class="charla-card ${read?'read':''}" onclick="openCharla('${c.id}')">
+      <div class="charla-icon">${c.icon}</div>
+      <div class="charla-title">${c.titulo}</div>
+      <div class="charla-date">Charla de seguridad 5 min</div>
+      <div class="charla-status">
+        <span class="${read?'badge-read':'badge-unread'}">${read?'✅ Completada':'⏳ Pendiente'}</span>
+        ${!read?`<button class="btn-read" onclick="event.stopPropagation();markRead('${c.id}')">Completar</button>`:''}
+      </div>
+    </div>`;
+  });
+  const done=_readIds.size, total=CHARLAS.length;
+  document.getElementById('progress-label').textContent=`${done} / ${total}`;
+  document.getElementById('progress-bar').style.width=total?`${(done/total)*100}%`:'0%';
+}
+
+function openCharla(id){
+  _currentCharla=CHARLAS.find(c=>c.id===id);
+  if(!_currentCharla) return;
+  document.getElementById('modal-charla-title').textContent='📚 '+_currentCharla.titulo;
+  document.getElementById('modal-charla-name').textContent=_currentCharla.titulo;
+  document.getElementById('btn-open-drive').onclick=()=>window.open(_currentCharla.driveUrl,'_blank');
+  document.getElementById('btn-mark-read').onclick=()=>markRead(id);
+  document.getElementById('modal-charla').classList.add('open');
+}
+function closeModal(){document.getElementById('modal-charla').classList.remove('open');}
+
+async function markRead(id){
+  if(_readIds.has(id)){showToast('Ya marcada como completada','info');closeModal();return;}
+  try{
+    await db.collection('charlas_leidas').add({
+      charla_id:id,
+      operador:_email,
+      titulo:CHARLAS.find(c=>c.id===id)?.titulo||'',
+      fecha_lectura:firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    _readIds.add(id);
+    renderCharlas();
+    closeModal();
+    showToast('✅ Charla marcada como completada','success');
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+</script>
+</body>
+</html>

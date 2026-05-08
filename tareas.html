@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Tareas y Notificaciones</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B;}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:1rem}.nav-brand span{color:var(--accent)}
+.nav-right{display:flex;gap:8px;align-items:center}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
+.btn-new{background:var(--accent);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600;font-family:'Inter',sans-serif;display:none}
+.main{max-width:700px;margin:0 auto;padding:20px 16px 80px}
+.page-header{margin-bottom:20px}.page-header h2{font-size:1.3rem;font-weight:700}.page-header p{color:var(--text2);font-size:.83rem;margin-top:4px}
+.tab-row{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tab-btn{flex:1;min-width:120px;padding:9px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif;transition:.2s;position:relative}
+.tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.tab-badge{position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border-radius:10px;font-size:.65rem;font-weight:700;padding:2px 6px;min-width:18px;text-align:center}
+.task-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;transition:.2s}
+.task-card:hover{border-color:var(--primary)}
+.task-card.priority-alta{border-left:3px solid var(--danger)}
+.task-card.priority-media{border-left:3px solid var(--warning)}
+.task-card.priority-baja{border-left:3px solid var(--success)}
+.task-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.task-title-row{flex:1}
+.task-title-row h4{font-size:.9rem;font-weight:600}
+.task-title-row p{font-size:.78rem;color:var(--text2);margin-top:3px;line-height:1.4}
+.badges-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.badge{padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600}
+.b-pend{background:rgba(245,158,11,.15);color:#FCD34D}
+.b-done{background:rgba(16,185,129,.15);color:#6EE7B7}
+.b-prog{background:rgba(37,99,235,.15);color:#93C5FD}
+.b-alta{background:rgba(239,68,68,.15);color:#FCA5A5}
+.b-media{background:rgba(245,158,11,.15);color:#FCD34D}
+.b-baja{background:rgba(16,185,129,.15);color:#6EE7B7}
+.b-tipo{background:rgba(37,99,235,.15);color:#93C5FD}
+.task-meta{font-size:.72rem;color:var(--text2);display:flex;gap:12px;flex-wrap:wrap}
+.task-actions{display:flex;gap:8px;margin-top:12px}
+.btn-action{flex:1;padding:8px;border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:8px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif;transition:.2s}
+.btn-action:hover{border-color:var(--primary);color:var(--text)}
+.btn-complete{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:#6EE7B7}
+.btn-complete:hover{background:rgba(16,185,129,.2)}
+.empty{color:var(--text2);text-align:center;padding:40px;font-size:.85rem}
+/* Modal nueva tarea */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:1.1rem;font-weight:700;margin-bottom:20px;color:var(--accent)}
+.form-row{margin-bottom:12px}.form-row label{display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;font-family:'Inter',sans-serif;outline:none}
+.field:focus{border-color:var(--primary)}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:10px;margin-top:20px}
+.btn-save{flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:.9rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+.btn-cancel-m{flex:1;padding:12px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text2);font-size:.9rem;cursor:pointer;font-family:'Inter',sans-serif}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> SpA</div>
+  <div class="nav-right">
+    <button class="btn-new" id="btn-new" onclick="openModal()">+ Nueva Tarea</button>
+    <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+  </div>
+</nav>
+<div class="main">
+  <div class="page-header"><h2>🔔 Tareas y Notificaciones</h2><p>Tareas asignadas y su estado de cumplimiento</p></div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('pending')" id="t-pending">⏳ Pendientes<span class="tab-badge" id="cnt-pending" style="display:none">0</span></button>
+    <button class="tab-btn" onclick="showTab('all')" id="t-all">📋 Todas</button>
+    <button class="tab-btn" onclick="showTab('done')" id="t-done">✅ Completadas</button>
+    <button class="tab-btn" id="t-assign" onclick="showTab('assign')" style="display:none">⚙️ Asignar</button>
+  </div>
+  <div id="task-container"><div class="empty">Cargando tareas…</div></div>
+</div>
+
+<!-- Modal nueva tarea (admin) -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal">
+    <h3>📋 Nueva Tarea</h3>
+    <div class="form-row"><label>Título</label><input class="field" id="t-titulo" placeholder="Ej: Completar checklist del vehículo"/></div>
+    <div class="form-row"><label>Descripción</label><textarea class="field" id="t-desc" rows="3" placeholder="Descripción de la tarea…" style="resize:vertical"></textarea></div>
+    <div class="row-2">
+      <div class="form-row"><label>Tipo</label>
+        <select class="field" id="t-tipo">
+          <option value="checklist">✅ Checklist</option>
+          <option value="charla">📚 Charla</option>
+          <option value="viaje">📋 Hoja de Ruta</option>
+          <option value="otro">📌 Otro</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Prioridad</label>
+        <select class="field" id="t-prior">
+          <option value="media">Media</option><option value="alta">Alta</option><option value="baja">Baja</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row"><label>Asignar a (correo del conductor)</label>
+      <input class="field" id="t-para" placeholder="conductor@gmail.com"/>
+    </div>
+    <div class="form-row"><label>Fecha de Vencimiento</label><input class="field" type="date" id="t-fecha"/></div>
+    <div class="modal-actions">
+      <button class="btn-cancel-m" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveTask()">💾 Guardar Tarea</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let _email='', _isAdmin=false, _curTab='pending';
+const iconMap={checklist:'✅',charla:'📚',viaje:'📋',otro:'📌'};
+const tipoLabel={checklist:'Checklist',charla:'Charla',viaje:'Hoja de Ruta',otro:'General'};
+
+requireAuth(async(user,data)=>{
+  _email=data.correo_electronico||data.email||user.email;
+  _isAdmin=data.role==='admin';
+  if(_isAdmin){
+    document.getElementById('btn-new').style.display='block';
+    document.getElementById('t-assign').style.display='block';
+  }
+  loadTasks('pending');
+});
+
+function showTab(tab){
+  _curTab=tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('t-'+tab).classList.add('active');
+  loadTasks(tab);
+}
+
+async function loadTasks(tab){
+  document.getElementById('task-container').innerHTML='<div class="empty">Cargando…</div>';
+  try{
+    let snap;
+    if(tab==='assign'&&_isAdmin){
+      snap=await db.collection('tareas').where('asignado_por','==',_email).get();
+    } else {
+      snap=await db.collection('tareas').where('asignado_a','==',_email).get();
+    }
+    // Filtrar y ordenar en JS para evitar índices compuestos
+    let docs=[];
+    snap.forEach(d=>docs.push({id:d.id,...d.data()}));
+    if(tab==='pending') docs=docs.filter(t=>t.estado==='pendiente');
+    else if(tab==='done') docs=docs.filter(t=>t.estado==='completada');
+    docs.sort((a,b)=>{
+      const ta=a.fecha_creacion?.toMillis?.()||0;
+      const tb=b.fecha_creacion?.toMillis?.()||0;
+      return tb-ta;
+    });
+    const cnt=document.getElementById('cnt-pending');
+    if(tab==='pending'){cnt.textContent=docs.length;cnt.style.display=docs.length>0?'block':'none';}
+    renderTasksArr(docs,tab);
+  }catch(e){
+    document.getElementById('task-container').innerHTML=`<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+function renderTasksArr(docs,tab){
+  const c=document.getElementById('task-container');
+  if(!docs.length){c.innerHTML=`<div class="empty">No hay tareas ${tab==='pending'?'pendientes':tab==='done'?'completadas':''} en este momento.</div>`;return;}
+  c.innerHTML='';
+  docs.forEach(t=>{
+    const id=t.id;
+    const isDone=t.estado==='completada';
+    const vence=t.fecha_vencimiento?formatDate(t.fecha_vencimiento):'Sin vencimiento';
+    const pClass='priority-'+(t.prioridad||'media');
+    c.innerHTML+=`
+    <div class="task-card ${pClass}">
+      <div class="task-top">
+        <div class="task-title-row">
+          <h4>${iconMap[t.tipo]||'📌'} ${t.titulo||'Sin título'}</h4>
+          <p>${t.descripcion||''}</p>
+        </div>
+      </div>
+      <div class="badges-row">
+        <span class="badge ${isDone?'b-done':t.estado==='en_progreso'?'b-prog':'b-pend'}">${isDone?'✅ Completada':t.estado==='en_progreso'?'🔵 En Progreso':'⏳ Pendiente'}</span>
+        <span class="badge ${'b-'+(t.prioridad||'media')}">${t.prioridad||'media'}</span>
+        <span class="badge b-tipo">${tipoLabel[t.tipo]||'General'}</span>
+      </div>
+      <div class="task-meta">
+        <span>📅 Vence: ${vence}</span>
+        ${tab==='assign'?`<span>👤 Para: ${t.asignado_a||'—'}</span>`:''}
+        <span>📌 Creada: ${formatDate(t.fecha_creacion)}</span>
+      </div>
+      ${!isDone&&tab!=='assign'?`<div class="task-actions">
+        <button class="btn-action" onclick="goToModule('${t.tipo}')">→ Ir al módulo</button>
+        <button class="btn-action btn-complete" onclick="completeTask('${id}')">✅ Marcar Completada</button>
+      </div>`:''}
+    </div>`;
+  });
+}
+
+function goToModule(tipo){
+  const urls={checklist:'checklist.html',charla:'charlas.html',viaje:'viajes.html',otro:'dashboard.html'};
+  window.location.href=urls[tipo]||'dashboard.html';
+}
+
+async function completeTask(id){
+  try{
+    await db.collection('tareas').doc(id).update({estado:'completada',fecha_completado:firebase.firestore.FieldValue.serverTimestamp()});
+    showToast('✅ Tarea marcada como completada','success');
+    loadTasks(_curTab);
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+function openModal(){document.getElementById('modal-task').classList.add('open');}
+function closeModal(){document.getElementById('modal-task').classList.remove('open');}
+
+async function saveTask(){
+  const titulo=document.getElementById('t-titulo').value.trim();
+  const para=document.getElementById('t-para').value.trim();
+  if(!titulo||!para){showToast('Completa título y destinatario','error');return;}
+  const fechaVal=document.getElementById('t-fecha').value;
+  try{
+    await db.collection('tareas').add({
+      titulo,
+      descripcion:document.getElementById('t-desc').value.trim(),
+      tipo:document.getElementById('t-tipo').value,
+      prioridad:document.getElementById('t-prior').value,
+      asignado_a:para,
+      asignado_por:_email,
+      estado:'pendiente',
+      fecha_creacion:firebase.firestore.FieldValue.serverTimestamp(),
+      fecha_vencimiento:fechaVal?firebase.firestore.Timestamp.fromDate(new Date(fechaVal+'T12:00:00')):null,
+    });
+    closeModal();showToast('✅ Tarea creada y asignada','success');
+    loadTasks(_curTab);
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+</script>
+</body>
+</html>

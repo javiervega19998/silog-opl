@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Checklist Operacional</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:1rem;display:flex;align-items:center;gap:8px}
+.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
+.main{max-width:700px;margin:0 auto;padding:20px 16px 80px}
+.page-header{margin-bottom:24px}
+.page-header h2{font-size:1.3rem;font-weight:700}
+.page-header p{color:var(--text2);font-size:.83rem;margin-top:4px}
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}
+.section-card h3{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.check-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(max-width:480px){.check-grid{grid-template-columns:1fr}}
+.check-item{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;gap:8px}
+.check-item label{font-size:.82rem;font-weight:500;cursor:pointer;flex:1}
+.toggle{position:relative;width:42px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.slider{position:absolute;inset:0;background:#1E3056;border-radius:24px;cursor:pointer;transition:.3s}
+.slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#8A9DC0;border-radius:50%;transition:.3s}
+.toggle input:checked+.slider{background:var(--success)}
+.toggle input:checked+.slider::before{transform:translateX(18px);background:#fff}
+.select-field,.text-field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;font-family:'Inter',sans-serif;outline:none}
+.select-field:focus,.text-field:focus{border-color:var(--primary)}
+.form-row{margin-bottom:12px}
+.form-row label{display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.btn-submit{width:100%;padding:15px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;margin-top:8px;transition:.2s}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(27,75,155,.4)}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.history-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.history-item .date{font-size:.75rem;color:var(--text2)}
+.history-item .pat{font-size:.85rem;font-weight:600;color:var(--accent)}
+.badge-ok{background:rgba(16,185,129,.15);color:#6EE7B7;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
+.tab-row{display:flex;gap:8px;margin-bottom:20px}
+.tab-btn{flex:1;padding:9px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:.82rem;font-family:'Inter',sans-serif;transition:.2s}
+.tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}
+.toast-success{border-color:var(--success);color:#6EE7B7}
+.toast-error{border-color:var(--danger);color:#FCA5A5}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> SpA</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="user-name" style="font-size:.82rem;color:var(--text2)"></span>
+    <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+  </div>
+</nav>
+<div class="main">
+  <div class="page-header">
+    <h2>✅ Checklist Operacional</h2>
+    <p>Revisión diaria del vehículo antes de iniciar jornada</p>
+  </div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('form')">Nuevo Checklist</button>
+    <button class="tab-btn" onclick="showTab('history')">Historial</button>
+  </div>
+
+  <!-- FORMULARIO -->
+  <div id="tab-form">
+    <div class="section-card">
+      <h3>📋 Datos Generales</h3>
+      <div class="form-row"><label>Patente del Vehículo</label>
+        <input class="text-field" id="patente" placeholder="Ej: KZGZ57" style="text-transform:uppercase"/>
+      </div>
+      <div class="form-row"><label>Nombre del Conductor</label>
+        <input class="text-field" id="nombre_conductor" readonly/>
+      </div>
+      <div class="form-row"><label>Nivel de Combustible</label>
+        <select class="select-field" id="nivel_combustible">
+          <option value="Full">Full</option>
+          <option value="3/4">3/4</option>
+          <option value="Medio">Medio</option>
+          <option value="1/4">1/4</option>
+          <option value="Vacío">Vacío</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3>🔧 Condición Mecánica</h3>
+      <div class="check-grid">
+        <div class="check-item"><label>Frenos</label><select class="select-field" id="chequeo_frenos" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option><option>Falla</option></select></div>
+        <div class="check-item"><label>Dirección</label><select class="select-field" id="chequeo_direccion" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option><option>Falla</option></select></div>
+        <div class="check-item"><label>Suspensión</label><select class="select-field" id="chequeo_suspension" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option><option>Falla</option></select></div>
+        <div class="check-item"><label>Sistema Eléctrico</label><select class="select-field" id="chequeo_sistema_electrico" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option><option>Falla</option></select></div>
+        <div class="check-item"><label>Panel</label><select class="select-field" id="chequeo_panel" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option><option>Falla</option></select></div>
+        <div class="check-item"><label>Bocina</label><select class="select-field" id="chequeo_bocina" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option><option>Falla</option></select></div>
+        <div class="check-item"><label>Sensor Retroceso</label><select class="select-field" id="chequeo_sensor_retroceso" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option><option>Falla</option></select></div>
+        <div class="check-item"><label>Alarmas</label><select class="select-field" id="chequeo_alarmas" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option><option>Falla</option></select></div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3>💧 Niveles de Fluidos</h3>
+      <div class="check-grid">
+        <div class="check-item"><label>Nivel Aceite</label><select class="select-field" id="chequeo_nivel_aceite" style="width:100px;padding:6px"><option>Máximo</option><option>Normal</option><option>Bajo</option><option>Vacío</option></select></div>
+        <div class="check-item"><label>Refrigerante</label><select class="select-field" id="chequeo_nivel_refrigerante" style="width:100px;padding:6px"><option>Máximo</option><option>Normal</option><option>Bajo</option><option>Vacío</option></select></div>
+        <div class="check-item"><label>Liq. Freno</label><select class="select-field" id="chequeo_liquido_freno" style="width:100px;padding:6px"><option>Máximo</option><option>Normal</option><option>Bajo</option><option>Vacío</option></select></div>
+        <div class="check-item"><label>Liq. Dirección</label><select class="select-field" id="chequeo_liquido_direccion" style="width:100px;padding:6px"><option>Máximo</option><option>Normal</option><option>Bajo</option><option>Vacío</option></select></div>
+        <div class="check-item"><label>Agua Parabrisas</label><select class="select-field" id="chequeo_agua_parabrisas" style="width:100px;padding:6px"><option>Máximo</option><option>Normal</option><option>Bajo</option><option>Vacío</option></select></div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3>🚗 Neumáticos y Carrocería</h3>
+      <div class="check-grid">
+        <div class="check-item"><label>Neumáticos</label><select class="select-field" id="chequeo_neumaticos" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option><option>Cambiar</option></select></div>
+        <div class="check-item"><label>Neumático Repuesto</label><select class="select-field" id="chequeo_neumatico_repuesto" style="width:90px;padding:6px"><option>Check</option><option>Sin Repuesto</option></select></div>
+        <div class="check-item"><label>Medidor Presión</label><select class="select-field" id="chequeo_medidor_presion" style="width:90px;padding:6px"><option>Check</option><option>No disponible</option></select></div>
+        <div class="check-item"><label>Carrocería</label><select class="select-field" id="chequeo_carroseria" style="width:90px;padding:6px"><option>Check</option><option>Daño Menor</option><option>Daño Mayor</option></select></div>
+        <div class="check-item"><label>Vidrios</label><select class="select-field" id="chequeo_vidrios" style="width:90px;padding:6px"><option>Check</option><option>Rayado</option><option>Roto</option></select></div>
+        <div class="check-item"><label>Espejos</label><select class="select-field" id="chequeo_espejos" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option></select></div>
+        <div class="check-item"><label>Asientos</label><select class="select-field" id="chequeo_asientos" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option></select></div>
+        <div class="check-item"><label>Aseo</label><select class="select-field" id="chequeo_aseo" style="width:90px;padding:6px"><option>Check</option><option>Requiere Limpieza</option></select></div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3>💡 Luces y Seguridad</h3>
+      <div class="check-grid">
+        <div class="check-item"><label>Luces</label><select class="select-field" id="chequeo_luces" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option><option>Falla</option></select></div>
+        <div class="check-item"><label>Cinturón</label><select class="select-field" id="chequeo_cinturon" style="width:90px;padding:6px"><option>Check</option><option>Revisar</option></select></div>
+        <div class="check-item"><label>Extintor</label>
+          <label class="toggle"><input type="checkbox" id="chequeo_extintor" checked/><span class="slider"></span></label>
+        </div>
+        <div class="check-item"><label>Botiquín</label><select class="select-field" id="chequeo_botiquin" style="width:90px;padding:6px"><option>Check</option><option>Incompleto</option><option>Sin botiquín</option></select></div>
+        <div class="check-item"><label>Conos</label><select class="select-field" id="chequeo_conos" style="width:90px;padding:6px"><option>Check</option><option>Sin conos</option></select></div>
+        <div class="check-item"><label>Tacos</label><select class="select-field" id="chequeo_tacos" style="width:90px;padding:6px"><option>Check</option><option>Sin tacos</option></select></div>
+        <div class="check-item"><label>Linterna</label><select class="select-field" id="chequeo_linterna" style="width:90px;padding:6px"><option>Check</option><option>Sin linterna</option></select></div>
+        <div class="check-item"><label>Herramientas</label><select class="select-field" id="chequeo_herramientas" style="width:90px;padding:6px"><option>Check</option><option>Incompleto</option></select></div>
+        <div class="check-item"><label>Gata</label><select class="select-field" id="chequeo_gata" style="width:90px;padding:6px"><option>Check</option><option>Sin gata</option></select></div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3>📄 Documentación</h3>
+      <div class="check-grid">
+        <div class="check-item"><label>Licencia Conductor</label>
+          <label class="toggle"><input type="checkbox" id="chequeo_licencia_conductor" checked/><span class="slider"></span></label>
+        </div>
+        <div class="check-item"><label>Padrón</label>
+          <label class="toggle"><input type="checkbox" id="chequeo_padron" checked/><span class="slider"></span></label>
+        </div>
+        <div class="check-item"><label>Permiso Circulación</label>
+          <label class="toggle"><input type="checkbox" id="chequeo_permiso_circulacion" checked/><span class="slider"></span></label>
+        </div>
+        <div class="check-item"><label>Revisión Técnica</label>
+          <label class="toggle"><input type="checkbox" id="chequeo_revision_tecnica" checked/><span class="slider"></span></label>
+        </div>
+        <div class="check-item"><label>SOAP</label>
+          <label class="toggle"><input type="checkbox" id="chequeo_soap" checked/><span class="slider"></span></label>
+        </div>
+        <div class="check-item"><label>Medición Gases</label>
+          <label class="toggle"><input type="checkbox" id="chequeo_medicion_gases" checked/><span class="slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3>👤 Condición del Conductor</h3>
+      <div class="check-grid">
+        <div class="check-item"><label>Condición Física OK</label>
+          <label class="toggle"><input type="checkbox" id="condicion_fisica" checked/><span class="slider"></span></label>
+        </div>
+        <div class="check-item"><label>Descanso Adecuado</label>
+          <label class="toggle"><input type="checkbox" id="descanso_operador" checked/><span class="slider"></span></label>
+        </div>
+        <div class="check-item"><label>Salud Mental OK</label>
+          <label class="toggle"><input type="checkbox" id="salud_mental_operador" checked/><span class="slider"></span></label>
+        </div>
+        <div class="check-item"><label>Sin Medicamentos</label>
+          <label class="toggle"><input type="checkbox" id="medicamentos_chequeo"/><span class="slider"></span></label>
+        </div>
+        <div class="check-item"><label>Acepta Responsabilidad</label>
+          <label class="toggle"><input type="checkbox" id="consiente_responsabilidad_chequeo" checked/><span class="slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3>📝 Observaciones</h3>
+      <textarea class="text-field" id="chequeo_observaciones" rows="3" placeholder="Sin Observaciones" style="resize:vertical">Sin Observaciones</textarea>
+    </div>
+
+    <button class="btn-submit" id="btn-submit" onclick="submitChecklist()">✅ Enviar Checklist</button>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div id="tab-history" style="display:none">
+    <div id="history-list"><div style="color:var(--text2);text-align:center;padding:32px">Cargando historial…</div></div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let _userEmail='', _userName='';
+requireAuth(async(user,data)=>{
+  _userEmail = data.correo_electronico||data.email||user.email;
+  _userName  = data.name||data.nombre||'';
+  document.getElementById('user-name').textContent = _userName;
+  document.getElementById('nombre_conductor').value = _userName;
+  // Pre-rellenar patente si tiene vehículo asignado
+  const vs = await db.collection('vehiculos').where('conductor','==',_userEmail).limit(1).get();
+  if(!vs.empty) document.getElementById('patente').value = vs.docs[0].data().patente||'';
+});
+
+function showTab(t){
+  document.getElementById('tab-form').style.display = t==='form'?'block':'none';
+  document.getElementById('tab-history').style.display = t==='history'?'block':'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='form')||(i===1&&t==='history')));
+  if(t==='history') loadHistory();
+}
+
+function g(id){return document.getElementById(id);}
+function gv(id){const el=g(id); return el.type==='checkbox'?el.checked:el.value;}
+
+async function submitChecklist(){
+  const patente=g('patente').value.trim().toUpperCase();
+  if(!patente){showToast('Ingresa la patente del vehículo','error');return;}
+  if(!g('consiente_responsabilidad_chequeo').checked){showToast('Debes aceptar la responsabilidad','error');return;}
+  const btn=g('btn-submit');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Enviando…';
+  try{
+    const data={
+      patente_chequeo:patente,
+      nombre_operador:_userName,
+      operador:_userEmail,
+      fecha_chequeo:firebase.firestore.FieldValue.serverTimestamp(),
+      nivel_combustible:gv('nivel_combustible'),
+      chequeo_frenos:gv('chequeo_frenos'),
+      chequeo_direccion:gv('chequeo_direccion'),
+      chequeo_suspension:gv('chequeo_suspension'),
+      chequeo_sistema_electrico:gv('chequeo_sistema_electrico'),
+      chequeo_panel:gv('chequeo_panel'),
+      chequeo_bocina:gv('chequeo_bocina'),
+      chequeo_sensor_retroceso:gv('chequeo_sensor_retroceso'),
+      chequeo_alarmas:gv('chequeo_alarmas'),
+      chequeo_nivel_aceite:gv('chequeo_nivel_aceite'),
+      chequeo_nivel_refrigerante:gv('chequeo_nivel_refrigerante'),
+      chequeo_liquido_freno:gv('chequeo_liquido_freno'),
+      chequeo_liquido_direccion:gv('chequeo_liquido_direccion'),
+      chequeo_agua_parabrisas:gv('chequeo_agua_parabrisas'),
+      chequeo_neumaticos:gv('chequeo_neumaticos'),
+      chequeo_neumatico_repuesto:gv('chequeo_neumatico_repuesto'),
+      chequeo_medidor_presion:gv('chequeo_medidor_presion'),
+      chequeo_carroseria:gv('chequeo_carroseria'),
+      chequeo_vidrios:gv('chequeo_vidrios'),
+      chequeo_espejos:gv('chequeo_espejos'),
+      chequeo_asientos:gv('chequeo_asientos'),
+      chequeo_aseo:gv('chequeo_aseo'),
+      chequeo_luces:gv('chequeo_luces'),
+      chequeo_cinturon:gv('chequeo_cinturon'),
+      chequeo_extintor:gv('chequeo_extintor'),
+      chequeo_botiquin:gv('chequeo_botiquin'),
+      chequeo_conos:gv('chequeo_conos'),
+      chequeo_tacos:gv('chequeo_tacos'),
+      chequeo_linterna:gv('chequeo_linterna'),
+      chequeo_herramientas:gv('chequeo_herramientas'),
+      chequeo_gata:gv('chequeo_gata'),
+      chequeo_licencia_conductor:gv('chequeo_licencia_conductor'),
+      chequeo_padron:gv('chequeo_padron'),
+      chequeo_permiso_circulacion:gv('chequeo_permiso_circulacion'),
+      chequeo_revision_tecnica:gv('chequeo_revision_tecnica'),
+      chequeo_soap:gv('chequeo_soap'),
+      chequeo_medicion_gases:gv('chequeo_medicion_gases'),
+      condicion_fisica:gv('condicion_fisica'),
+      descanso_operador:gv('descanso_operador'),
+      salud_mental_operador:gv('salud_mental_operador'),
+      medicamentos_chequeo:gv('medicamentos_chequeo'),
+      consiente_responsabilidad_chequeo:gv('consiente_responsabilidad_chequeo'),
+      chequeo_observaciones:gv('chequeo_observaciones'),
+    };
+    await db.collection('chequeo_operacional').add(data);
+    showToast('✅ Checklist enviado correctamente','success');
+    setTimeout(()=>window.location.href='dashboard.html',1500);
+  }catch(e){
+    btn.disabled=false;btn.innerHTML='✅ Enviar Checklist';
+    showToast('Error al guardar: '+e.message,'error');
+  }
+}
+
+async function loadHistory(){
+  const snap=await db.collection('chequeo_operacional')
+    .where('operador','==',_userEmail).get();
+  const list=document.getElementById('history-list');
+  if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin registros anteriores.</div>';return;}
+  let docs=[];snap.forEach(d=>docs.push(d.data()));
+  docs.sort((a,b)=>(b.fecha_chequeo?.toMillis?.()||0)-(a.fecha_chequeo?.toMillis?.()||0));
+  list.innerHTML='';
+  docs.slice(0,20).forEach(r=>{
+    list.innerHTML+=`<div class="history-item">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span class="pat">🚛 ${r.patente_chequeo||'—'}</span>
+        <span class="badge-ok">✅ Completado</span>
+      </div>
+      <div class="date">📅 ${formatDate(r.fecha_chequeo)} · 👤 ${r.nombre_operador||'—'}</div>
+      <div style="font-size:.78rem;color:var(--text2);margin-top:4px">⛽ Combustible: ${r.nivel_combustible||'—'} · 📝 ${r.chequeo_observaciones||'—'}</div>
+    </div>`;
+  });
+}
+</script>
+</body>
+</html>

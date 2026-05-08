@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Hoja de Ruta</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:1rem}.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
+.main{max-width:700px;margin:0 auto;padding:20px 16px 80px}
+.page-header{margin-bottom:24px}.page-header h2{font-size:1.3rem;font-weight:700}.page-header p{color:var(--text2);font-size:.83rem;margin-top:4px}
+.tab-row{display:flex;gap:8px;margin-bottom:20px}
+.tab-btn{flex:1;padding:9px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:.82rem;font-family:'Inter',sans-serif;transition:.2s}
+.tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}
+.section-card h3{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:16px}
+.form-row{margin-bottom:12px}.form-row label{display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;font-family:'Inter',sans-serif;outline:none}
+.field:focus{border-color:var(--primary)}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:10px}
+.toggle{position:relative;width:42px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.slider{position:absolute;inset:0;background:#1E3056;border-radius:24px;cursor:pointer;transition:.3s}
+.slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#8A9DC0;border-radius:50%;transition:.3s}
+.toggle input:checked+.slider{background:var(--success)}
+.toggle input:checked+.slider::before{transform:translateX(18px);background:#fff}
+.client-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.client-item{display:flex;gap:8px;align-items:center}
+.client-item input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.83rem;font-family:'Inter',sans-serif;outline:none}
+.client-item input:focus{border-color:var(--primary)}
+.btn-add{background:transparent;border:1px dashed var(--border);color:var(--text2);padding:8px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif;width:100%;transition:.2s}
+.btn-add:hover{border-color:var(--primary);color:var(--text)}
+.btn-remove{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#FCA5A5;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:.9rem;flex-shrink:0}
+.img-preview{width:100%;max-height:150px;object-fit:contain;border-radius:8px;margin-top:8px;display:none}
+.btn-submit{width:100%;padding:15px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;margin-top:8px;transition:.2s}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(27,75,155,.4)}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.trip-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px}
+.trip-id{font-size:.75rem;color:var(--text2)}.trip-dist{font-size:.95rem;font-weight:700;color:var(--accent);margin:4px 0}
+.trip-meta{font-size:.78rem;color:var(--text2)}
+.badge-conf{background:rgba(16,185,129,.15);color:#6EE7B7;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> SpA</div>
+  <div style="display:flex;gap:8px">
+    <span id="user-name" style="font-size:.82rem;color:var(--text2);align-self:center"></span>
+    <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+  </div>
+</nav>
+<div class="main">
+  <div class="page-header"><h2>📋 Hoja de Ruta</h2><p>Registro de viaje y despacho diario</p></div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('form')">Nuevo Viaje</button>
+    <button class="tab-btn" onclick="showTab('history')">Mis Viajes</button>
+  </div>
+
+  <!-- FORMULARIO -->
+  <div id="tab-form">
+    <div class="section-card">
+      <h3>📋 Datos del Viaje</h3>
+      <div class="form-row"><label>ID Viaje</label><input class="field" id="id_viaje" placeholder="Ej: 07052026" readonly/></div>
+      <div class="form-row"><label>Conductor</label><input class="field" id="nombre_conductor_viaje" readonly/></div>
+      <div class="row-2">
+        <div class="form-row"><label>Patente</label><input class="field" id="patente" placeholder="KZGZ57" style="text-transform:uppercase"/></div>
+        <div class="form-row"><label>Distribuidor</label><input class="field" id="nombre_distribuidor" placeholder="Ej: CINTEC"/></div>
+      </div>
+      <div class="row-2">
+        <div class="form-row"><label>Km Inicial</label><input class="field" type="number" id="km_inicial" placeholder="61000"/></div>
+        <div class="form-row"><label>Km Final</label><input class="field" type="number" id="km_final_viaje" placeholder="61100"/></div>
+      </div>
+      <div class="form-row"><label>Nº de Guías</label><input class="field" type="number" id="cant_guias" placeholder="12"/></div>
+    </div>
+
+    <div class="section-card">
+      <h3>🏢 Clientes de Despacho</h3>
+      <div class="client-list" id="client-list">
+        <div class="client-item"><input placeholder="Nombre del cliente" class="client-input"/><button class="btn-remove" onclick="removeClient(this)">✕</button></div>
+      </div>
+      <button class="btn-add" onclick="addClient()">+ Agregar Cliente</button>
+    </div>
+
+    <div class="section-card">
+      <h3>⛽ Combustible</h3>
+      <div class="toggle-row"><label>¿Se realizó carga de combustible?</label>
+        <label class="toggle"><input type="checkbox" id="carga_combustible_viaje" onchange="toggleFuel(this.checked)"/><span class="slider"></span></label>
+      </div>
+      <div id="fuel-fields" style="display:none">
+        <div class="row-2">
+          <div class="form-row"><label>Litros</label><input class="field" type="number" step="0.1" id="litros_combustible" placeholder="45.5"/></div>
+          <div class="form-row"><label>Monto ($)</label><input class="field" type="number" id="monto_combustible" placeholder="50000"/></div>
+        </div>
+        <div class="form-row"><label>N° Factura / Boleta</label><input class="field" id="factura_combustible" placeholder="Número de documento"/></div>
+        <div class="form-row"><label>Foto Comprobante</label>
+          <input type="file" id="foto_combustible" accept="image/*" class="field" onchange="previewImg(this)"/>
+          <img id="img-preview" class="img-preview"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3>📦 Devoluciones y Estado</h3>
+      <div class="form-row"><label>Detalle de Devoluciones</label>
+        <textarea class="field" id="detalle_devoluciones" rows="2" placeholder="Sin Observaciones" style="resize:vertical">Sin Observaciones</textarea>
+      </div>
+      <div class="form-row"><label>Estado del Viaje</label>
+        <select class="field" id="estado_viaje">
+          <option value="Conforme">Conforme</option>
+          <option value="Con Observaciones">Con Observaciones</option>
+          <option value="Incidente">Incidente</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-submit" id="btn-submit" onclick="submitViaje()">📋 Registrar Hoja de Ruta</button>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div id="tab-history" style="display:none">
+    <div id="history-list"><div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div></div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let _email='', _name='';
+requireAuth(async(user,data)=>{
+  _email=data.correo_electronico||data.email||user.email;
+  _name=data.name||data.nombre||'';
+  document.getElementById('user-name').textContent=_name;
+  document.getElementById('nombre_conductor_viaje').value=_name;
+  const now=new Date();
+  document.getElementById('id_viaje').value=String(now.getDate()).padStart(2,'0')+String(now.getMonth()+1).padStart(2,'0')+now.getFullYear();
+  const vs=await db.collection('vehiculos').where('conductor','==',_email).limit(1).get();
+  if(!vs.empty) document.getElementById('patente').value=vs.docs[0].data().patente||'';
+});
+function showTab(t){
+  document.getElementById('tab-form').style.display=t==='form'?'block':'none';
+  document.getElementById('tab-history').style.display=t==='history'?'block':'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='form')||(i===1&&t==='history')));
+  if(t==='history') loadHistory();
+}
+function addClient(){
+  const li=document.getElementById('client-list');
+  const d=document.createElement('div');d.className='client-item';
+  d.innerHTML='<input placeholder="Nombre del cliente" class="client-input"/><button class="btn-remove" onclick="removeClient(this)">✕</button>';
+  li.appendChild(d);
+}
+function removeClient(btn){btn.parentElement.remove();}
+function toggleFuel(on){document.getElementById('fuel-fields').style.display=on?'block':'none';}
+function previewImg(inp){const img=document.getElementById('img-preview');if(inp.files[0]){img.src=URL.createObjectURL(inp.files[0]);img.style.display='block';}}
+async function submitViaje(){
+  const patente=document.getElementById('patente').value.trim().toUpperCase();
+  const dist=document.getElementById('nombre_distribuidor').value.trim();
+  const kmI=parseFloat(document.getElementById('km_inicial').value);
+  const kmF=parseFloat(document.getElementById('km_final_viaje').value);
+  if(!patente||!dist||!kmI||!kmF){showToast('Completa los campos obligatorios','error');return;}
+  const btn=document.getElementById('btn-submit');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Guardando…';
+  try{
+    const clients=[...document.querySelectorAll('.client-input')].map(i=>i.value.trim()).filter(Boolean);
+    const hasFuel=document.getElementById('carga_combustible_viaje').checked;
+    let fotoUrl='';
+    const fotoFile=document.getElementById('foto_combustible').files[0];
+    if(hasFuel&&fotoFile){
+      const ref=storage.ref(`facturas/${Date.now()}_${fotoFile.name}`);
+      await ref.put(fotoFile);
+      fotoUrl=await ref.getDownloadURL();
+    }
+    const data={
+      id_viaje:document.getElementById('id_viaje').value,
+      correo_conductor:_email,
+      nombre_conductor_viaje:_name,
+      patente,
+      nombre_distribuidor:dist,
+      km_inicial:kmI,
+      km_final_viaje:kmF,
+      cant_guias:parseInt(document.getElementById('cant_guias').value)||0,
+      clientes_despacho:clients,
+      carga_combustible_viaje:hasFuel,
+      litros_combustible:hasFuel?parseFloat(document.getElementById('litros_combustible').value)||0:0,
+      monto_combustible:hasFuel?parseFloat(document.getElementById('monto_combustible').value)||0:0,
+      factura_combustible:hasFuel?document.getElementById('factura_combustible').value:fotoUrl,
+      detalle_devoluciones:document.getElementById('detalle_devoluciones').value,
+      estado_viaje:document.getElementById('estado_viaje').value,
+      fecha_viaje:firebase.firestore.FieldValue.serverTimestamp(),
+    };
+    await db.collection('viajes').add(data);
+    showToast('✅ Hoja de ruta guardada','success');
+    setTimeout(()=>window.location.href='dashboard.html',1500);
+  }catch(e){
+    btn.disabled=false;btn.innerHTML='📋 Registrar Hoja de Ruta';
+    showToast('Error: '+e.message,'error');
+  }
+}
+async function loadHistory(){
+  const snap=await db.collection('viajes').where('correo_conductor','==',_email).orderBy('fecha_viaje','desc').limit(20).get();
+  const list=document.getElementById('history-list');
+  if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';return;}
+  list.innerHTML='';
+  snap.forEach(d=>{
+    const r=d.data();
+    const km=(r.km_final_viaje||0)-(r.km_inicial||0);
+    list.innerHTML+=`<div class="trip-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="trip-id">🚛 ${r.patente||'—'} · ID: ${r.id_viaje||'—'}</div>
+          <div class="trip-dist">${r.nombre_distribuidor||'—'}</div>
+          <div class="trip-meta">📅 ${formatDate(r.fecha_viaje)} · ${km} km recorridos · ${r.cant_guias||0} guías · ${(r.clientes_despacho||[]).length} clientes</div>
+          ${r.carga_combustible_viaje?`<div class="trip-meta" style="margin-top:4px">⛽ ${r.litros_combustible}L · $${(r.monto_combustible||0).toLocaleString('es-CL')}</div>`:''}
+        </div>
+        <span class="badge-conf">${r.estado_viaje||'—'}</span>
+      </div>
+    </div>`;
+  });
+}
+</script>
+</body>
+</html>

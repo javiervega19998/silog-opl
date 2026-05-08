@@ -1,0 +1,16 @@
+{
+  "name": "Silog Ops",
+  "short_name": "Silog",
+  "description": "Gestión Operacional · Transporte Última Milla · Silog SpA",
+  "start_url": "/dashboard.html",
+  "display": "standalone",
+  "background_color": "#060D1F",
+  "theme_color": "#1B4B9B",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "assets/logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "es-CL"
+}

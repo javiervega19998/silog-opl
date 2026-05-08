@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Silog SpA · Planillas Operacionales</title>
+  <link rel="manifest" href="manifest.json"/><link rel="icon" href="assets/logo.png"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"/>
+  <link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+<nav class="navbar">
+  <a href="dashboard.html" class="navbar-logo">
+    <img src="assets/logo.png" alt="Logo" onerror="this.style.display='none'"/>
+    <span class="navbar-brand">SILOG <span>SpA</span></span>
+  </a>
+  <div class="navbar-spacer"></div>
+  <div class="navbar-user">
+    <div><div class="user-name" id="user-name">...</div><div class="user-role" id="user-role">—</div></div>
+    <div class="user-avatar" id="user-avatar">?</div>
+    <button class="btn-logout" onclick="logout()">Salir</button>
+  </div>
+</nav>
+<nav class="bottom-nav">
+  <a href="dashboard.html"   class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Inicio</span></a>
+  <a href="inventario.html"  class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span>Inventario</span></a>
+  <a href="formularios.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/></svg><span>Seguridad</span></a>
+  <a href="planillas.html"   class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg><span>Planillas</span></a>
+  <a href="correos.html"     class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span>Correos</span></a>
+</nav>
+
+<main class="page">
+  <div class="page-title">Planillas Operacionales</div>
+  <div class="page-subtitle">Registro de entregas, rutas y operaciones diarias</div>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px">
+    <button class="tab-btn active" onclick="switchTab('nueva','this')">📝 Nueva Planilla</button>
+    <button class="tab-btn" onclick="switchTab('historial','this')">📁 Historial</button>
+  </div>
+
+  <!-- Nueva Planilla -->
+  <div id="tab-nueva">
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--accent)">📋 Datos Generales</div>
+      <div class="form-group">
+        <label class="form-label">Tipo de Planilla</label>
+        <select class="form-control" id="plan-type" onchange="renderPlanillaFields()">
+          <option value="entrega">Planilla de Entregas</option>
+          <option value="ruta">Cierre de Ruta</option>
+          <option value="devolucion">Devoluciones</option>
+          <option value="inventario_diario">Inventario Diario</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Fecha</label>
+          <input type="date" class="form-control" id="plan-date"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Turno</label>
+          <select class="form-control" id="plan-turn">
+            <option>Mañana (06:00–14:00)</option>
+            <option>Tarde (14:00–22:00)</option>
+            <option>Noche (22:00–06:00)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Patente Vehículo</label>
+        <input type="text" class="form-control" id="plan-vehicle" placeholder="Ej: ABCD12" style="text-transform:uppercase"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zona / Sector de Reparto</label>
+        <input type="text" class="form-control" id="plan-zone" placeholder="Ej: Santiago Centro, Providencia..."/>
+      </div>
+    </div>
+
+    <!-- Dynamic fields per planilla type -->
+    <div id="planilla-fields"></div>
+
+    <div class="form-group">
+      <label class="form-label">Observaciones / Novedades</label>
+      <textarea class="form-control" id="plan-obs" rows="3" placeholder="Eventos importantes durante la jornada..."></textarea>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-outline btn-full" onclick="clearPlanilla()">Limpiar</button>
+      <button class="btn btn-primary btn-full" onclick="savePlanilla()">💾 Guardar Planilla</button>
+    </div>
+  </div>
+
+  <!-- Historial -->
+  <div id="tab-historial" style="display:none">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" class="search-input" id="search-plan" placeholder="Buscar planillas..." oninput="filterPlanillas()"/>
+    </div>
+    <div id="historial-container"><div class="spinner"></div></div>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+// Set today's date as default
+document.getElementById('plan-date').value = new Date().toISOString().split('T')[0];
+
+let allPlanillas = [];
+
+const PLANILLA_FIELDS = {
+  entrega: `
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--accent)">📦 Detalle de Entregas</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">Total Paquetes Asignados</label>
+          <input type="number" class="form-control" id="pf-total" min="0" placeholder="0" oninput="calcEntrega()"/></div>
+        <div class="form-group"><label class="form-label">Paquetes Entregados</label>
+          <input type="number" class="form-control" id="pf-entregados" min="0" placeholder="0" oninput="calcEntrega()"/></div>
+        <div class="form-group"><label class="form-label">Devoluciones</label>
+          <input type="number" class="form-control" id="pf-devueltos" min="0" placeholder="0" oninput="calcEntrega()"/></div>
+        <div class="form-group"><label class="form-label">Incidencias</label>
+          <input type="number" class="form-control" id="pf-incidencias" min="0" placeholder="0"/></div>
+      </div>
+      <div style="background:rgba(27,75,155,0.15);border:1px solid rgba(27,75,155,0.3);border-radius:10px;padding:14px;text-align:center;margin-top:4px">
+        <div style="font-size:0.78rem;color:#8899BB;margin-bottom:4px">Efectividad de Entrega</div>
+        <div id="pf-efectividad" style="font-size:2rem;font-weight:800;color:#10B981">—</div>
+      </div>
+      <div class="form-group" style="margin-top:14px"><label class="form-label">Hora de Inicio Ruta</label>
+        <input type="time" class="form-control" id="pf-hora-ini"/></div>
+      <div class="form-group"><label class="form-label">Hora de Término Ruta</label>
+        <input type="time" class="form-control" id="pf-hora-fin"/></div>
+      <div class="form-group"><label class="form-label">Km Inicial (Odómetro)</label>
+        <input type="number" class="form-control" id="pf-km-ini" placeholder="Ej: 125430"/></div>
+      <div class="form-group"><label class="form-label">Km Final (Odómetro)</label>
+        <input type="number" class="form-control" id="pf-km-fin" placeholder="Ej: 125620"/></div>
+    </div>`,
+  ruta: `
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--accent)">🛣️ Cierre de Ruta</div>
+      <div class="form-group"><label class="form-label">Km Recorridos Total</label>
+        <input type="number" class="form-control" id="pf-km" placeholder="Km totales recorridos"/></div>
+      <div class="form-group"><label class="form-label">Combustible Consumido (lts)</label>
+        <input type="number" class="form-control" id="pf-comb" step="0.1" placeholder="Ej: 45.5"/></div>
+      <div class="form-group"><label class="form-label">Peajes Pagados ($)</label>
+        <input type="number" class="form-control" id="pf-peajes" placeholder="Ej: 5200"/></div>
+      <div class="form-group"><label class="form-label">Incidentes en Ruta</label>
+        <select class="form-control" id="pf-incidente">
+          <option value="ninguno">Ninguno</option>
+          <option>Falla mecánica</option><option>Accidente</option>
+          <option>Robo</option><option>Desvío por corte de vía</option><option>Otro</option>
+        </select></div>
+      <div class="form-group"><label class="form-label">Estado del Vehículo al Cierre</label>
+        <select class="form-control" id="pf-estado-vh">
+          <option>Buen estado</option><option>Daños menores</option><option>Requiere mantención</option><option>No apto para circular</option>
+        </select></div>
+    </div>`,
+  devolucion: `
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--accent)">↩️ Registro de Devoluciones</div>
+      <div id="dev-list"></div>
+      <button type="button" class="btn btn-outline btn-sm" onclick="addDevRow()" style="margin-top:8px">+ Agregar ítem devuelto</button>
+    </div>`,
+  inventario_diario: `
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--accent)">📊 Inventario Diario de Bodega</div>
+      <div class="form-group"><label class="form-label">Bodega / Almacén</label>
+        <input type="text" class="form-control" id="pf-bodega" placeholder="Nombre o código de bodega"/></div>
+      <div class="form-group"><label class="form-label">Total Ítems Recibidos</label>
+        <input type="number" class="form-control" id="pf-recibidos" placeholder="0"/></div>
+      <div class="form-group"><label class="form-label">Total Ítems Despachados</label>
+        <input type="number" class="form-control" id="pf-despachados" placeholder="0"/></div>
+      <div class="form-group"><label class="form-label">Stock Final</label>
+        <input type="number" class="form-control" id="pf-stock" placeholder="0"/></div>
+      <div class="form-group"><label class="form-label">Ítems con Daño</label>
+        <input type="number" class="form-control" id="pf-dano" placeholder="0"/></div>
+    </div>`
+};
+
+function renderPlanillaFields() {
+  const type = document.getElementById('plan-type').value;
+  document.getElementById('planilla-fields').innerHTML = PLANILLA_FIELDS[type] || '';
+  if (type === 'devolucion') addDevRow();
+}
+
+function calcEntrega() {
+  const total = parseInt(document.getElementById('pf-total')?.value) || 0;
+  const entregados = parseInt(document.getElementById('pf-entregados')?.value) || 0;
+  const ef = document.getElementById('pf-efectividad');
+  if (ef && total > 0) {
+    const pct = Math.round((entregados / total) * 100);
+    ef.textContent = pct + '%';
+    ef.style.color = pct >= 90 ? '#10B981' : pct >= 70 ? '#F59E0B' : '#EF4444';
+  }
+}
+
+let devCount = 0;
+function addDevRow() {
+  devCount++;
+  const list = document.getElementById('dev-list');
+  const row = document.createElement('div');
+  row.id = `dev-${devCount}`;
+  row.style.cssText = 'display:grid;grid-template-columns:1fr auto 40px;gap:8px;margin-bottom:10px;align-items:center';
+  row.innerHTML = `
+    <input type="text" class="form-control" placeholder="Código / descripción del ítem" style="font-size:0.85rem"/>
+    <input type="text" class="form-control" placeholder="Motivo" style="font-size:0.85rem;width:130px"/>
+    <button type="button" onclick="this.parentElement.remove()" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:8px;width:36px;height:36px;cursor:pointer;font-size:1rem">✕</button>`;
+  list.appendChild(row);
+}
+
+function switchTab(tab, btn) {
+  document.getElementById('tab-nueva').style.display     = tab === 'nueva' ? 'block' : 'none';
+  document.getElementById('tab-historial').style.display = tab === 'historial' ? 'block' : 'none';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  if (tab === 'historial') loadHistorial();
+  // find which button was clicked - simpler approach
+  document.querySelectorAll('.tab-btn')[tab === 'nueva' ? 0 : 1].classList.add('active');
+}
+
+function clearPlanilla() {
+  document.getElementById('plan-vehicle').value = '';
+  document.getElementById('plan-zone').value    = '';
+  document.getElementById('plan-obs').value     = '';
+  renderPlanillaFields();
+}
+
+async function savePlanilla() {
+  const type = document.getElementById('plan-type').value;
+  const data = {
+    type,
+    date:        document.getElementById('plan-date').value,
+    turn:        document.getElementById('plan-turn').value,
+    vehicle:     document.getElementById('plan-vehicle').value.toUpperCase(),
+    zone:        document.getElementById('plan-zone').value,
+    observations: document.getElementById('plan-obs').value,
+    submittedBy:  currentUser.uid,
+    submitterName: currentUserData?.name || currentUser.email,
+    createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
+  };
+  // Collect type-specific fields
+  const fields = ['pf-total','pf-entregados','pf-devueltos','pf-incidencias','pf-km-ini','pf-km-fin',
+    'pf-hora-ini','pf-hora-fin','pf-km','pf-comb','pf-peajes','pf-incidente','pf-estado-vh',
+    'pf-bodega','pf-recibidos','pf-despachados','pf-stock','pf-dano'];
+  fields.forEach(f => {
+    const el = document.getElementById(f);
+    if (el) data[f] = el.value;
+  });
+
+  const btn = document.querySelector('[onclick="savePlanilla()"]');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    await db.collection('planillas').add(data);
+    showToast('Planilla guardada ✅', 'success');
+    clearPlanilla();
+  } catch(err) { showToast('Error: ' + err.message, 'error'); }
+  btn.disabled = false; btn.textContent = '💾 Guardar Planilla';
+}
+
+async function loadHistorial() {
+  const snap = await db.collection('planillas')
+    .where('submittedBy', '==', currentUser.uid)
+    .orderBy('createdAt', 'desc').limit(30).get();
+  allPlanillas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  filterPlanillas();
+}
+
+function filterPlanillas() {
+  const q = (document.getElementById('search-plan')?.value || '').toLowerCase();
+  const filtered = allPlanillas.filter(p =>
+    (p.vehicle||'').toLowerCase().includes(q) ||
+    (p.zone||'').toLowerCase().includes(q) ||
+    (p.date||'').includes(q) ||
+    (p.type||'').includes(q)
+  );
+  const container = document.getElementById('historial-container');
+  const typeLabels = { entrega:'Planilla de Entregas', ruta:'Cierre de Ruta', devolucion:'Devoluciones', inventario_diario:'Inventario Diario' };
+  const typeIcons  = { entrega:'📦', ruta:'🛣️', devolucion:'↩️', inventario_diario:'📊' };
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div><h3>Sin planillas</h3><p>No has registrado planillas aún.</p></div>`;
+    return;
+  }
+  container.innerHTML = filtered.map(p => `
+    <div class="task-item">
+      <div class="task-icon" style="background:rgba(16,185,129,0.15)">${typeIcons[p.type] || '📋'}</div>
+      <div class="task-content">
+        <div class="task-title">${typeLabels[p.type] || p.type}</div>
+        <div class="task-meta">${p.date || '—'} · ${p.turn || ''} · Veh: ${p.vehicle || '—'} · ${p.zone || ''}</div>
+      </div>
+      <div class="task-right"><span class="badge badge-done">Guardada</span></div>
+    </div>`).join('');
+}
+
+requireAuth((user, userData) => {
+  renderNavbar(userData);
+  renderPlanillaFields();
+});
+</script>
+<style>
+  .tab-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 18px;
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .tab-btn.active { background: var(--bg-surface); border-color: var(--border-primary); color: var(--text); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+</style>
+</body>
+</html>

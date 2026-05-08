@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Dashboard</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--primary-dark:#0E2F6B;--primary-light:#2563EB;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* HEADER */
+.header{position:sticky;top:0;z-index:100;background:linear-gradient(135deg,#0a1628 0%,#1B4B9B 50%,#0a1628 100%);background-size:200% 200%;animation:hdrShift 8s ease infinite;border-bottom:1px solid rgba(255,255,255,.08);padding:0 20px;height:64px;display:flex;align-items:center;justify-content:space-between;}
+@keyframes hdrShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1rem}
+.brand span{color:var(--accent)}
+.nav-right{display:flex;align-items:center;gap:12px}
+.user-info{text-align:right;display:none}
+@media(min-width:480px){.user-info{display:block}}
+.user-info p{font-size:.82rem;font-weight:600}
+.user-info small{color:rgba(255,255,255,.55);font-size:.72rem}
+.avatar-wrap{position:relative;cursor:pointer}
+.avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#f97316);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;border:2px solid rgba(255,255,255,.2);overflow:hidden;transition:.3s;box-shadow:0 0 0 0 rgba(244,121,32,.4)}
+.avatar:hover{box-shadow:0 0 0 6px rgba(244,121,32,.25);transform:scale(1.05)}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.avatar-hint{position:absolute;bottom:-26px;right:0;background:rgba(0,0,0,.8);color:#fff;font-size:.65rem;padding:3px 7px;border-radius:6px;white-space:nowrap;opacity:0;transition:.2s;pointer-events:none}
+.avatar-wrap:hover .avatar-hint{opacity:1}
+.btn-logout{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.7);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif;transition:.2s}
+.btn-logout:hover{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.3);color:#FCA5A5}
+#file-input{display:none}
+
+/* PROFILE PANEL */
+.panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;opacity:0;pointer-events:none;transition:.3s;backdrop-filter:blur(4px)}
+.panel-overlay.open{opacity:1;pointer-events:all}
+.profile-panel{position:fixed;top:0;right:-360px;width:340px;max-width:92vw;height:100vh;background:var(--surface);border-left:1px solid var(--border);z-index:201;transition:.35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
+.profile-panel.open{right:0}
+.panel-header{padding:20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2)}
+.panel-header h3{font-size:1rem;font-weight:700}
+.btn-close-panel{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#FCA5A5;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.8rem}
+.panel-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.panel-avatar-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0 4px}
+.panel-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#f97316);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;overflow:hidden;border:3px solid var(--border)}
+.panel-avatar img{width:100%;height:100%;object-fit:cover}
+.panel-avatar-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:7px 16px;border-radius:8px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif;transition:.2s}
+.panel-avatar-btn:hover{border-color:var(--accent);color:var(--accent)}
+.form-row{display:flex;flex-direction:column;gap:5px}
+.form-row label{font-size:.72rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.form-field{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;font-family:'Inter',sans-serif;outline:none;transition:.2s}
+.form-field:focus{border-color:var(--primary-light)}
+.btn-save-profile{margin-top:6px;padding:13px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.2s}
+.btn-save-profile:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(27,75,155,.4)}
+.btn-save-profile:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* MAIN */
+.main{max-width:960px;margin:0 auto;padding:24px 16px 80px}
+.greeting{margin-bottom:24px;padding:20px 24px;background:linear-gradient(135deg,rgba(27,75,155,.2),rgba(244,121,32,.1));border:1px solid rgba(27,75,155,.3);border-radius:18px}
+.greeting h2{font-size:1.5rem;font-weight:800}
+.greeting p{color:var(--text2);font-size:.85rem;margin-top:4px}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:28px}
+@media(min-width:600px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 16px;position:relative;overflow:hidden;transition:.3s;cursor:default}
+.stat-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.15)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:3px 3px 0 0}
+.stat-blue::before{background:linear-gradient(90deg,var(--primary-light),#60A5FA)}
+.stat-orange::before{background:linear-gradient(90deg,var(--accent),#f97316)}
+.stat-green::before{background:linear-gradient(90deg,var(--success),#34D399)}
+.stat-red::before{background:linear-gradient(90deg,var(--danger),#F87171)}
+.stat-icon{font-size:2rem;margin-bottom:10px;display:block}
+.stat-value{font-size:2rem;font-weight:800;line-height:1}
+.stat-label{font-size:.72rem;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.stat-value{animation:countUp .6s ease-out}
+@keyframes countUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* NOTIF */
+.notif-banner{background:rgba(244,121,32,.08);border:1px solid rgba(244,121,32,.25);border-radius:14px;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:24px;cursor:pointer;transition:.2s}
+.notif-banner:hover{background:rgba(244,121,32,.15)}
+.notif-banner p{font-size:.84rem;flex:1}
+.notif-banner strong{color:var(--accent)}
+
+/* VEHICLE */
+.vehicle-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:28px}
+.vehicle-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.vehicle-plate{font-size:1.2rem;font-weight:800;letter-spacing:3px;color:var(--accent)}
+.v-status{padding:4px 14px;border-radius:20px;font-size:.75rem;font-weight:600}
+.status-ok{background:rgba(16,185,129,.15);color:#6EE7B7}
+.status-warn{background:rgba(245,158,11,.15);color:#FCD34D}
+.vehicle-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.v-field label{font-size:.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.v-field p{font-size:.9rem;font-weight:600;margin-top:3px}
+
+/* ADMIN */
+.admin-section{display:none}
+.fleet-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px}
+@media(min-width:600px){.fleet-grid{grid-template-columns:repeat(4,1fr)}}
+.quick-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:28px}
+.aq-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;cursor:pointer;transition:.2s;text-decoration:none;color:var(--text)}
+.aq-card:hover{border-color:var(--accent);background:var(--surface2);transform:translateY(-2px)}
+.aq-card .icon{font-size:1.6rem}
+.aq-card p{font-size:.8rem;margin-top:6px;font-weight:500}
+
+/* MODULES */
+.section-title{font-size:.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
+.modules-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:28px}
+@media(min-width:600px){.modules-grid{grid-template-columns:repeat(3,1fr)}}
+.module-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 16px;text-decoration:none;color:var(--text);display:flex;flex-direction:column;align-items:flex-start;gap:8px;position:relative;transition:.25s}
+.module-card:hover{border-color:var(--primary);background:var(--surface2);transform:translateY(-3px);box-shadow:0 8px 32px rgba(27,75,155,.2)}
+.module-icon{font-size:2.2rem}
+.module-name{font-size:.9rem;font-weight:700}
+.module-desc{font-size:.75rem;color:var(--text2);line-height:1.4}
+.badge-count{position:absolute;top:10px;right:10px;background:var(--danger);color:#fff;border-radius:20px;font-size:.68rem;font-weight:700;padding:3px 9px;min-width:24px;text-align:center;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}
+.badge-ok{background:var(--success);animation:none}
+
+/* TASKS */
+.task-list{display:flex;flex-direction:column;gap:10px}
+.task-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;transition:.2s;cursor:pointer}
+.task-item:hover{border-color:var(--primary);background:var(--surface2)}
+.task-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-p{background:var(--warning)}.dot-d{background:var(--success)}.dot-i{background:var(--primary-light)}
+.task-info{flex:1;min-width:0}
+.task-title{font-size:.86rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.task-meta{font-size:.72rem;color:var(--text2);margin-top:3px}
+.task-badge{padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600;flex-shrink:0}
+.tb-p{background:rgba(245,158,11,.15);color:#FCD34D}
+.tb-d{background:rgba(16,185,129,.15);color:#6EE7B7}
+.tb-i{background:rgba(37,99,235,.15);color:#93C5FD}
+
+/* TOAST */
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transform:translateY(8px);transition:.3s;max-width:300px}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast-success{border-color:var(--success);color:#6EE7B7}
+.toast-error{border-color:var(--danger);color:#FCA5A5}
+.toast-info{border-color:var(--primary)}
+
+/* UPLOAD PROGRESS */
+.upload-progress{display:none;height:3px;background:var(--border);border-radius:3px;margin-top:6px;overflow:hidden}
+.upload-progress.active{display:block}
+.upload-bar{height:100%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:3px;width:0%;transition:width .3s}
+</style>
+</head>
+<body>
+
+<!-- PANEL OVERLAY -->
+<div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+
+<!-- PROFILE PANEL -->
+<div class="profile-panel" id="profile-panel">
+  <div class="panel-header">
+    <h3>⚙️ Configurar Perfil</h3>
+    <button class="btn-close-panel" onclick="closePanel()">✕ Cerrar</button>
+  </div>
+  <div class="panel-body">
+    <div class="panel-avatar-wrap">
+      <div class="panel-avatar" id="panel-avatar-preview">?</div>
+      <button class="panel-avatar-btn" onclick="document.getElementById('file-input').click()">📷 Cambiar foto</button>
+      <div class="upload-progress" id="upload-progress"><div class="upload-bar" id="upload-bar"></div></div>
+    </div>
+    <div class="form-row"><label>Nombre completo</label><input class="form-field" id="p-nombre" placeholder="Tu nombre"/></div>
+    <div class="form-row"><label>RUT</label><input class="form-field" id="p-rut" placeholder="12.345.678-9"/></div>
+    <div class="form-row"><label>Teléfono</label><input class="form-field" id="p-telefono" placeholder="+56 9 1234 5678" type="tel"/></div>
+    <div class="form-row"><label>Área</label>
+      <select class="form-field" id="p-area">
+        <option>Operaciones</option><option>Logística</option><option>Administración</option><option>Mantenimiento</option>
+      </select>
+    </div>
+    <button class="btn-save-profile" id="btn-save-profile" onclick="saveProfile()">💾 Guardar Perfil</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="brand">
+    <img src="assets/logo.png" alt="Silog" height="32" style="object-fit:contain" onerror="this.style.display='none'"/>
+    <span>SILOG</span> SpA
+  </div>
+  <div class="nav-right">
+    <div class="user-info">
+      <p id="user-name">Cargando…</p>
+      <small id="user-role">—</small>
+    </div>
+    <div class="avatar-wrap" onclick="openAvatarMenu(event)">
+      <div class="avatar" id="user-avatar">?</div>
+      <span class="avatar-hint">Click para perfil</span>
+    </div>
+    <input type="file" id="file-input" accept="image/*" onchange="uploadPhoto(event)"/>
+    <button class="btn-logout" onclick="logout()">Salir</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- GREETING -->
+  <div class="greeting">
+    <h2 id="greeting-text">Buenos días, <span id="greeting-name" style="color:var(--accent)">…</span> 👋</h2>
+    <p id="greeting-date">—</p>
+  </div>
+
+  <!-- NOTIF BANNER -->
+  <div class="notif-banner" id="notif-banner" style="display:none" onclick="window.location.href='tareas.html'">
+    <span style="font-size:1.4rem">🔔</span>
+    <p>Tienes <strong id="notif-count">0</strong> tareas pendientes por completar</p>
+    <span style="color:var(--text2)">→</span>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card stat-orange"><span class="stat-icon">📋</span><div class="stat-value" id="stat-pending">—</div><div class="stat-label">Tareas Pendientes</div></div>
+    <div class="stat-card stat-green"><span class="stat-icon">✅</span><div class="stat-value" id="stat-done">—</div><div class="stat-label">Completadas Hoy</div></div>
+    <div class="stat-card stat-blue"><span class="stat-icon">🚛</span><div class="stat-value" id="stat-vehicle">—</div><div class="stat-label">Estado Vehículo</div></div>
+    <div class="stat-card stat-red"><span class="stat-icon">🛡️</span><div class="stat-value" id="stat-checklist">—</div><div class="stat-label">Último Checklist</div></div>
+  </div>
+
+  <!-- CONDUCTOR: vehículo asignado -->
+  <div id="vehicle-section" style="display:none">
+    <p class="section-title">🚛 Mi Vehículo Asignado</p>
+    <div class="vehicle-card">
+      <div class="vehicle-header">
+        <div>
+          <div class="vehicle-plate" id="v-plate">—</div>
+          <div style="font-size:.8rem;color:var(--text2);margin-top:2px" id="v-model">—</div>
+        </div>
+        <div class="v-status status-ok" id="v-status">—</div>
+      </div>
+      <div class="vehicle-row">
+        <div class="v-field"><label>Kilometraje</label><p id="v-km">—</p></div>
+        <div class="v-field"><label>Capacidad</label><p id="v-cap">—</p></div>
+        <div class="v-field"><label>Próx. Revisión</label><p id="v-rev">—</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN: resumen flota -->
+  <div class="admin-section" id="admin-fleet">
+    <p class="section-title">🚛 Resumen de Flota</p>
+    <div class="fleet-grid">
+      <div class="stat-card stat-blue"><span class="stat-icon">🚛</span><div class="stat-value" id="fleet-total">—</div><div class="stat-label">Vehículos</div></div>
+      <div class="stat-card stat-green"><span class="stat-icon">✅</span><div class="stat-value" id="fleet-ok">—</div><div class="stat-label">Disponibles</div></div>
+      <div class="stat-card stat-orange"><span class="stat-icon">👥</span><div class="stat-value" id="fleet-drivers">—</div><div class="stat-label">Conductores</div></div>
+      <div class="stat-card stat-red"><span class="stat-icon">📋</span><div class="stat-value" id="fleet-tasks">—</div><div class="stat-label">Tareas Pend.</div></div>
+    </div>
+    <p class="section-title">⚡ Acceso Rápido</p>
+    <div class="quick-grid">
+      <a href="admin.html" class="aq-card"><div class="icon">👥</div><p>Gestionar Usuarios</p></a>
+      <a href="tareas.html" class="aq-card"><div class="icon">📋</div><p>Asignar Tareas</p></a>
+      <a href="vehiculos.html" class="aq-card"><div class="icon">🚛</div><p>Gestionar Flota</p></a>
+      <a href="charlas.html" class="aq-card"><div class="icon">📚</div><p>Charlas Seguridad</p></a>
+    </div>
+  </div>
+
+  <!-- MÓDULOS -->
+  <p class="section-title">Módulos</p>
+  <div class="modules-grid">
+    <a href="checklist.html" class="module-card">
+      <div class="module-icon">✅</div>
+      <div class="module-name">Checklist Operacional</div>
+      <div class="module-desc">Revisión diaria del vehículo</div>
+      <div class="badge-count" id="badge-checklist" style="display:none">!</div>
+    </a>
+    <a href="viajes.html" class="module-card">
+      <div class="module-icon">📋</div>
+      <div class="module-name">Hoja de Ruta</div>
+      <div class="module-desc">Registro de viajes y despachos</div>
+    </a>
+    <a href="vehiculos.html" class="module-card">
+      <div class="module-icon">🚛</div>
+      <div class="module-name">Vehículos</div>
+      <div class="module-desc">Estado y datos de flota</div>
+    </a>
+    <a href="charlas.html" class="module-card">
+      <div class="module-icon">📚</div>
+      <div class="module-name">Charlas Seguridad</div>
+      <div class="module-desc">Capacitación 5 minutos</div>
+      <div class="badge-count" id="badge-charla" style="display:none">!</div>
+    </a>
+    <a href="tareas.html" class="module-card">
+      <div class="module-icon">🔔</div>
+      <div class="module-name">Mis Tareas</div>
+      <div class="module-desc">Tareas asignadas y notificaciones</div>
+      <div class="badge-count" id="badge-tareas" style="display:none">0</div>
+    </a>
+    <a href="admin.html" class="module-card" id="module-admin" style="display:none">
+      <div class="module-icon">⚙️</div>
+      <div class="module-name">Administración</div>
+      <div class="module-desc">Panel de control general</div>
+    </a>
+  </div>
+
+  <!-- TAREAS RECIENTES -->
+  <p class="section-title">Tareas Recientes</p>
+  <div class="task-list" id="task-list">
+    <div style="color:var(--text2);text-align:center;padding:28px;font-size:.85rem">Cargando tareas…</div>
+  </div>
+
+</div>
+<div id="toast-container"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+// Saludo
+const _hora=new Date().getHours();
+const _saludo=_hora<12?'Buenos días':_hora<20?'Buenas tardes':'Buenas noches';
+document.getElementById('greeting-text').innerHTML=`${_saludo}, <span id="greeting-name" style="color:var(--accent)">…</span> 👋`;
+document.getElementById('greeting-date').textContent=new Date().toLocaleDateString('es-CL',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+let _uid='', _userDocRef=null, _profilePhotoURL='';
+
+// Abre panel de perfil o menú de avatar
+function openAvatarMenu(e){
+  e.stopPropagation();
+  openPanel();
+}
+function openPanel(){
+  document.getElementById('profile-panel').classList.add('open');
+  document.getElementById('panel-overlay').classList.add('open');
+}
+function closePanel(){
+  document.getElementById('profile-panel').classList.remove('open');
+  document.getElementById('panel-overlay').classList.remove('open');
+}
+
+// Carga datos en el panel de perfil
+function loadPanelData(data){
+  const setVal=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+  setVal('p-nombre', data.nombre||data.name||'');
+  setVal('p-rut', data.rut||'');
+  setVal('p-telefono', data.telefono||data.phone||'');
+  const areaEl=document.getElementById('p-area');
+  if(areaEl&&data.area){
+    const opt=[...areaEl.options].find(o=>o.value===data.area);
+    if(opt)opt.selected=true; else {const no=new Option(data.area,data.area,true,true);areaEl.add(no);}
+  }
+  // Avatar en panel
+  const panelAv=document.getElementById('panel-avatar-preview');
+  if(data.foto_perfil){
+    panelAv.innerHTML=`<img src="${data.foto_perfil}" alt="avatar"/>`;
+    _profilePhotoURL=data.foto_perfil;
+  } else {
+    const name=data.nombre||data.name||'U';
+    panelAv.textContent=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  }
+}
+
+// Actualiza avatar en navbar
+function updateNavAvatar(data){
+  const av=document.getElementById('user-avatar');
+  if(!av)return;
+  if(data.foto_perfil){
+    av.innerHTML=`<img src="${data.foto_perfil}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;
+  } else {
+    const name=data.nombre||data.name||'U';
+    av.textContent=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  }
+}
+
+// Guardar perfil
+async function saveProfile(){
+  const btn=document.getElementById('btn-save-profile');
+  btn.disabled=true;btn.textContent='Guardando…';
+  try{
+    const updates={
+      nombre:document.getElementById('p-nombre').value.trim(),
+      rut:document.getElementById('p-rut').value.trim(),
+      telefono:document.getElementById('p-telefono').value.trim(),
+      area:document.getElementById('p-area').value,
+    };
+    if(_userDocRef) await _userDocRef.update(updates);
+    else await db.collection('users').doc(_uid).set(updates,{merge:true});
+    // Actualizar navbar nombre
+    const nameEl=document.getElementById('user-name');
+    if(nameEl&&updates.nombre) nameEl.textContent=updates.nombre;
+    showToast('✅ Perfil actualizado','success');
+    closePanel();
+  }catch(e){showToast('Error: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='💾 Guardar Perfil';}
+}
+
+// Subir foto de perfil
+async function uploadPhoto(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  if(file.size>5*1024*1024){showToast('La imagen no debe superar 5MB','error');return;}
+  const progress=document.getElementById('upload-progress');
+  const bar=document.getElementById('upload-bar');
+  progress.classList.add('active');
+  bar.style.width='0%';
+  try{
+    const ref=storage.ref(`users/${_uid}/foto_perfil`);
+    const task=ref.put(file);
+    task.on('state_changed',snap=>{
+      bar.style.width=Math.round(snap.bytesTransferred/snap.totalBytes*100)+'%';
+    });
+    await task;
+    const url=await ref.getDownloadURL();
+    // Guardar en Firestore
+    if(_userDocRef) await _userDocRef.update({foto_perfil:url});
+    else await db.collection('users').doc(_uid).set({foto_perfil:url},{merge:true});
+    // Actualizar UI
+    _profilePhotoURL=url;
+    document.getElementById('panel-avatar-preview').innerHTML=`<img src="${url}" alt="avatar"/>`;
+    document.getElementById('user-avatar').innerHTML=`<img src="${url}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;
+    showToast('📷 Foto actualizada','success');
+  }catch(e){showToast('Error subiendo foto: '+e.message,'error');}
+  finally{progress.classList.remove('active');event.target.value='';}
+}
+
+requireAuth(async(user,data)=>{
+  _uid=user.uid;
+  // Buscar referencia del doc en Firestore
+  const byUid=await db.collection('users').doc(user.uid).get();
+  if(byUid.exists) _userDocRef=db.collection('users').doc(user.uid);
+  else {
+    const q=await db.collection('users').where('correo_electronico','==',user.email).limit(1).get();
+    if(!q.empty) _userDocRef=q.docs[0].ref;
+  }
+
+  // Navbar
+  renderNavbar(data);
+  // Nombre en saludo (solo primer nombre)
+  const firstName=(data.nombre||data.name||user.email||'').split(' ')[0];
+  const greetingName=document.getElementById('greeting-name');
+  if(greetingName) greetingName.textContent=firstName;
+  updateNavAvatar(data);
+  loadPanelData(data);
+
+  const email=data.correo_electronico||data.email||user.email;
+  const isAdmin=data.role==='admin';
+  if(isAdmin){
+    document.getElementById('module-admin').style.display='flex';
+    document.querySelectorAll('.admin-section').forEach(el=>el.style.display='block');
+    loadAdminStats();
+  }
+
+  // Tareas pendientes (sin índice compuesto)
+  const tSnap=await db.collection('tareas').where('asignado_a','==',email).get();
+  let pending=0, doneToday=0;
+  const today=new Date();today.setHours(0,0,0,0);
+  tSnap.forEach(d=>{
+    const t=d.data();
+    if(t.estado==='pendiente') pending++;
+    if(t.estado==='completada'&&t.fecha_completado?.toDate?.()>=today) doneToday++;
+  });
+  document.getElementById('stat-pending').textContent=pending;
+  document.getElementById('stat-done').textContent=doneToday;
+  if(pending>0){
+    document.getElementById('notif-banner').style.display='flex';
+    document.getElementById('notif-count').textContent=pending;
+    document.getElementById('badge-tareas').style.display='block';
+    document.getElementById('badge-tareas').textContent=pending;
+  }
+
+  // Vehículo asignado
+  const vSnap=await db.collection('vehiculos').where('conductor','==',email).limit(1).get();
+  if(!vSnap.empty){
+    const v=vSnap.docs[0].data();
+    document.getElementById('vehicle-section').style.display='block';
+    document.getElementById('v-plate').textContent=v.patente||'—';
+    document.getElementById('v-model').textContent=`${v.marca||''} ${v.modelo||''}`.trim();
+    document.getElementById('v-status').textContent=v.estado||'—';
+    document.getElementById('v-status').className='v-status '+(v.estado==='Disponible'?'status-ok':'status-warn');
+    document.getElementById('v-km').textContent=v.kilometraje?v.kilometraje.toLocaleString('es-CL')+' km':'—';
+    document.getElementById('v-cap').textContent=v.capacidad_kg?v.capacidad_kg.toLocaleString('es-CL')+' kg':'—';
+    document.getElementById('v-rev').textContent=v.proxima_revision?v.proxima_revision.toLocaleString('es-CL')+' km':'—';
+    document.getElementById('stat-vehicle').textContent=v.estado||'—';
+  } else {
+    document.getElementById('stat-vehicle').textContent='N/A';
+  }
+
+  // Último checklist (sin orderBy para evitar índices)
+  const ckAll=await db.collection('chequeo_operacional').where('operador','==',email).get();
+  if(!ckAll.empty){
+    let docs=[];ckAll.forEach(d=>docs.push(d.data()));
+    docs.sort((a,b)=>(b.fecha_chequeo?.toMillis?.()??0)-(a.fecha_chequeo?.toMillis?.()??0));
+    const ck=docs[0];
+    const dias=Math.floor((Date.now()-ck.fecha_chequeo.toDate())/86400000);
+    document.getElementById('stat-checklist').textContent=dias===0?'Hoy':`Hace ${dias}d`;
+    if(dias>0){document.getElementById('badge-checklist').style.display='block';}
+  } else {
+    document.getElementById('stat-checklist').textContent='Pendiente';
+    document.getElementById('badge-checklist').style.display='block';
+  }
+
+  // Charla del día pendiente
+  const hoy=new Date();
+  const dow=hoy.getDay();
+  if(dow>=1&&dow<=5){
+    const charlaLeida=await db.collection('charlas_leidas').where('operador','==',email).get();
+    const hoyStr=hoy.toISOString().split('T')[0];
+    const start=new Date(hoy.getFullYear(),0,1);
+    const dayOfYear=Math.floor((hoy-start)/86400000);
+    const charlas=['ch1','ch2','ch3','ch4','ch5','ch6'];
+    const charlaHoyId=charlas[dayOfYear%charlas.length];
+    const yaLeyo=([...charlaLeida.docs]).some(d=>d.data().charla_id===charlaHoyId);
+    if(!yaLeyo){document.getElementById('badge-charla').style.display='block';}
+  }
+
+  loadRecentTasks(email);
+});
+
+async function loadRecentTasks(email){
+  const snap=await db.collection('tareas').where('asignado_a','==',email).get();
+  let docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));
+  docs.sort((a,b)=>(b.fecha_creacion?.toMillis?.()??0)-(a.fecha_creacion?.toMillis?.()??0));
+  docs=docs.slice(0,8);
+  const list=document.getElementById('task-list');
+  if(!docs.length){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:28px;font-size:.85rem">No hay tareas asignadas.</div>';return;}
+  const iconMap={checklist:'✅',charla:'📚',viaje:'📋',otro:'📌'};
+  list.innerHTML='';
+  docs.forEach(t=>{
+    const dotCls=t.estado==='completada'?'dot-d':t.estado==='en_progreso'?'dot-i':'dot-p';
+    const badgeCls=t.estado==='completada'?'tb-d':t.estado==='en_progreso'?'tb-i':'tb-p';
+    const badgeLbl=t.estado==='completada'?'✅ Completada':t.estado==='en_progreso'?'🔵 En Progreso':'⏳ Pendiente';
+    const href=t.tipo==='checklist'?'checklist':t.tipo==='charla'?'charlas':t.tipo==='viaje'?'viajes':'tareas';
+    list.innerHTML+=`<div class="task-item" onclick="window.location.href='${href}.html'">
+      <div class="task-dot ${dotCls}"></div>
+      <div class="task-info">
+        <div class="task-title">${iconMap[t.tipo]||'📌'} ${t.titulo||'Sin título'}</div>
+        <div class="task-meta">${t.fecha_vencimiento?'Vence: '+formatDate(t.fecha_vencimiento):formatDate(t.fecha_creacion)}</div>
+      </div>
+      <span class="task-badge ${badgeCls}">${badgeLbl}</span>
+    </div>`;
+  });
+}
+
+async function loadAdminStats(){
+  const [vS,uS,tS]=await Promise.all([
+    db.collection('vehiculos').get(),
+    db.collection('users').get(),
+    db.collection('tareas').where('estado','==','pendiente').get()
+  ]);
+  document.getElementById('fleet-total').textContent=vS.size;
+  let disp=0;vS.forEach(d=>{if(d.data().estado==='Disponible')disp++;});
+  document.getElementById('fleet-ok').textContent=disp;
+  let drivers=0;uS.forEach(d=>{if((d.data().rol||'').toLowerCase()==='conductor')drivers++;});
+  document.getElementById('fleet-drivers').textContent=drivers;
+  document.getElementById('fleet-tasks').textContent=tS.size;
+}
+</script>
+</body>
+</html>

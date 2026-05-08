@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Silog SpA · Inventario</title>
+  <link rel="manifest" href="manifest.json"/><link rel="icon" href="assets/logo.png"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"/>
+  <link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+<nav class="navbar">
+  <a href="dashboard.html" class="navbar-logo">
+    <img src="assets/logo.png" alt="Logo" onerror="this.style.display='none'"/>
+    <span class="navbar-brand">SILOG <span>SpA</span></span>
+  </a>
+  <div class="navbar-spacer"></div>
+  <div class="navbar-user">
+    <div><div class="user-name" id="user-name">...</div><div class="user-role" id="user-role">—</div></div>
+    <div class="user-avatar" id="user-avatar">?</div>
+    <button class="btn-logout" onclick="logout()">Salir</button>
+  </div>
+</nav>
+<nav class="bottom-nav">
+  <a href="dashboard.html"   class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Inicio</span></a>
+  <a href="inventario.html"  class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span>Inventario</span></a>
+  <a href="formularios.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/></svg><span>Seguridad</span></a>
+  <a href="planillas.html"   class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg><span>Planillas</span></a>
+  <a href="correos.html"     class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span>Correos</span></a>
+</nav>
+
+<main class="page">
+  <div class="page-title">Gestión de Inventario</div>
+  <div class="page-subtitle">Control de paquetes, stock y ubicaciones</div>
+
+  <!-- Search + Add -->
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+    <div class="search-wrap" style="flex:1;margin:0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" class="search-input" id="search-inv" placeholder="Buscar por código, nombre..."/>
+    </div>
+    <button class="btn btn-accent btn-sm" onclick="openModal()">+ Agregar</button>
+  </div>
+
+  <!-- Filter tabs -->
+  <div style="display:flex;gap:8px;margin-bottom:18px;overflow-x:auto;padding-bottom:4px">
+    <button class="filter-tab active" data-filter="all">Todos</button>
+    <button class="filter-tab" data-filter="disponible">Disponible</button>
+    <button class="filter-tab" data-filter="en_transito">En Tránsito</button>
+    <button class="filter-tab" data-filter="agotado">Agotado</button>
+    <button class="filter-tab" data-filter="entregado">Entregado</button>
+  </div>
+
+  <div id="inv-container"><div class="spinner"></div></div>
+</main>
+
+<!-- Modal: Add/Edit Item -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">Nuevo Ítem de Inventario</div>
+    <form id="inv-form">
+      <input type="hidden" id="item-id"/>
+      <div class="form-group">
+        <label class="form-label">Código / Tracking</label>
+        <input type="text" class="form-control" id="item-code" placeholder="Ej: PKG-20250001" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre / Descripción</label>
+        <input type="text" class="form-control" id="item-name" placeholder="Ej: Caja electrónica frágil" required/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Cantidad</label>
+          <input type="number" class="form-control" id="item-qty" min="0" value="1"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unidad</label>
+          <select class="form-control" id="item-unit">
+            <option>unidad</option><option>caja</option><option>pallet</option><option>kg</option><option>sobre</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ubicación / Bodega</label>
+        <input type="text" class="form-control" id="item-location" placeholder="Ej: Bodega Norte – Estante 3B"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <select class="form-control" id="item-status">
+          <option value="disponible">Disponible</option>
+          <option value="en_transito">En Tránsito</option>
+          <option value="entregado">Entregado</option>
+          <option value="agotado">Agotado</option>
+          <option value="dañado">Dañado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observaciones</label>
+        <textarea class="form-control" id="item-notes" rows="2" placeholder="Notas adicionales..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button type="button" class="btn btn-outline btn-full" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-full" id="btn-save-inv">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  const statusColors = {
+    disponible:'badge-done', en_transito:'badge-active',
+    entregado:'badge-done', agotado:'badge-danger', dañado:'badge-danger'
+  };
+  const statusLabels = {
+    disponible:'Disponible', en_transito:'En Tránsito',
+    entregado:'Entregado', agotado:'Agotado', dañado:'Dañado'
+  };
+
+  let allItems = [];
+  let currentFilter = 'all';
+  let editingId = null;
+  let userRole = 'operador';
+
+  function renderItems(items) {
+    const container = document.getElementById('inv-container');
+    if (!items.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📦</div><h3>Sin ítems</h3><p>No hay registros en esta categoría.</p></div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Código</th><th>Nombre</th><th>Cant.</th>
+            <th>Ubicación</th><th>Estado</th><th>Acciones</th>
+          </tr></thead>
+          <tbody>${items.map(item => `
+            <tr>
+              <td><code style="color:#F47920;font-size:0.8rem">${item.code || '—'}</code></td>
+              <td><strong style="font-size:0.88rem">${item.name || '—'}</strong>${item.notes ? `<br><span style="font-size:0.72rem;color:#8899BB">${item.notes}</span>` : ''}</td>
+              <td>${item.qty || 0} ${item.unit || ''}</td>
+              <td style="font-size:0.82rem;color:#8899BB">${item.location || '—'}</td>
+              <td><span class="badge ${statusColors[item.status] || 'badge-pending'}">${statusLabels[item.status] || item.status}</span></td>
+              <td>
+                <button class="btn btn-outline btn-sm" onclick="editItem('${item.id}')" style="margin-right:4px">✏️</button>
+                ${userRole === 'admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}')">🗑️</button>` : ''}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function applyFilter() {
+    const q = document.getElementById('search-inv').value.toLowerCase();
+    let filtered = allItems;
+    if (currentFilter !== 'all') filtered = filtered.filter(i => i.status === currentFilter);
+    if (q) filtered = filtered.filter(i =>
+      (i.code||'').toLowerCase().includes(q) ||
+      (i.name||'').toLowerCase().includes(q) ||
+      (i.location||'').toLowerCase().includes(q)
+    );
+    renderItems(filtered);
+  }
+
+  async function loadInventory() {
+    const snap = await db.collection('inventory').orderBy('updatedAt','desc').get();
+    allItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    applyFilter();
+  }
+
+  function openModal(id = null) {
+    editingId = id;
+    document.getElementById('modal-title').textContent = id ? 'Editar Ítem' : 'Nuevo Ítem';
+    if (!id) document.getElementById('inv-form').reset();
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function editItem(id) {
+    const item = allItems.find(i => i.id === id);
+    if (!item) return;
+    document.getElementById('item-id').value       = id;
+    document.getElementById('item-code').value     = item.code || '';
+    document.getElementById('item-name').value     = item.name || '';
+    document.getElementById('item-qty').value      = item.qty || 1;
+    document.getElementById('item-unit').value     = item.unit || 'unidad';
+    document.getElementById('item-location').value = item.location || '';
+    document.getElementById('item-status').value   = item.status || 'disponible';
+    document.getElementById('item-notes').value    = item.notes || '';
+    openModal(id);
+  }
+
+  async function deleteItem(id) {
+    if (!confirm('¿Eliminar este ítem del inventario?')) return;
+    await db.collection('inventory').doc(id).delete();
+    showToast('Ítem eliminado', 'success');
+    loadInventory();
+  }
+
+  function closeModal(e) {
+    if (!e || e.target === document.getElementById('modal-overlay')) {
+      document.getElementById('modal-overlay').classList.remove('open');
+      editingId = null;
+    }
+  }
+
+  document.getElementById('inv-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save-inv');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const data = {
+      code:      document.getElementById('item-code').value.trim(),
+      name:      document.getElementById('item-name').value.trim(),
+      qty:       parseInt(document.getElementById('item-qty').value) || 0,
+      unit:      document.getElementById('item-unit').value,
+      location:  document.getElementById('item-location').value.trim(),
+      status:    document.getElementById('item-status').value,
+      notes:     document.getElementById('item-notes').value.trim(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: currentUser.uid,
+    };
+    try {
+      if (editingId) {
+        await db.collection('inventory').doc(editingId).update(data);
+        showToast('Ítem actualizado ✅', 'success');
+      } else {
+        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        data.createdBy = currentUser.uid;
+        await db.collection('inventory').add(data);
+        showToast('Ítem agregado ✅', 'success');
+      }
+      closeModal();
+      loadInventory();
+    } catch(err) {
+      showToast('Error al guardar: ' + err.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'Guardar';
+  });
+
+  // Filter tabs
+  document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentFilter = tab.dataset.filter;
+      applyFilter();
+    });
+  });
+  document.getElementById('search-inv').addEventListener('input', applyFilter);
+
+  requireAuth((user, userData) => {
+    renderNavbar(userData);
+    userRole = userData.role;
+    loadInventory();
+  });
+</script>
+<style>
+  .filter-tab {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 7px 16px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--transition);
+    font-family: 'Inter', sans-serif;
+  }
+  .filter-tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .filter-tab:hover:not(.active) { border-color: var(--border-primary); color: var(--text); }
+</style>
+</body>
+</html>
