@@ -66,10 +66,24 @@ exports.syncAllClaims = onCall(
     const db   = getFirestore();
     const auth = getAuth();
 
-    // Verificar admin en Firestore (tolerante al bootstrap: no depende del token claim)
-    const callerDoc = await db.collection('users').doc(request.auth.uid).get();
+    // Verificar admin en Firestore — busca por UID primero, luego por email
+    let callerDoc = await db.collection('users').doc(request.auth.uid).get();
+    
+    // Fallback: buscar por correo_electronico o email si no existe doc con UID
+    if (!callerDoc.exists && request.auth.token.email) {
+      const byEmail1 = await db.collection('users')
+        .where('correo_electronico', '==', request.auth.token.email).limit(1).get();
+      if (!byEmail1.empty) callerDoc = byEmail1.docs[0];
+    }
+    if (!callerDoc.exists && request.auth.token.email) {
+      const byEmail2 = await db.collection('users')
+        .where('email', '==', request.auth.token.email).limit(1).get();
+      if (!byEmail2.empty) callerDoc = byEmail2.docs[0];
+    }
+
     if (!callerDoc.exists) {
-      throw new HttpsError('permission-denied', 'Usuario no encontrado en la base de datos.');
+      throw new HttpsError('permission-denied',
+        `Usuario no encontrado en la base de datos. UID: ${request.auth.uid}, Email: ${request.auth.token.email}`);
     }
     const callerRol = (callerDoc.data().rol || '').toLowerCase();
     if (callerRol !== 'admin') {
