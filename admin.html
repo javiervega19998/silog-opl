@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -138,6 +138,7 @@ tr:hover td{background:var(--surface2)}
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-functions-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/checklist-pdf.js"></script>
 <script>
 requireAdmin(async(user,data)=>{loadStats();showTab('users');});
 
@@ -293,33 +294,44 @@ async function saveUser(){
 function closeModal(){document.getElementById('modal-user').classList.remove('open');}
 
 async function loadChecklists(){
-  const snap=await db.collection('chequeo_operacional').get();
-  const c=document.getElementById('tab-content');
-  if(snap.empty){c.innerHTML='<div class="empty">Sin checklists registrados.</div>';return;}
-  let docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));
-  docs.sort((a,b)=>(b.fecha_chequeo?.toMillis?.()??0)-(a.fecha_chequeo?.toMillis?.()??0));
-  c.innerHTML='';
-  docs.forEach(r=>{
-    const obs=[
-      r.chequeo_frenos&&r.chequeo_frenos!=='Check'?'Frenos: '+r.chequeo_frenos:'',
-      !r.condicion_fisica?'⚠️ Condición física':'',
-      !r.descanso_operador?'⚠️ Descanso insuficiente':'',
-      r.medicamentos_chequeo?'💊 Medicamentos: '+(r.medicamentos_detalle||'Sí'):'',
-    ].filter(Boolean).join(' · ')||'Sin observaciones críticas';
-    c.innerHTML+=`<div class="ck-item">
-      <div class="ck-top">
-        <div><div class="ck-plate">🚛 ${r.patente_chequeo||'—'}</div><div class="ck-name">👤 ${r.nombre_operador||'—'}</div></div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="btn-sm" onclick="downloadChecklist('${r.id}',${JSON.stringify(r).replace(/'/g,'’')})">⬇️ PDF</button>
-          <button class="btn-sm danger" onclick="deleteChecklist('${r.id}')">🗑️</button>
-        </div>
-      </div>
-      <div class="ck-date">📅 ${formatDate(r.fecha_chequeo)} · ⛽ ${r.nivel_combustible||'—'}</div>
-      <div style="font-size:.75rem;color:var(--text2);margin-top:4px">${obs}</div>
-    </div>`;
-  });
+  const cont = document.getElementById('tab-content');
+  try{
+    const snap = await db.collection('chequeo_operacional').get();
+    if(snap.empty){cont.innerHTML='<div class="empty">Sin checklists registrados.</div>';return;}
+    _allDocs = [];
+    snap.forEach(d => _allDocs.push({id:d.id,...d.data()}));
+    _allDocs.sort((a,b)=>(b.fecha_chequeo?.toMillis?.()??0)-(a.fecha_chequeo?.toMillis?.()??0));
+    renderCurrentPage();
+  }catch(e){
+    cont.innerHTML='<div class="empty">Error: '+sanitize(e.message)+'</div>';
+  }
 }
 
+function renderChecklistsPage(docs){
+  const cont = document.getElementById('tab-content');
+  let html = '';
+  docs.forEach(r => {
+    const obs=[
+      r.chequeo_frenos&&r.chequeo_frenos!=='Check'?'Frenos: '+r.chequeo_frenos:'',
+      !r.condicion_fisica?'Cond.fisica':'',
+      !r.descanso_operador?'Descanso insuf.':'',
+      r.medicamentos_chequeo?'Med: '+(r.medicamentos_detalle||'Si'):'',
+    ].filter(Boolean).join(' | ')||'Sin observaciones';
+    html += `<div class="ck-item">
+      <div class="ck-top">
+        <div><div class="ck-plate">&#x1F69B; ${sanitize(r.patente_chequeo||'-')}</div>
+        <div class="ck-name">&#x1F464; ${sanitize(r.nombre_operador||'-')}</div></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn-sm" onclick="downloadChecklist('${r.id}')">&#x2B07; PDF</button>
+          <button class="btn-sm danger" onclick="deleteChecklist('${r.id}')">Eliminar</button>
+        </div>
+      </div>
+      <div class="ck-date">Fecha: ${formatDate(r.fecha_chequeo)} | Comb: ${sanitize(r.nivel_combustible||'-')}</div>
+      <div style="font-size:.75rem;color:var(--text2);margin-top:4px">${sanitize(obs)}</div>
+    </div>`;
+  });
+  cont.innerHTML = html || '<div class="empty">Sin resultados.</div>';
+}
 async function loadViajes(){
   const c = document.getElementById('tab-content');
   const snap = await db.collection('viajes').get();
@@ -360,61 +372,22 @@ async function deleteChecklist(id){
   if(!confirm('¿Eliminar este checklist? Esta acción no se puede deshacer.')) return;
   try{
     await db.collection('chequeo_operacional').doc(id).delete();
-    showToast('🗑️ Checklist eliminado','success'); loadChecklists();
+    showToast('Checklist eliminado','success'); loadChecklists();
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 async function deleteViaje(id){
-  if(!confirm('¿Eliminar este viaje? Esta acción no se puede deshacer.')) return;
+  if(!confirm('Eliminar este viaje?')) return;
   try{
     await db.collection('viajes').doc(id).delete();
-    showToast('🗑️ Viaje eliminado','success'); loadViajes();
+    showToast('Viaje eliminado','success'); loadViajes();
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 
 // ── Descargar Checklist como PDF ────────────────────────────────
-function downloadChecklist(id, r){
-  const win=window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>Checklist ${r.patente_chequeo||''} - ${formatDate(r.fecha_chequeo)}</title>
-  <style>
-    body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;color:#111;font-size:13px}
-    h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#555;margin-bottom:20px}
-    table{width:100%;border-collapse:collapse;margin-bottom:16px}
-    th{background:#1B4B9B;color:#fff;padding:7px 10px;text-align:left;font-size:11px}
-    td{padding:7px 10px;border-bottom:1px solid #ddd}
-    .ok{color:#059669;font-weight:700}.warn{color:#D97706;font-weight:700}
-    .footer{margin-top:30px;font-size:11px;color:#888;border-top:1px solid #ddd;padding-top:12px}
-    @media print{body{margin:20px}}
-  </style></head><body>
-  <h1>🚛 Checklist Operacional — SILOG SpA</h1>
-  <h2>Vehículo: ${r.patente_chequeo||'—'} &nbsp;|&nbsp; Operador: ${r.nombre_operador||'—'} &nbsp;|&nbsp; Fecha: ${formatDate(r.fecha_chequeo)}</h2>
-  <table>
-    <tr><th colspan="2">DATOS GENERALES</th></tr>
-    <tr><td>Km Registro</td><td>${r.km_registro||'—'}</td></tr>
-    <tr><td>Nivel Combustible</td><td>${r.nivel_combustible||'—'}</td></tr>
-  </table>
-  <table>
-    <tr><th colspan="2">MECÁNICA / SEGURIDAD</th></tr>
-    <tr><td>Frenos</td><td>${r.chequeo_frenos||'—'}</td></tr>
-    <tr><td>Dirección</td><td>${r.chequeo_direccion||'—'}</td></tr>
-    <tr><td>Neumáticos</td><td>${r.chequeo_neumaticos||'—'}</td></tr>
-    <tr><td>Aceite</td><td>${r.chequeo_nivel_aceite||'—'}</td></tr>
-    <tr><td>Refrigerante</td><td>${r.chequeo_nivel_refrigerante||'—'}</td></tr>
-    <tr><td>Extintor</td><td>${r.chequeo_extintor||'—'}</td></tr>
-    <tr><td>Luces</td><td>${r.chequeo_luces||'—'}</td></tr>
-    <tr><td>Cinturón</td><td>${r.chequeo_cinturon||'—'}</td></tr>
-  </table>
-  <table>
-    <tr><th colspan="2">ESTADO OPERADOR</th></tr>
-    <tr><td>Condición Física</td><td class="${r.condicion_fisica?'ok':'warn'}">${r.condicion_fisica?'✅ OK':'⚠️ Comprometida'}</td></tr>
-    <tr><td>Descanso</td><td class="${r.descanso_operador?'ok':'warn'}">${r.descanso_operador?'✅ OK':'⚠️ Insuficiente'}</td></tr>
-    <tr><td>Consumo Medicamentos</td><td>${r.medicamentos_chequeo?'Sí — '+( r.medicamentos_detalle||'Sin detalle'):'No'}</td></tr>
-  </table>
-  ${r.chequeo_observaciones?`<p><strong>Observaciones:</strong> ${r.chequeo_observaciones}</p>`:''}
-  <div class="footer">Generado el ${new Date().toLocaleString('es-CL')} — Silog SpA Ops Manager</div>
-  </body></html>`);
-  win.document.close();
-  setTimeout(()=>win.print(),500);
+function downloadChecklist(id){
+  const r = _allDocs.find(d => d.id === id);
+  if(!r){ showToast('Registro no encontrado.','error'); return; }
+  generateChecklistPDF(r);
 }
 
 // ── Notificaciones de Checklists ────────────────────────────────

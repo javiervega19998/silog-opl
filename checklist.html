@@ -222,6 +222,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/checklist-pdf.js"></script>
 <script>
 let _userEmail='', _userName='', _isAdmin=false, _allDocs=[];
 requireAuth(async(user,data)=>{
@@ -380,33 +381,7 @@ async function loadAllChecklists(){
 function dlPDF(id){
   const r=_allDocs.find(d=>d.id===id);
   if(!r){showToast('No encontrado','error');return;}
-  const win=window.open('','_blank');
-  if(!win){showToast('Habilita pop-ups','error');return;}
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Checklist '+(r.patente_chequeo||'')+'</title><style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;color:#111;font-size:13px}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#555;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#1B4B9B;color:#fff;padding:7px 10px;text-align:left;font-size:11px}td{padding:7px 10px;border-bottom:1px solid #ddd}.ok{color:#059669;font-weight:700}.warn{color:#D97706;font-weight:700}.footer{margin-top:30px;font-size:11px;color:#888;border-top:1px solid #ddd;padding-top:12px}@media print{body{margin:20px}}</style></head><body>');
-  win.document.write('<h1>Checklist Operacional \u2014 SILOG SpA</h1>');
-  win.document.write('<h2>Veh\u00edculo: '+(r.patente_chequeo||'\u2014')+' | Operador: '+(r.nombre_operador||'\u2014')+' | Fecha: '+formatDate(r.fecha_chequeo)+'</h2>');
-  win.document.write('<table><tr><th colspan="2">DATOS GENERALES</th></tr><tr><td>Combustible</td><td>'+(r.nivel_combustible||'\u2014')+'</td></tr></table>');
-  win.document.write('<table><tr><th colspan="2">MEC\u00c1NICA / SEGURIDAD</th></tr>');
-  ['frenos','direccion','suspension','sistema_electrico','panel','bocina','sensor_retroceso','alarmas','neumaticos','luces','cinturon','extintor'].forEach(k=>{
-    const v=r['chequeo_'+k]||'\u2014';
-    win.document.write('<tr><td>'+k+'</td><td>'+v+'</td></tr>');
-  });
-  win.document.write('</table>');
-  win.document.write('<table><tr><th colspan="2">FLUIDOS</th></tr>');
-  ['nivel_aceite','nivel_refrigerante','liquido_freno','liquido_direccion','agua_parabrisas'].forEach(k=>{
-    const v=r['chequeo_'+k]||'\u2014';
-    win.document.write('<tr><td>'+k+'</td><td>'+v+'</td></tr>');
-  });
-  win.document.write('</table>');
-  win.document.write('<table><tr><th colspan="2">ESTADO OPERADOR</th></tr>');
-  win.document.write('<tr><td>Condici\u00f3n F\u00edsica</td><td class="'+(r.condicion_fisica?'ok':'warn')+'">'+(r.condicion_fisica?'OK':'Comprometida')+'</td></tr>');
-  win.document.write('<tr><td>Descanso</td><td class="'+(r.descanso_operador?'ok':'warn')+'">'+(r.descanso_operador?'OK':'Insuficiente')+'</td></tr>');
-  win.document.write('<tr><td>Medicamentos</td><td>'+(r.medicamentos_chequeo?'S\u00ed \u2014 '+(r.medicamentos_detalle||'Sin detalle'):'No')+'</td></tr>');
-  win.document.write('</table>');
-  if(r.chequeo_observaciones) win.document.write('<p><strong>Observaciones:</strong> '+r.chequeo_observaciones+'</p>');
-  win.document.write('<div class="footer">Generado el '+new Date().toLocaleString('es-CL')+' \u2014 Silog SpA Ops Manager</div></body></html>');
-  win.document.close();
-  setTimeout(()=>win.print(),500);
+  generateChecklistPDF(r);
 }
 
 function exportAllCSV(){
