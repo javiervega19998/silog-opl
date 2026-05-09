@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -141,23 +141,20 @@ tr:hover td{background:var(--surface2)}
 requireAdmin(async(user,data)=>{loadStats();showTab('users');});
 
 async function loadStats(){
+  // Usa try/catch individuales para que un fallo parcial no rompa todo
   const today=new Date();today.setHours(0,0,0,0);
   const ts=firebase.firestore.Timestamp.fromDate(today);
-  const [u,v,ck,t,notif]=await Promise.all([
-    db.collection('users').get(),
-    db.collection('vehiculos').get(),
-    db.collection('chequeo_operacional').where('fecha_chequeo','>=',ts).get(),
-    db.collection('tareas').where('estado','==','pendiente').get(),
-    db.collection('notificaciones').where('leida','==',false).get()
-  ]);
-  document.getElementById('s-users').textContent=u.size;
-  document.getElementById('s-vehicles').textContent=v.size;
-  document.getElementById('s-checklists').textContent=ck.size;
-  document.getElementById('s-tasks').textContent=t.size;
-  // Badge notificaciones
-  const badge=document.getElementById('notif-badge');
-  if(notif.size>0){badge.textContent=notif.size;badge.style.display='inline';}
-  else{badge.style.display='none';}
+  const setVal=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  try{const u=await db.collection('users').get();setVal('s-users',u.size);}catch{setVal('s-users','?');}
+  try{const v=await db.collection('vehiculos').get();setVal('s-vehicles',v.size);}catch{setVal('s-vehicles','?');}
+  try{const ck=await db.collection('chequeo_operacional').where('fecha_chequeo','>=',ts).get();setVal('s-checklists',ck.size);}catch{setVal('s-checklists','?');}
+  try{const t=await db.collection('tareas').where('estado','==','pendiente').get();setVal('s-tasks',t.size);}catch{setVal('s-tasks','?');}
+  try{
+    const notif=await db.collection('notificaciones').where('leida','==',false).get();
+    const badge=document.getElementById('notif-badge');
+    if(notif.size>0){badge.textContent=notif.size;badge.style.display='inline';}
+    else{badge.style.display='none';}
+  }catch{}
 }
 
 // ── Estado de paginación ────────────────────────────────────────
@@ -227,30 +224,24 @@ async function syncClaimsAll(){
 
 
 async function loadUsers(){
-  const snap=await db.collection('users').get();
   const c=document.getElementById('tab-content');
-  if(snap.empty){c.innerHTML='<div class="empty">Sin usuarios registrados.</div>';return;}
-  let docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));
-  docs.sort((a,b)=>(a.nombre||a.name||'').localeCompare(b.nombre||b.name||'','es'));
-  let rows='';
-  docs.forEach(d=>{
-    const u=d, id=d.id;
-    const rolClass=isViewerRole(u.rol||u.role)?'p-admin':'p-conductor';
-    const rolLabel=(u.rol||u.role||'conductor');
-    const estClass=u.estado==='Activo'?'p-activo':'p-inactivo';
-    rows+=`<tr>
-      <td><strong>${u.nombre||u.name||'—'}</strong><br><small style="color:var(--text2)">${u.correo_electronico||u.email||'—'}</small></td>
-      <td>${u.rut||'—'}</td>
-      <td>${u.area||'—'}</td>
-      <td><span class="pill ${rolClass}">${rolLabel}</span></td>
-      <td><span class="pill ${estClass}">${u.estado||'Activo'}</span></td>
-      <td style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn-sm" onclick="editUser('${id}')">✏️ Editar</button>
-        <button class="btn-sm danger" onclick="deleteUser('${id}','${(u.nombre||u.name||'').replace(/'/g,'')}')"  >🗑️ Eliminar</button>
-      </td>
-    </tr>`;
-  });
-  c.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Nombre / Correo</th><th>RUT</th><th>Área</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  try{
+    const snap=await db.collection('users').get();
+    if(snap.empty){c.innerHTML='<div class="empty">Sin usuarios registrados.</div>';return;}
+    let docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));
+    docs.sort((a,b)=>(a.nombre||a.name||'').localeCompare(b.nombre||b.name||'','es'));
+    let rows='';
+    docs.forEach(d=>{
+      const u=d,id=d.id;
+      const rolClass=isViewerRole(u.rol||u.role)?'p-admin':'p-conductor';
+      const rolLabel=sanitize(u.rol||u.role||'conductor');
+      const estClass=u.estado==='Activo'?'p-activo':'p-inactivo';
+      rows+=`<tr><td><strong>${sanitize(u.nombre||u.name||'—')}</strong><br><small style="color:var(--text2)">${sanitize(u.correo_electronico||u.email||'—')}</small></td><td>${sanitize(u.rut||'—')}</td><td>${sanitize(u.area||'—')}</td><td><span class="pill ${rolClass}">${rolLabel}</span></td><td><span class="pill ${estClass}">${sanitize(u.estado||'Activo')}</span></td><td style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm" onclick="editUser('${id}')">✏️ Editar</button><button class="btn-sm danger" onclick="deleteUser('${id}','${sanitize(u.nombre||u.name||'')}')">🗑️ Eliminar</button></td></tr>`;
+    });
+    c.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Nombre / Correo</th><th>RUT</th><th>Área</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div><div style="margin-top:16px;padding:14px 16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px"><div><div style="font-size:.85rem;font-weight:600;margin-bottom:2px">🔐 Sincronización de Roles</div><div style="font-size:.75rem;color:var(--text2)">Sincroniza los roles con Firebase Auth para activar las reglas de seguridad avanzadas.</div></div><button class="btn-sm" onclick="syncClaimsAll()" style="background:var(--primary);color:#fff;border-color:var(--primary);white-space:nowrap">🔄 Sincronizar Roles</button></div>`;
+  }catch(e){
+    c.innerHTML=`<div class="empty">⚠️ Error: ${e.code==='permission-denied'?'Sin permisos. <a href=index.html style=color:var(--accent)>Cierra sesión y vuelve a entrar</a> para refrescar tu token.':sanitize(e.message)}</div>`;
+  }
 }
 
 async function editUser(id){
