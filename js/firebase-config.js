@@ -20,9 +20,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 // Referencias globales
-const auth = firebase.auth();
-const db   = firebase.firestore();
-const storage = firebase.storage();
+const auth     = firebase.auth();
+const db       = firebase.firestore();
+const storage  = firebase.storage();
+// Functions apuntando a la región donde están desplegadas las Cloud Functions
+const functions = firebase.app().functions('us-central1');
 
 // Configuración regional (Chile)
 firebase.firestore().settings({ ignoreUndefinedProperties: true });
