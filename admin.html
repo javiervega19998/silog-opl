@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -214,18 +214,32 @@ function exportCurrentTab(){
 
 // ── Sincronizar Custom Claims ──────────────────────────────────
 async function syncClaimsAll(){
-  if(!confirm('Esto sincroniza los roles de TODOS los usuarios con Firebase Auth. ¿Continuar?')) return;
+  if(!confirm('Sincronizar roles de TODOS los usuarios con Firebase Auth. ¿Continuar?')) return;
   try{
     showToast('⏳ Sincronizando roles...', 'info');
-    // El servidor verifica el permiso consultando Firestore directamente
-    const syncFn = functions.httpsCallable('syncAllClaims');
-    const result = await syncFn({});
-    showToast(`✅ ${result.data.updated} usuarios sincronizados. Cierra sesión y vuelve a entrar para aplicar tu nuevo token.`, 'success');
+    const result = await functions.httpsCallable('syncAllClaims')({});
+    showToast(`✅ ${result.data.updated} usuarios sincronizados. Cierra sesión y vuelve a entrar.`, 'success');
   }catch(e){
-    const msg = e.details || e.message || String(e);
-    showToast('❌ '+msg, 'error');
+    showToast('❌ '+(e.details||e.message||String(e)), 'error');
   }
 }
+
+// ── Migrar documentos de email-ID a UID-ID (una sola vez) ───────
+async function migrateUsers(){
+  if(!confirm('⚠️ MIGRACIÓN: Esto crea nuevos documentos con UID como ID y elimina los que usan email como ID.\n\nEsta acción es irreversible. ¿Continuar?')) return;
+  try{
+    showToast('⏳ Migrando documentos...', 'info');
+    const result = await functions.httpsCallable('migrateUsersToUID')({});
+    const {migrated, total, results} = result.data;
+    const errors = results.filter(r=>r.error);
+    showToast(`✅ ${migrated}/${total} usuarios migrados a UID. ${errors.length ? errors.length+' errores.' : 'Sin errores.'} Cierra sesión y vuelve a entrar.`, 'success');
+    console.log('[migrate] Resultados:', results);
+    if(migrated > 0) setTimeout(()=>loadUsers(), 1500);
+  }catch(e){
+    showToast('❌ '+(e.details||e.message||String(e)), 'error');
+  }
+}
+
 
 
 async function loadUsers(){
@@ -243,7 +257,7 @@ async function loadUsers(){
       const estClass=u.estado==='Activo'?'p-activo':'p-inactivo';
       rows+=`<tr><td><strong>${sanitize(u.nombre||u.name||'—')}</strong><br><small style="color:var(--text2)">${sanitize(u.correo_electronico||u.email||'—')}</small></td><td>${sanitize(u.rut||'—')}</td><td>${sanitize(u.area||'—')}</td><td><span class="pill ${rolClass}">${rolLabel}</span></td><td><span class="pill ${estClass}">${sanitize(u.estado||'Activo')}</span></td><td style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm" onclick="editUser('${id}')">✏️ Editar</button><button class="btn-sm danger" onclick="deleteUser('${id}','${sanitize(u.nombre||u.name||'')}')">🗑️ Eliminar</button></td></tr>`;
     });
-    c.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Nombre / Correo</th><th>RUT</th><th>Área</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div><div style="margin-top:16px;padding:14px 16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px"><div><div style="font-size:.85rem;font-weight:600;margin-bottom:2px">🔐 Sincronización de Roles</div><div style="font-size:.75rem;color:var(--text2)">Sincroniza los roles con Firebase Auth para activar las reglas de seguridad avanzadas.</div></div><button class="btn-sm" onclick="syncClaimsAll()" style="background:var(--primary);color:#fff;border-color:var(--primary);white-space:nowrap">🔄 Sincronizar Roles</button></div>`;
+    c.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Nombre / Correo</th><th>RUT</th><th>Área</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div><div style="margin-top:16px;padding:14px 16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px"><div><div style="font-size:.85rem;font-weight:600;margin-bottom:2px">&#x1F510; Herramientas de Roles</div><div style="font-size:.75rem;color:var(--text2)">Sincroniza o migra los roles a UID para activar seguridad avanzada.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-sm" onclick="syncClaimsAll()" style="background:var(--primary);color:#fff;border-color:var(--primary)">&#x1F504; Sincronizar Roles</button><button class="btn-sm" onclick="migrateUsers()" style="background:#7C3AED;color:#fff;border-color:#7C3AED">&#x1F501; Migrar a UID</button></div></div>`;
   }catch(e){
     c.innerHTML=`<div class="empty">⚠️ Error: ${e.code==='permission-denied'?'Sin permisos. <a href=index.html style=color:var(--accent)>Cierra sesión y vuelve a entrar</a> para refrescar tu token.':sanitize(e.message)}</div>`;
   }
