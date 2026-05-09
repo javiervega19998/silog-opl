@@ -25,13 +25,16 @@ exports.onUserRoleUpdate = onDocumentWritten(
       return;
     }
 
-    const dataAhora  = event.data.after.data();
-    const dataAntes  = event.data.before.exists ? event.data.before.data() : {};
-    const rolAhora   = dataAhora.rol || 'conductor';
-    const rolAntes   = dataAntes.rol || null;
+    const dataAhora = event.data.after.data();
+    const dataAntes = event.data.before.exists ? event.data.before.data() : {};
+    const rolAhora  = dataAhora.rol || 'conductor';
+    const rolAntes  = dataAntes.rol || null;
 
-    // Solo actúa si el rol cambió
-    if (rolAntes === rolAhora) return;
+    // Solo actúa si el rol cambió (o si antes no existía)
+    if (rolAntes === rolAhora) {
+      console.log(`[claims] Sin cambio de rol para UID ${uid} (${rolAhora}), omitiendo.`);
+      return;
+    }
 
     try {
       await getAuth().setCustomUserClaims(uid, {
@@ -39,7 +42,6 @@ exports.onUserRoleUpdate = onDocumentWritten(
         area: dataAhora.area || 'Operaciones',
       });
       console.log(`[claims] UID ${uid} → rol: ${rolAhora}`);
-      // Marca en Firestore que los claims están sincronizados
       await event.data.after.ref.update({
         claims_sync:    true,
         claims_updated: FieldValue.serverTimestamp(),
@@ -51,19 +53,32 @@ exports.onUserRoleUpdate = onDocumentWritten(
 );
 
 // ── 2. Callable manual: el admin puede forzar sincronización de claims
-//       Útil para usuarios existentes antes de instalar la function
+//    ⚠️  Verifica el rol en FIRESTORE (no en el token) para el bootstrap inicial.
+//    Así funciona incluso antes de que el admin tenga su propio custom claim.
 // ──────────────────────────────────────────────────────────────────
 exports.syncAllClaims = onCall(
   { region: 'us-central1' },
   async (request) => {
-    // Solo el admin puede llamar esto
-    if (!request.auth || request.auth.token.rol !== 'admin') {
-      throw new HttpsError('permission-denied', 'Solo el admin puede sincronizar claims.');
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes iniciar sesión primero.');
     }
 
     const db   = getFirestore();
     const auth = getAuth();
-    const snap = await db.collection('users').get();
+
+    // Verificar admin en Firestore (tolerante al bootstrap: no depende del token claim)
+    const callerDoc = await db.collection('users').doc(request.auth.uid).get();
+    if (!callerDoc.exists) {
+      throw new HttpsError('permission-denied', 'Usuario no encontrado en la base de datos.');
+    }
+    const callerRol = (callerDoc.data().rol || '').toLowerCase();
+    if (callerRol !== 'admin') {
+      throw new HttpsError('permission-denied',
+        `Solo el admin puede sincronizar claims. Tu rol actual en Firestore es: "${callerRol}".`);
+    }
+
+    // Sincronizar todos los usuarios
+    const snap    = await db.collection('users').get();
     const results = [];
 
     for (const doc of snap.docs) {
@@ -76,8 +91,10 @@ exports.syncAllClaims = onCall(
         });
         await doc.ref.update({ claims_sync: true });
         results.push({ uid: doc.id, rol: u.rol, ok: true });
+        console.log(`[syncAllClaims] UID ${doc.id} → rol: ${u.rol}`);
       } catch (e) {
         results.push({ uid: doc.id, error: e.message });
+        console.error(`[syncAllClaims] Error en UID ${doc.id}:`, e.message);
       }
     }
 

@@ -212,29 +212,18 @@ function exportCurrentTab(){
   exportCSV(_allDocs, names[_curTab] || _curTab);
 }
 
-// ── Sincronizar Custom Claims (fuerza refresco de tokens) ─────────
+// ── Sincronizar Custom Claims ──────────────────────────────────
 async function syncClaimsAll(){
   if(!confirm('Esto sincroniza los roles de TODOS los usuarios con Firebase Auth. ¿Continuar?')) return;
   try{
-    showToast('⏳ Verificando permisos...', 'info');
-    // 1) Forzar refresco del token para capturar custom claims recién asignados
-    await auth.currentUser.getIdToken(true);
-    const tokenResult = await auth.currentUser.getIdTokenResult();
-    if(tokenResult.claims.rol !== 'admin'){
-      showToast('❌ Tu token aún no tiene el claim de admin. Cierra sesión, vuelve a entrar e inténtalo de nuevo.', 'error');
-      return;
-    }
-    // 2) Llamar la Cloud Function
-    showToast('⏳ Sincronizando claims de todos los usuarios...', 'info');
+    showToast('⏳ Sincronizando roles...', 'info');
+    // El servidor verifica el permiso consultando Firestore directamente
     const syncFn = functions.httpsCallable('syncAllClaims');
     const result = await syncFn({});
-    showToast(`✅ ${result.data.updated} usuarios sincronizados correctamente`, 'success');
+    showToast(`✅ ${result.data.updated} usuarios sincronizados. Cierra sesión y vuelve a entrar para aplicar tu nuevo token.`, 'success');
   }catch(e){
-    if(e.code === 'permission-denied'){
-      showToast('❌ Sin permisos. Cierra sesión y vuelve a entrar primero.', 'error');
-    } else {
-      showToast('Error: '+e.message, 'error');
-    }
+    const msg = e.details || e.message || String(e);
+    showToast('❌ '+msg, 'error');
   }
 }
 
