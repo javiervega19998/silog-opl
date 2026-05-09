@@ -66,15 +66,22 @@ exports.syncAllClaims = onCall(
     const db   = getFirestore();
     const auth = getAuth();
 
-    // Verificar admin en Firestore — busca por UID primero, luego por email
+    // Verificar admin en Firestore — busca por UID primero, luego por email como doc ID, luego por campo
     let callerDoc = await db.collection('users').doc(request.auth.uid).get();
     
-    // Fallback: buscar por correo_electronico o email si no existe doc con UID
+    // Fallback 1: el documento usa el EMAIL como ID (caso de este proyecto)
+    if (!callerDoc.exists && request.auth.token.email) {
+      callerDoc = await db.collection('users').doc(request.auth.token.email).get();
+    }
+    
+    // Fallback 2: buscar por campo correo_electronico
     if (!callerDoc.exists && request.auth.token.email) {
       const byEmail1 = await db.collection('users')
         .where('correo_electronico', '==', request.auth.token.email).limit(1).get();
       if (!byEmail1.empty) callerDoc = byEmail1.docs[0];
     }
+    
+    // Fallback 3: buscar por campo email
     if (!callerDoc.exists && request.auth.token.email) {
       const byEmail2 = await db.collection('users')
         .where('email', '==', request.auth.token.email).limit(1).get();
@@ -83,12 +90,12 @@ exports.syncAllClaims = onCall(
 
     if (!callerDoc.exists) {
       throw new HttpsError('permission-denied',
-        `Usuario no encontrado en la base de datos. UID: ${request.auth.uid}, Email: ${request.auth.token.email}`);
+        `Usuario no encontrado. UID: ${request.auth.uid}, Email: ${request.auth.token.email}`);
     }
     const callerRol = (callerDoc.data().rol || '').toLowerCase();
     if (callerRol !== 'admin') {
       throw new HttpsError('permission-denied',
-        `Solo el admin puede sincronizar claims. Tu rol actual en Firestore es: "${callerRol}".`);
+        `Solo el admin puede sincronizar claims. Tu rol en Firestore es: "${callerRol}".`);
     }
 
     // Sincronizar todos los usuarios
