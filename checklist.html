@@ -65,8 +65,9 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
     <p>Revisión diaria del vehículo antes de iniciar jornada</p>
   </div>
   <div class="tab-row">
-    <button class="tab-btn active" onclick="showTab('form')">Nuevo Checklist</button>
-    <button class="tab-btn" onclick="showTab('history')">Historial</button>
+    <button class="tab-btn active" onclick="showTab('form')" id="tb-form">Nuevo Checklist</button>
+    <button class="tab-btn" onclick="showTab('history')" id="tb-history">Historial</button>
+    <button class="tab-btn" onclick="showTab('all')" id="tb-all" style="display:none">📋 Todos (Admin)</button>
   </div>
 
   <!-- FORMULARIO -->
@@ -205,6 +206,14 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
   <div id="tab-history" style="display:none">
     <div id="history-list"><div style="color:var(--text2);text-align:center;padding:32px">Cargando historial…</div></div>
   </div>
+
+  <!-- ADMIN: Todos los checklists -->
+  <div id="tab-all" style="display:none">
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn-back" onclick="exportAllCSV()" style="font-size:.75rem">📥 Exportar CSV</button>
+    </div>
+    <div id="all-list"><div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div></div>
+  </div>
 </div>
 <div id="toast-container"></div>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -214,12 +223,15 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
 <script>
-let _userEmail='', _userName='';
+let _userEmail='', _userName='', _isAdmin=false, _allDocs=[];
 requireAuth(async(user,data)=>{
   _userEmail = data.correo_electronico||data.email||user.email;
   _userName  = data.name||data.nombre||'';
+  _isAdmin   = isViewerRole(data.role||data.rol||'conductor');
   document.getElementById('user-name').textContent = _userName;
   document.getElementById('nombre_conductor').value = _userName;
+  // Mostrar pestaña admin
+  if(_isAdmin) document.getElementById('tb-all').style.display='block';
   // Pre-rellenar patente si tiene vehículo asignado
   const vs = await db.collection('vehiculos').where('conductor','==',_userEmail).limit(1).get();
   if(!vs.empty) document.getElementById('patente').value = vs.docs[0].data().patente||'';
@@ -228,8 +240,12 @@ requireAuth(async(user,data)=>{
 function showTab(t){
   document.getElementById('tab-form').style.display = t==='form'?'block':'none';
   document.getElementById('tab-history').style.display = t==='history'?'block':'none';
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='form')||(i===1&&t==='history')));
+  document.getElementById('tab-all').style.display = t==='all'?'block':'none';
+  document.getElementById('tb-form').classList.toggle('active',t==='form');
+  document.getElementById('tb-history').classList.toggle('active',t==='history');
+  document.getElementById('tb-all').classList.toggle('active',t==='all');
   if(t==='history') loadHistory();
+  if(t==='all') loadAllChecklists();
 }
 
 function toggleMedicamentos(on){
@@ -333,6 +349,69 @@ async function loadHistory(){
       <div style="font-size:.78rem;color:var(--text2);margin-top:4px">⛽ Combustible: ${r.nivel_combustible||'—'} · 📝 ${r.chequeo_observaciones||'—'}</div>
     </div>`;
   });
+}
+
+// ── Admin: Todos los checklists ─────────────────────────────────
+async function loadAllChecklists(){
+  const list=document.getElementById('all-list');
+  list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px"><span class="spinner"></span></div>';
+  try{
+    const snap=await db.collection('chequeo_operacional').get();
+    if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin checklists.</div>';return;}
+    _allDocs=[];snap.forEach(d=>_allDocs.push({id:d.id,...d.data()}));
+    _allDocs.sort((a,b)=>(b.fecha_chequeo?.toMillis?.()||0)-(a.fecha_chequeo?.toMillis?.()||0));
+    list.innerHTML='';
+    _allDocs.forEach(r=>{
+      list.innerHTML+=`<div class="history-item">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span class="pat">\u{1F69B} ${sanitize(r.patente_chequeo||'\u2014')}</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn-back" style="font-size:.72rem;padding:4px 10px" onclick="dlPDF('${r.id}')">&darr; PDF</button>
+            <span class="badge-ok">\u2705 Completado</span>
+          </div>
+        </div>
+        <div class="date">\u{1F4C5} ${formatDate(r.fecha_chequeo)} \u00B7 \u{1F464} ${sanitize(r.nombre_operador||'\u2014')}</div>
+        <div style="font-size:.78rem;color:var(--text2);margin-top:4px">\u26FD Combustible: ${sanitize(r.nivel_combustible||'\u2014')} \u00B7 \u{1F4DD} ${sanitize(r.chequeo_observaciones||'Sin obs.')}</div>
+      </div>`;
+    });
+  }catch(e){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Error: '+sanitize(e.message)+'</div>';}
+}
+
+function dlPDF(id){
+  const r=_allDocs.find(d=>d.id===id);
+  if(!r){showToast('No encontrado','error');return;}
+  const win=window.open('','_blank');
+  if(!win){showToast('Habilita pop-ups','error');return;}
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Checklist '+(r.patente_chequeo||'')+'</title><style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;color:#111;font-size:13px}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#555;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#1B4B9B;color:#fff;padding:7px 10px;text-align:left;font-size:11px}td{padding:7px 10px;border-bottom:1px solid #ddd}.ok{color:#059669;font-weight:700}.warn{color:#D97706;font-weight:700}.footer{margin-top:30px;font-size:11px;color:#888;border-top:1px solid #ddd;padding-top:12px}@media print{body{margin:20px}}</style></head><body>');
+  win.document.write('<h1>Checklist Operacional \u2014 SILOG SpA</h1>');
+  win.document.write('<h2>Veh\u00edculo: '+(r.patente_chequeo||'\u2014')+' | Operador: '+(r.nombre_operador||'\u2014')+' | Fecha: '+formatDate(r.fecha_chequeo)+'</h2>');
+  win.document.write('<table><tr><th colspan="2">DATOS GENERALES</th></tr><tr><td>Combustible</td><td>'+(r.nivel_combustible||'\u2014')+'</td></tr></table>');
+  win.document.write('<table><tr><th colspan="2">MEC\u00c1NICA / SEGURIDAD</th></tr>');
+  ['frenos','direccion','suspension','sistema_electrico','panel','bocina','sensor_retroceso','alarmas','neumaticos','luces','cinturon','extintor'].forEach(k=>{
+    const v=r['chequeo_'+k]||'\u2014';
+    win.document.write('<tr><td>'+k+'</td><td>'+v+'</td></tr>');
+  });
+  win.document.write('</table>');
+  win.document.write('<table><tr><th colspan="2">FLUIDOS</th></tr>');
+  ['nivel_aceite','nivel_refrigerante','liquido_freno','liquido_direccion','agua_parabrisas'].forEach(k=>{
+    const v=r['chequeo_'+k]||'\u2014';
+    win.document.write('<tr><td>'+k+'</td><td>'+v+'</td></tr>');
+  });
+  win.document.write('</table>');
+  win.document.write('<table><tr><th colspan="2">ESTADO OPERADOR</th></tr>');
+  win.document.write('<tr><td>Condici\u00f3n F\u00edsica</td><td class="'+(r.condicion_fisica?'ok':'warn')+'">'+(r.condicion_fisica?'OK':'Comprometida')+'</td></tr>');
+  win.document.write('<tr><td>Descanso</td><td class="'+(r.descanso_operador?'ok':'warn')+'">'+(r.descanso_operador?'OK':'Insuficiente')+'</td></tr>');
+  win.document.write('<tr><td>Medicamentos</td><td>'+(r.medicamentos_chequeo?'S\u00ed \u2014 '+(r.medicamentos_detalle||'Sin detalle'):'No')+'</td></tr>');
+  win.document.write('</table>');
+  if(r.chequeo_observaciones) win.document.write('<p><strong>Observaciones:</strong> '+r.chequeo_observaciones+'</p>');
+  win.document.write('<div class="footer">Generado el '+new Date().toLocaleString('es-CL')+' \u2014 Silog SpA Ops Manager</div></body></html>');
+  win.document.close();
+  setTimeout(()=>win.print(),500);
+}
+
+function exportAllCSV(){
+  if(!_allDocs.length){showToast('Carga la pesta\u00f1a primero','info');return;}
+  exportCSV(_allDocs,'checklists_todos');
 }
 </script>
 </body>
