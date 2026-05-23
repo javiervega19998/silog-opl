@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Analytics</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:6px}.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif}
+.main{max-width:1100px;margin:0 auto;padding:16px 16px 80px}
+
+/* Period selector */
+.period-bar{display:flex;gap:6px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.period-btn{padding:8px 16px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:600;font-family:'Inter',sans-serif;transition:.2s}
+.period-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* KPI row */
+.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px}
+@media(min-width:700px){.kpi-grid{grid-template-columns:repeat(5,1fr)}}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden;transition:.2s}
+.kpi:hover{border-color:rgba(255,255,255,.12);transform:translateY(-2px)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi-blue::before{background:linear-gradient(90deg,var(--primary),#60A5FA)}
+.kpi-green::before{background:linear-gradient(90deg,var(--success),#34D399)}
+.kpi-orange::before{background:linear-gradient(90deg,var(--accent),#f97316)}
+.kpi-red::before{background:linear-gradient(90deg,var(--danger),#F87171)}
+.kpi-purple::before{background:linear-gradient(90deg,#8B5CF6,#A78BFA)}
+.kpi .k-icon{font-size:1.4rem;margin-bottom:4px}
+.kpi .k-val{font-size:1.5rem;font-weight:800;line-height:1}
+.kpi .k-lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-top:3px;font-weight:600}
+.kpi .k-delta{font-size:.7rem;font-weight:700;margin-top:4px}
+.delta-up{color:var(--success)}.delta-down{color:var(--danger)}.delta-neutral{color:var(--text2)}
+
+/* Chart cards */
+.chart-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:18px}
+@media(min-width:700px){.chart-grid{grid-template-columns:1fr 1fr}}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;overflow:hidden;position:relative}
+.chart-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.chart-card h3{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:14px}
+.chart-card.full{grid-column:1/-1}
+
+/* Bar chart CSS */
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:160px;padding-top:10px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bar{width:100%;border-radius:4px 4px 0 0;min-height:2px;transition:height .5s ease}
+.bar-label{font-size:.6rem;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center}
+.bar-value{font-size:.65rem;font-weight:700;color:var(--text)}
+
+/* Donut chart CSS */
+.donut-wrap{display:flex;align-items:center;gap:20px;justify-content:center}
+.donut{width:120px;height:120px;border-radius:50%;position:relative;display:flex;align-items:center;justify-content:center}
+.donut-center{font-size:1.3rem;font-weight:800;color:var(--text)}
+.donut-legend{display:flex;flex-direction:column;gap:6px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.78rem}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* Ranking table */
+.rank-list{display:flex;flex-direction:column;gap:6px}
+.rank-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;font-size:.82rem}
+.rank-pos{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0}
+.rank-1{background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff}
+.rank-2{background:rgba(148,163,184,.3);color:#CBD5E1}
+.rank-3{background:rgba(180,83,9,.3);color:#FBBF24}
+.rank-other{background:var(--surface);color:var(--text2)}
+.rank-info{flex:1;min-width:0}
+.rank-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-meta{font-size:.7rem;color:var(--text2)}
+.rank-val{font-weight:800;white-space:nowrap}
+
+/* Progress bar */
+.prog-bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:6px}
+.prog-fill{height:100%;border-radius:4px;transition:width .8s ease}
+
+.empty{text-align:center;padding:30px;color:var(--text2);font-size:.85rem}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> Analytics</div>
+  <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+</nav>
+
+<div class="main">
+  <!-- Period -->
+  <div class="period-bar">
+    <span style="font-size:.75rem;color:var(--text2);font-weight:600">Periodo:</span>
+    <button class="period-btn" onclick="setPeriod(7,this)">7 días</button>
+    <button class="period-btn active" onclick="setPeriod(30,this)">30 días</button>
+    <button class="period-btn" onclick="setPeriod(90,this)">90 días</button>
+    <button class="period-btn" onclick="setPeriod(365,this)">12 meses</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi kpi-blue"><div class="k-icon">🚛</div><div class="k-val" id="kpi-turnos">—</div><div class="k-lbl">Turnos</div><div class="k-delta delta-neutral" id="kd-turnos">—</div></div>
+    <div class="kpi kpi-green"><div class="k-icon">📦</div><div class="k-val" id="kpi-entregas">—</div><div class="k-lbl">Entregas</div><div class="k-delta delta-neutral" id="kd-entregas">—</div></div>
+    <div class="kpi kpi-orange"><div class="k-icon">📊</div><div class="k-val" id="kpi-otif">—</div><div class="k-lbl">OTIF %</div><div class="k-delta delta-neutral" id="kd-otif">—</div></div>
+    <div class="kpi kpi-red"><div class="k-icon">🔄</div><div class="k-val" id="kpi-devol">—</div><div class="k-lbl">Devoluciones</div><div class="k-delta delta-neutral" id="kd-devol">—</div></div>
+    <div class="kpi kpi-purple"><div class="k-icon">💰</div><div class="k-val" id="kpi-gastos">—</div><div class="k-lbl">Gastos Ruta</div><div class="k-delta delta-neutral" id="kd-gastos">—</div></div>
+  </div>
+
+  <!-- Charts row 1 -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>📦 Entregas por Día</h3>
+      <div class="bar-chart" id="chart-entregas"></div>
+    </div>
+    <div class="chart-card">
+      <h3>🔄 Motivos Devolución</h3>
+      <div class="donut-wrap" id="chart-devol"></div>
+    </div>
+  </div>
+
+  <!-- Charts row 2 -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>⛽ Gastos por Día</h3>
+      <div class="bar-chart" id="chart-gastos"></div>
+    </div>
+    <div class="chart-card">
+      <h3>📊 OTIF por Vehículo</h3>
+      <div id="chart-otif-vehicle"></div>
+    </div>
+  </div>
+
+  <!-- Rankings -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>🏆 Top Conductores (Entregas)</h3>
+      <div class="rank-list" id="rank-conductores"></div>
+    </div>
+    <div class="chart-card">
+      <h3>🚛 Rendimiento por Vehículo</h3>
+      <div class="rank-list" id="rank-vehiculos"></div>
+    </div>
+  </div>
+
+  <!-- KM Stats -->
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <h3>🛣️ Kilómetros Recorridos</h3>
+      <div class="bar-chart" id="chart-km" style="height:120px"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let _days=30,_turnos=[],_despachos=[],_gastos=[],_vehiculos=[];
+
+requireAdmin(async(user,data)=>{
+  await loadData();
+});
+
+function setPeriod(d,el){
+  _days=d;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderAll();
+}
+
+async function loadData(){
+  try{
+    const cutoff=new Date();
+    cutoff.setDate(cutoff.getDate()-365);
+    const ts=firebase.firestore.Timestamp.fromDate(cutoff);
+
+    let tSnap, dSnap, gSnap, vSnap;
+    try {
+      const results = await Promise.all([
+        db.collection('turnos').where('fecha','>=',ts).get().catch(e => {
+          console.warn("Turnos range query failed, falling back:", e);
+          return db.collection('turnos').get();
+        }),
+        db.collection('despachos').where('created_at','>=',ts).get().catch(e => {
+          console.warn("Despachos query by created_at failed, trying fecha_entrega...", e);
+          return db.collection('despachos').where('fecha_entrega','>=',ts).get().catch(ee => {
+            console.warn("Despachos native query failed, falling back:", ee);
+            return db.collection('despachos').get();
+          });
+        }),
+        db.collection('gastos_ruta').where('fecha','>=',ts).get().catch(e => {
+          console.warn("Gastos range query failed, falling back:", e);
+          return db.collection('gastos_ruta').get();
+        }),
+        db.collection('vehiculos').get().catch(e => {
+          console.warn("Vehiculos query failed:", e);
+          return null;
+        })
+      ]);
+      tSnap = results[0];
+      dSnap = results[1];
+      gSnap = results[2];
+      vSnap = results[3];
+    } catch(err) {
+      console.warn("Parallel fetch failed, fallback sequential:", err);
+      tSnap = await db.collection('turnos').get();
+      dSnap = await db.collection('despachos').get();
+      gSnap = await db.collection('gastos_ruta').get();
+      vSnap = await db.collection('vehiculos').get();
+    }
+
+    _turnos=[];tSnap.forEach(d=>{const t=d.data();t._id=d.id;t._date=t.fecha?.toDate?t.fecha.toDate():(t.hora_apertura?.toDate?t.hora_apertura.toDate():null);_turnos.push(t);});
+    _despachos=[];dSnap.forEach(d=>{const dp=d.data();dp._date=dp.fecha_entrega?.toDate?dp.fecha_entrega.toDate():(dp.created_at?.toDate?dp.created_at.toDate():null);_despachos.push(dp);});
+    _gastos=[];gSnap.forEach(d=>{const g=d.data();g._date=g.fecha?.toDate?g.fecha.toDate():null;_gastos.push(g);});
+    
+    _vehiculos=[];
+    if(vSnap) {
+      vSnap.forEach(d=>{
+        _vehiculos.push({ id: d.id, ...d.data() });
+      });
+    }
+    
+    renderAll();
+  }catch(e){console.warn(e);}
+}
+
+function filterByDays(arr,days){
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-days);
+  return arr.filter(x=>x._date&&x._date>=cutoff);
+}
+
+function renderAll(){
+  const turnos=filterByDays(_turnos,_days);
+  const despachos=filterByDays(_despachos,_days);
+  const gastos=filterByDays(_gastos,_days);
+  const entregados=despachos.filter(d=>d.estado==='entregado');
+  const devueltos=despachos.filter(d=>d.estado==='devuelto');
+  const totalGastos=gastos.reduce((s,g)=>s+(g.monto_clp||0),0);
+
+  // Native OTIF Calculations at trip level
+  const otifRes = calculateOTIF(turnos, despachos);
+  const otifPct = otifRes.pct;
+
+  // KPIs
+  document.getElementById('kpi-turnos').textContent=turnos.length;
+  document.getElementById('kpi-entregas').textContent=entregados.length;
+  document.getElementById('kpi-otif').textContent=otifPct+'%';
+  document.getElementById('kpi-devol').textContent=devueltos.length;
+  document.getElementById('kpi-gastos').textContent='$'+(totalGastos).toLocaleString('es-CL');
+
+  // Deltas (vs previous period)
+  const prevTurnos=filterByDays(_turnos,_days*2).length-turnos.length;
+  const prevEntregas=filterByDays(_despachos,_days*2).filter(d=>d.estado==='entregado').length-entregados.length;
+  setDelta('kd-turnos',turnos.length,prevTurnos);
+  setDelta('kd-entregas',entregados.length,prevEntregas);
+
+  // OTIF Delta (vs previous period) in percentage points (ptos)
+  const turnosPrevFull = filterByDays(_turnos, _days * 2);
+  const despachosPrevFull = filterByDays(_despachos, _days * 2);
+  const cutoffCurrent = new Date();
+  cutoffCurrent.setDate(cutoffCurrent.getDate() - _days);
+  const turnosPrev = turnosPrevFull.filter(t => t._date && t._date < cutoffCurrent);
+  const despachosPrev = despachosPrevFull.filter(d => d._date && d._date < cutoffCurrent);
+  const otifResPrev = calculateOTIF(turnosPrev, despachosPrev);
+  setOTIFDelta('kd-otif', otifPct, otifResPrev.pct);
+
+  // Charts
+  renderBarChart('chart-entregas',entregados,_days,'#10B981');
+  renderBarChart('chart-gastos',gastos,_days,'#F47920',true);
+  renderDonut(devueltos);
+  renderOtifByVehicle(turnos, despachos);
+  renderRankConductores(entregados);
+  renderRankVehiculos(turnos,despachos,gastos);
+  renderKmChart(turnos);
+}
+
+function calculateOTIF(turnosList, despachosList) {
+  const despachosByTurno = {};
+  despachosList.forEach(d => {
+    if (!despachosByTurno[d.turno_id]) despachosByTurno[d.turno_id] = [];
+    despachosByTurno[d.turno_id].push(d);
+  });
+  
+  let totalClosed = 0;
+  let otifCount = 0;
+  
+  turnosList.forEach(t => {
+    const tDespachos = despachosByTurno[t._id] || [];
+    if (tDespachos.length === 0) return;
+    
+    totalClosed++;
+    
+    // Check On-Time: all delivered despachos in this shift completed before shift's hora_cierre
+    const tClose = t.hora_cierre?.toDate ? t.hora_cierre.toDate() : (t.hora_cierre ? new Date(t.hora_cierre) : null);
+    let onTime = true;
+    if (tClose) {
+      tDespachos.forEach(d => {
+        if (d.estado === 'entregado' && d.pod_timestamp) {
+          const dTime = d.pod_timestamp.toDate ? d.pod_timestamp.toDate() : new Date(d.pod_timestamp);
+          if (dTime > tClose) {
+            onTime = false;
+          }
+        }
+      });
+    }
+    
+    // Check In-Full: zero returns (no despachos with estado === 'devuelto')
+    let inFull = true;
+    tDespachos.forEach(d => {
+      if (d.estado === 'devuelto') {
+        inFull = false;
+      }
+    });
+    
+    if (onTime && inFull) {
+      otifCount++;
+    }
+  });
+  
+  const pct = totalClosed > 0 ? Math.round((otifCount / totalClosed) * 100) : 100;
+  return { pct, count: otifCount, total: totalClosed };
+}
+
+function setOTIFDelta(id, currPct, prevPct) {
+  const el = document.getElementById(id);
+  const diff = currPct - prevPct;
+  if (prevPct === 100 && currPct === 100) {
+    el.textContent = 'Sin cambios (100%)';
+    el.className = 'k-delta delta-neutral';
+    return;
+  }
+  el.textContent = (diff >= 0 ? '↑ ' : '↓ ') + Math.abs(diff) + ' ptos vs anterior';
+  el.className = 'k-delta ' + (diff >= 0 ? 'delta-up' : 'delta-down');
+}
+
+function setDelta(id,curr,prev){
+  const el=document.getElementById(id);
+  if(prev===0){el.textContent='—';el.className='k-delta delta-neutral';return;}
+  const pct=Math.round((curr-prev)/Math.max(prev,1)*100);
+  el.textContent=(pct>=0?'↑':'↓')+' '+Math.abs(pct)+'% vs anterior';
+  el.className='k-delta '+(pct>=0?'delta-up':'delta-down');
+}
+
+function renderBarChart(containerId,items,days,color,isMoney=false){
+  const container=document.getElementById(containerId);
+  const numBars=Math.min(days,14);
+  const buckets=[];
+  for(let i=numBars-1;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);d.setHours(0,0,0,0);
+    const next=new Date(d);next.setDate(next.getDate()+1);
+    const count=isMoney?items.filter(x=>x._date&&x._date>=d&&x._date<next).reduce((s,g)=>s+(g.monto_clp||0),0):items.filter(x=>x._date&&x._date>=d&&x._date<next).length;
+    buckets.push({label:d.toLocaleDateString('es-CL',{day:'2-digit',month:'short'}),value:count});
+  }
+  const max=Math.max(...buckets.map(b=>b.value),1);
+  container.innerHTML=buckets.map(b=>{
+    const h=Math.max((b.value/max)*130,2);
+    return`<div class="bar-col"><div class="bar-value">${isMoney?'$'+(b.value/1000).toFixed(0)+'k':b.value}</div><div class="bar" style="height:${h}px;background:${color}"></div><div class="bar-label">${b.label}</div></div>`;
+  }).join('');
+}
+
+function renderDonut(devueltos){
+  const container=document.getElementById('chart-devol');
+  const motivos={};
+  devueltos.forEach(d=>{const m=d.devolucion_motivo||d.motivo||'Otro';motivos[m]=(motivos[m]||0)+1;});
+  const entries=Object.entries(motivos).sort((a,b)=>b[1]-a[1]);
+  const total=devueltos.length||1;
+  const colors=['#EF4444','#F59E0B','#8B5CF6','#3B82F6','#10B981','#F97316','#EC4899'];
+
+  if(!entries.length){container.innerHTML='<div class="empty">Sin devoluciones en el periodo</div>';return;}
+
+  // Build conic gradient
+  let gradParts=[],cumPct=0;
+  entries.forEach(([m,c],i)=>{
+    const pct=(c/total)*100;
+    gradParts.push(`${colors[i%colors.length]} ${cumPct}% ${cumPct+pct}%`);
+    cumPct+=pct;
+  });
+
+  container.innerHTML=`
+    <div class="donut" style="background:conic-gradient(${gradParts.join(',')})">
+      <div class="donut-center" style="width:60px;height:60px;background:var(--surface);border-radius:50%;display:flex;align-items:center;justify-content:center">${total}</div>
+    </div>
+    <div class="donut-legend">${entries.map(([m,c],i)=>`<div class="legend-item"><div class="legend-dot" style="background:${colors[i%colors.length]}"></div>${sanitize(m)}: <b>${c}</b> (${Math.round(c/total*100)}%)</div>`).join('')}</div>`;
+}
+
+function renderOtifByVehicle(turnosList, despachosList){
+  const container=document.getElementById('chart-otif-vehicle');
+  
+  const turnosByVeh={};
+  turnosList.forEach(t=>{
+    const v=t.patente||'N/A';
+    if(!turnosByVeh[v])turnosByVeh[v]=[];
+    turnosByVeh[v].push(t);
+  });
+  
+  const despachosByVeh={};
+  despachosList.forEach(d=>{
+    const v=d.patente||'N/A';
+    if(!despachosByVeh[v])despachosByVeh[v]=[];
+    despachosByVeh[v].push(d);
+  });
+  
+  const vehiclesList = Array.from(new Set([...Object.keys(turnosByVeh), ...Object.keys(despachosByVeh)]));
+  
+  const results=[];
+  vehiclesList.forEach(v=>{
+    const vTurnos=turnosByVeh[v]||[];
+    const vDespachos=despachosByVeh[v]||[];
+    const otifRes = calculateOTIF(vTurnos, vDespachos);
+    if(otifRes.total>0){
+      results.push({vehicle:v, ...otifRes});
+    }
+  });
+  
+  results.sort((a,b)=>b.total-a.total).slice(0,8);
+  if(!results.length){container.innerHTML='<div class="empty">Sin datos</div>';return;}
+  
+  container.innerHTML=results.map(r=>{
+    const pct=r.pct;
+    const color=pct>=90?'var(--success)':pct>=70?'var(--warning)':'var(--danger)';
+    return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px"><span><code style="color:var(--accent)">${sanitize(r.vehicle)}</code></span><span style="font-weight:700;color:${color}">${pct}% OTIF</span></div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div><div style="font-size:.68rem;color:var(--text2);margin-top:2px">${r.count}/${r.total} viajes cumplidos OTIF</div></div>`;
+  }).join('');
+}
+
+function renderRankConductores(entregados){
+  const container=document.getElementById('rank-conductores');
+  const byDriver={};
+  entregados.forEach(d=>{const n=d.conductor_nombre||d.conductor_email||'—';byDriver[n]=(byDriver[n]||0)+1;});
+  const sorted=Object.entries(byDriver).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  if(!sorted.length){container.innerHTML='<div class="empty">Sin datos</div>';return;}
+  container.innerHTML=sorted.map(([name,count],i)=>{
+    const posCls=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
+    return`<div class="rank-item"><div class="rank-pos ${posCls}">${i+1}</div><div class="rank-info"><div class="rank-name">${sanitize(name.split(' ').slice(0,2).join(' '))}</div><div class="rank-meta">${count} entregas</div></div><div class="rank-val" style="color:var(--success)">${count}</div></div>`;
+  }).join('');
+}
+
+function getVehicleEmoji(marca, modelo) {
+  const m = ((marca || '') + ' ' + (modelo || '')).toLowerCase();
+  if (m.includes('renault') || m.includes('master')) return '🚐';
+  if (m.includes('opel') || m.includes('combo')) return '🚙';
+  if (m.includes('foton')) return '🚛';
+  return '🚛';
+}
+
+function renderRankVehiculos(turnos,despachos,gastos){
+  const container=document.getElementById('rank-vehiculos');
+  
+  // Agrupar km por patente
+  const vehData={};
+  _vehiculos.forEach(v=>{
+    vehData[v.patente]={km:0,litros:0,turnos:0,marca:v.marca||'',modelo:v.modelo||''};
+  });
+
+  // Si no hay vehículos cargados en memoria, mostrar mensaje de vacío
+  if(Object.keys(vehData).length === 0) {
+    container.innerHTML = '<div class="empty" style="text-align:center;padding:28px;color:var(--text2);font-size:0.85rem">Sin vehículos registrados en la flota.</div>';
+    return;
+  }
+
+  // Sumar km de los turnos en el periodo
+  turnos.forEach(t=>{
+    const v=t.patente;
+    if(v && vehData[v]){
+      vehData[v].turnos++;
+      if(t.km_final&&t.km_inicial){
+        const diff = t.km_final-t.km_inicial;
+        if(diff > 0) vehData[v].km += diff;
+      }
+    }
+  });
+
+  // Sumar litros de gastos en el periodo
+  gastos.forEach(g=>{
+    if(g.tipo==='combustible' && g.litros){
+      const t = turnos.find(x=>x._id===g.turno_id);
+      const v = t ? t.patente : g.patente;
+      if(v && vehData[v]){
+        vehData[v].litros += parseFloat(g.litros)||0;
+      }
+    }
+  });
+
+  // Crear resultados
+  const results=[];
+  Object.entries(vehData).forEach(([patente,d])=>{
+    let rendimiento = 0;
+    if(d.litros > 0){
+      rendimiento = d.km / d.litros;
+    }
+
+    results.push({
+      patente,
+      marca:d.marca,
+      modelo:d.modelo,
+      km: d.km,
+      litros: d.litros,
+      rendimiento: parseFloat(rendimiento.toFixed(1))
+    });
+  });
+
+  // Ordenar de mayor a menor rendimiento
+  results.sort((a,b)=>b.rendimiento-a.rendimiento);
+
+  container.innerHTML=results.map((r,i)=>{
+    const posCls=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
+    const color = r.rendimiento>=10?'#10B981':r.rendimiento>=8?'#3B82F6':'#EF4444';
+    const progressWidth = Math.min((r.rendimiento/15)*100, 100);
+    const emoji = getVehicleEmoji(r.marca, r.modelo);
+
+    return `
+      <div class="rank-item" style="flex-direction:column; align-items:stretch; gap:6px; padding:12px; margin-bottom:8px; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.04)">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="rank-pos ${posCls}">${i+1}</div>
+            <div>
+              <span style="font-family:monospace; font-weight:700; color:var(--text); font-size:0.9rem;">${emoji} ${sanitize(r.patente)}</span>
+              <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:6px;">${sanitize(r.marca)} ${sanitize(r.modelo)}</span>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <span style="font-weight:800; font-size:1rem; color:${color}">${r.rendimiento} Km/L</span>
+          </div>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">
+          <span>Recorrido: <b>${r.km.toLocaleString('es-CL')} km</b></span>
+          <span>Consumo: <b>${Math.round(r.litros)} L</b></span>
+        </div>
+
+        <div style="height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; margin-top:4px;">
+          <div style="height:100%; width:${progressWidth}%; background:${color}; border-radius:3px; transition: width 0.6s ease;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderKmChart(turnos){
+  const container=document.getElementById('chart-km');
+  const byDay={};
+  turnos.forEach(t=>{
+    if(!t._date||!t.km_final||!t.km_inicial)return;
+    const key=t._date.toISOString().split('T')[0];
+    byDay[key]=(byDay[key]||0)+(t.km_final-t.km_inicial);
+  });
+  const sorted=Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14);
+  if(!sorted.length){container.innerHTML='<div class="empty">Sin datos de KM</div>';return;}
+  const max=Math.max(...sorted.map(([,v])=>v),1);
+  container.innerHTML=sorted.map(([day,km])=>{
+    const h=Math.max((km/max)*100,2);
+    const label=new Date(day+'T12:00:00').toLocaleDateString('es-CL',{day:'2-digit',month:'short'});
+    return`<div class="bar-col"><div class="bar-value">${km.toLocaleString('es-CL')}</div><div class="bar" style="height:${h}px;background:linear-gradient(180deg,#60A5FA,var(--primary))"></div><div class="bar-label">${label}</div></div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

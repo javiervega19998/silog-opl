@@ -78,6 +78,27 @@
     <button class="tab-btn" onclick="showTab('done')" id="t-done">✅ Completadas</button>
     <button class="tab-btn" id="t-assign" onclick="showTab('assign')" style="display:none">⚙️ Asignar</button>
   </div>
+  
+  <!-- Formulario de asignación de vehículos (Solo visible para administrativos en pestaña de asignación) -->
+  <div id="vehicle-assignment-card" class="task-card" style="display:none; margin-bottom: 20px; border-left: 3px solid var(--accent);">
+    <h3 style="font-size:1rem; font-weight:700; color:var(--accent); margin-bottom:14px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px">🚐 Asignar Vehículo a Conductor</h3>
+    <div class="row-2" style="margin-bottom:12px">
+      <div class="form-row">
+        <label>Conductor</label>
+        <select class="field" id="va-conductor-sel">
+          <option value="" disabled selected>Seleccionar conductor...</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Vehículo</label>
+        <select class="field" id="va-vehiculo-sel">
+          <option value="" disabled selected>Seleccionar vehículo...</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-save" id="btn-assign-vehicle" onclick="assignVehicle(this)" style="width:100%; padding:10px; background:linear-gradient(135deg, var(--accent), #F97316);">💾 Guardar Asignación</button>
+  </div>
+
   <div id="task-container"><div class="empty">Cargando tareas…</div></div>
 </div>
 
@@ -123,12 +144,13 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
 <script>
-let _email='', _isAdmin=false, _curTab='pending', _users=[];
+let _email='', _isAdmin=false, _curTab='pending', _users=[], _userName='', _completingTask=false, _savingTask=false;
 const iconMap={checklist:'✅',charla:'📚',viaje:'📋',otro:'📌'};
 const tipoLabel={checklist:'Checklist',charla:'Charla',viaje:'Hoja de Ruta',otro:'General'};
 
 requireAuth(async(user,data)=>{
   _email=data.correo_electronico||data.email||user.email;
+  _userName=data.nombre||data.name||_email;
   _isAdmin=isViewerRole(data.role);  // admin + administrativo + administrativo.conductor
   if(_isAdmin){
     document.getElementById('btn-new').style.display='block';
@@ -140,23 +162,62 @@ requireAuth(async(user,data)=>{
       const em=u.correo_electronico||u.email||'';
       if(em) _users.push({email:em,name:u.nombre||u.name||em});
     });
-    // Rellenar select de usuarios en modal
+    // Rellenar select de usuarios en modal y en panel de asignación de vehículo
     const sel=document.getElementById('t-para-sel');
+    const vaConductorSel=document.getElementById('va-conductor-sel');
     if(sel){
       _users.forEach(u=>{
         const o=document.createElement('option');
         o.value=u.email; o.textContent=u.name+' ('+u.email+')';
         sel.appendChild(o);
+        
+        const o2=o.cloneNode(true);
+        if(vaConductorSel) vaConductorSel.appendChild(o2);
       });
     }
+    // Cargar vehículos para la asignación
+    await loadVehiclesForAssignment();
   }
   loadTasks('pending');
 });
+
+function getVehicleEmoji(marca, modelo) {
+  const m = ((marca || '') + ' ' + (modelo || '')).toLowerCase();
+  if (m.includes('renault') || m.includes('master')) return '🚐';
+  if (m.includes('opel') || m.includes('combo')) return '🚙';
+  if (m.includes('foton')) return '🚛';
+  return '🚛';
+}
+
+async function loadVehiclesForAssignment() {
+  const sel = document.getElementById('va-vehiculo-sel');
+  if(!sel) return;
+  sel.innerHTML = '<option value="" disabled selected>Seleccionar vehículo...</option>';
+  try {
+    const snap = await db.collection('vehiculos').get();
+    snap.forEach(d => {
+      const v = d.data();
+      const emoji = getVehicleEmoji(v.marca, v.modelo);
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = `${emoji} ${v.patente || '—'} — ${v.marca || ''} ${v.modelo || ''} ${v.conductor ? '(Asignado a: '+v.conductor+')' : '(Disponible)'}`;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    console.warn('Error loading vehicles for assignment:', e);
+  }
+}
 
 function showTab(tab){
   _curTab=tab;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('t-'+tab).classList.add('active');
+  
+  const vaCard = document.getElementById('vehicle-assignment-card');
+  if(vaCard) {
+    vaCard.style.display = (_isAdmin && tab === 'assign') ? 'block' : 'none';
+  }
+  
   loadTasks(tab);
 }
 
@@ -216,7 +277,7 @@ function renderTasksArr(docs,tab){
       </div>
       ${!isDone&&tab!=='assign'?`<div class="task-actions">
         <button class="btn-action" onclick="goToModule('${t.tipo}')">→ Ir al módulo</button>
-        <button class="btn-action btn-complete" onclick="completeTask('${id}')">✅ Marcar Completada</button>
+        <button class="btn-complete" onclick="completeTask('${id}', this)">✅ Marcar Completada</button>
       </div>`:''}
     </div>`;
   });
@@ -227,12 +288,51 @@ function goToModule(tipo){
   window.location.href=urls[tipo]||'dashboard.html';
 }
 
-async function completeTask(id){
+async function completeTask(id, btn){
+  if(_completingTask) return;
+  _completingTask = true;
+
+  if(btn) {
+    btn.disabled = true;
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '...';
+  }
+
   try{
-    await db.collection('tareas').doc(id).update({estado:'completada',fecha_completado:firebase.firestore.FieldValue.serverTimestamp()});
+    const doc = await db.collection('tareas').doc(id).get();
+    if (!doc.exists) return;
+    const task = doc.data();
+
+    await db.collection('tareas').doc(id).update({
+      estado:'completada',
+      fecha_completado:firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Enviar notificación a administradores
+    try {
+      await db.collection('notificaciones').add({
+        tipo: 'tarea_completada',
+        operador: _email,
+        nombre_operador: _userName,
+        mensaje: `${_userName} completó la tarea: ${task.titulo || 'Sin título'}`,
+        fecha: firebase.firestore.FieldValue.serverTimestamp(),
+        leida: false
+      });
+    } catch(err) {
+      console.warn('Error al enviar notificación de tarea completada:', err);
+    }
+
     showToast('✅ Tarea marcada como completada','success');
     loadTasks(_curTab);
-  }catch(e){showToast('Error: '+e.message,'error');}
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+  }finally{
+    _completingTask = false;
+    if(btn) {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.originalHtml;
+    }
+  }
 }
 
 function openModal(){document.getElementById('modal-task').classList.add('open');}
@@ -242,6 +342,16 @@ async function saveTask(){
   const titulo=document.getElementById('t-titulo').value.trim();
   const para=document.getElementById('t-para-sel').value.trim();
   if(!titulo||!para){showToast('Completa título y destinatario','error');return;}
+  if(_savingTask) return;
+  _savingTask = true;
+
+  const btn = document.querySelector('#modal-task .btn-save');
+  if(btn) {
+    btn.disabled = true;
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> Guardando...';
+  }
+
   const fechaVal=document.getElementById('t-fecha').value;
   try{
     await db.collection('tareas').add({
@@ -257,7 +367,52 @@ async function saveTask(){
     });
     closeModal();showToast('✅ Tarea creada y asignada','success');
     loadTasks(_curTab);
-  }catch(e){showToast('Error: '+e.message,'error');}
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+  }finally{
+    _savingTask = false;
+    if(btn) {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.originalHtml;
+    }
+  }
+}
+
+async function assignVehicle(btn) {
+  const conductor = document.getElementById('va-conductor-sel').value;
+  const vehiculoId = document.getElementById('va-vehiculo-sel').value;
+  
+  if(!conductor || !vehiculoId) {
+    showToast('Selecciona un conductor y un vehículo', 'error');
+    return;
+  }
+  
+  btn.disabled = true;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Asignando...';
+  
+  try {
+    const prevSnap = await db.collection('vehiculos').where('conductor', '==', conductor).get();
+    const batch = db.batch();
+    prevSnap.forEach(doc => {
+      batch.update(doc.ref, { conductor: '' });
+    });
+    await batch.commit();
+    
+    await db.collection('vehiculos').doc(vehiculoId).update({
+      conductor: conductor
+    });
+    
+    showToast('✅ Vehículo asignado con éxito', 'success');
+    await loadVehiclesForAssignment();
+    document.getElementById('va-conductor-sel').value = '';
+    document.getElementById('va-vehiculo-sel').value = '';
+  } catch (e) {
+    showToast('Error de asignación: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
 }
 </script>
 </body>

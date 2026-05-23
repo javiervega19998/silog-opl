@@ -28,3 +28,13 @@ const functions = firebase.app().functions('us-central1');
 
 // Configuración regional (Chile)
 firebase.firestore().settings({ ignoreUndefinedProperties: true });
+
+// Habilitar Persistencia Offline en Firestore para Operaciones en Terreno
+db.enablePersistence({ synchronizeTabs: true })
+  .catch(function(err) {
+    if (err.code == 'failed-precondition') {
+      console.warn("Firestore offline persistence failed: multiple tabs open.");
+    } else if (err.code == 'unimplemented') {
+      console.warn("Firestore offline persistence unimplemented in browser.");
+    }
+  });

@@ -93,7 +93,6 @@
       <div class="form-row"><label>Cap. Kg</label><input class="field" type="number" id="m-kg" placeholder="2250"/></div>
       <div class="form-row"><label>Cap. m³</label><input class="field" type="number" step="0.1" id="m-m3" placeholder="13"/></div>
     </div>
-    <div class="form-row"><label>Correo Conductor Asignado</label><input class="field" id="m-conductor" placeholder="conductor@gmail.com"/></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-save" onclick="saveVehicle()">💾 Guardar</button>
@@ -124,6 +123,14 @@ requireAuth(async(user,data)=>{
   if(_isAdmin) document.getElementById('btn-add-v').style.display='block';
   loadVehicles();
 });
+function getVehicleEmoji(marca, modelo) {
+  const m = ((marca || '') + ' ' + (modelo || '')).toLowerCase();
+  if (m.includes('renault') || m.includes('master')) return '🚐';
+  if (m.includes('opel') || m.includes('combo')) return '🚙';
+  if (m.includes('foton')) return '🚛';
+  return '🚛';
+}
+
 async function loadVehicles(){
   const snap=await db.collection('vehiculos').get();
   const grid=document.getElementById('fleet-grid');
@@ -132,10 +139,16 @@ async function loadVehicles(){
   snap.forEach(d=>{
     const v=d.data(); const id=d.id;
     const sc=v.estado==='Disponible'?'s-disponible':v.estado==='Mantención'?'s-mantencion':'s-otros';
-    grid.innerHTML+=`
+    const emoji=getVehicleEmoji(v.marca, v.modelo);
+    grid.innerHTML+=ScCard(v, id, sc, emoji);
+  });
+}
+
+function ScCard(v, id, sc, emoji) {
+  return `
     <div class="v-card">
       <div class="v-top">
-        <div><div class="v-plate">${v.patente||'—'}</div><div class="v-model-name">${v.marca||''} ${v.modelo||''}</div></div>
+        <div><div class="v-plate">${emoji} ${v.patente||'—'}</div><div class="v-model-name">${v.marca||''} ${v.modelo||''}</div></div>
         <span class="status-pill ${sc}">${v.estado||'—'}</span>
       </div>
       <div class="v-stats">
@@ -149,10 +162,10 @@ async function loadVehicles(){
         ${_isAdmin?`<button class="btn-detail" style="flex:1;border-color:var(--accent);color:var(--accent)" onclick="editVehicle('${id}')">✏️ Editar</button><button class="btn-detail" style="flex:1;border-color:var(--danger);color:#FCA5A5" onclick="deleteVehicle('${id}','${v.patente||''}')"> 🗑️ Eliminar</button>`:''}
       </div>
     </div>`;
-  });
 }
+
 function openModal(reset=true){
-  if(reset){document.getElementById('modal-title').textContent='➕ Nuevo Vehículo';document.getElementById('doc-id').value='';['m-patente','m-marca','m-modelo','m-conductor'].forEach(i=>document.getElementById(i).value='');['m-km','m-rev','m-kg','m-m3'].forEach(i=>document.getElementById(i).value='');document.getElementById('m-estado').value='Disponible';}
+  if(reset){document.getElementById('modal-title').textContent='➕ Nuevo Vehículo';document.getElementById('doc-id').value='';['m-patente','m-marca','m-modelo'].forEach(i=>document.getElementById(i).value='');['m-km','m-rev','m-kg','m-m3'].forEach(i=>document.getElementById(i).value='');document.getElementById('m-estado').value='Disponible';}
   document.getElementById('modal-vehicle').classList.add('open');
 }
 function closeModal(){document.getElementById('modal-vehicle').classList.remove('open');}
@@ -169,13 +182,13 @@ async function editVehicle(id){
   document.getElementById('m-rev').value=v.proxima_revision||'';
   document.getElementById('m-kg').value=v.capacidad_kg||'';
   document.getElementById('m-m3').value=v.capacidad_m_3||'';
-  document.getElementById('m-conductor').value=v.conductor||'';
   document.getElementById('m-estado').value=v.estado||'Disponible';
   openModal(false);
 }
 async function saveVehicle(){
   const patente=document.getElementById('m-patente').value.trim().toUpperCase();
   if(!patente){showToast('Ingresa la patente','error');return;}
+  const docId=document.getElementById('doc-id').value;
   const data={
     patente,marca:document.getElementById('m-marca').value.trim(),
     modelo:document.getElementById('m-modelo').value.trim(),
@@ -183,10 +196,9 @@ async function saveVehicle(){
     proxima_revision:parseFloat(document.getElementById('m-rev').value)||0,
     capacidad_kg:parseFloat(document.getElementById('m-kg').value)||0,
     capacidad_m_3:parseFloat(document.getElementById('m-m3').value)||0,
-    conductor:document.getElementById('m-conductor').value.trim(),
     estado:document.getElementById('m-estado').value,
   };
-  const docId=document.getElementById('doc-id').value;
+  if(!docId) data.conductor = '';
   try{
     if(docId) await db.collection('vehiculos').doc(docId).update(data);
     else await db.collection('vehiculos').add(data);

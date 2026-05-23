@@ -653,3 +653,25 @@ tbody tr:hover td { background: var(--bg-surface); }
   .stat-value { font-size: 1.4rem; }
   .page { padding-left: 12px; padding-right: 12px; }
 }
+
+/* ── BOTÓN VOLVER GENERAL ── */
+.btn-back {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 14px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: 'Inter', sans-serif;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+.btn-back:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: var(--accent);
+  color: var(--accent);
+}

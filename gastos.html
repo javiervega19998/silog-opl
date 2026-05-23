@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Gastos en Ruta</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:6px}.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif}
+.main{max-width:500px;margin:0 auto;padding:16px 14px 100px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:14px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.card h3{font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+/* Tabs */
+.tab-row{display:flex;gap:6px;margin-bottom:16px}
+.tab-btn{flex:1;padding:14px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:12px;cursor:pointer;font-size:.92rem;font-weight:700;font-family:'Inter',sans-serif;transition:.2s;text-align:center;min-height:50px}
+.tab-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(244,121,32,.08)}
+.tab-btn .tab-icon{font-size:1.4rem;display:block;margin-bottom:2px}
+
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600}
+.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:13px 14px;color:var(--text);font-size:1rem;font-family:'Inter',sans-serif;outline:none}
+.field:focus{border-color:var(--primary)}
+
+.photo-btn{width:100%;padding:16px;border:2px dashed var(--border);border-radius:12px;background:var(--bg);color:var(--accent);font-size:.95rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;text-align:center;min-height:52px;transition:.2s;margin-bottom:12px}
+.photo-btn:hover{border-color:var(--accent)}
+.photo-btn.has-photo{border-color:var(--success);color:var(--success);border-style:solid}
+.photo-preview{width:100%;max-height:180px;object-fit:contain;border-radius:8px;margin-bottom:12px;display:none}
+
+.btn-save{width:100%;padding:16px;background:linear-gradient(135deg,var(--primary),#2563EB);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;min-height:52px;transition:.2s}
+.btn-save:active{transform:scale(.97)}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+
+/* History */
+.gasto-item{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.gi-left{display:flex;align-items:center;gap:10px}
+.gi-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+.gi-fuel{background:rgba(245,158,11,.15)}
+.gi-toll{background:rgba(37,99,235,.15)}
+.gi-info .gi-type{font-size:.82rem;font-weight:600}
+.gi-info .gi-date{font-size:.7rem;color:var(--text2)}
+.gi-amount{font-size:1rem;font-weight:800;color:var(--accent)}
+
+.total-bar{background:linear-gradient(135deg,rgba(244,121,32,.1),rgba(244,121,32,.05));border:1px solid rgba(244,121,32,.2);border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.total-lbl{font-size:.82rem;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.total-val{font-size:1.3rem;font-weight:800;color:var(--accent)}
+
+.empty{text-align:center;padding:30px;color:var(--text2);font-size:.85rem}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> Gastos</div>
+  <button class="btn-back" onclick="window.location.href='turno.html'">← Turno</button>
+</nav>
+
+<div class="main">
+  <!-- Type tabs -->
+  <div class="tab-row">
+    <button class="tab-btn active" id="tb-fuel" onclick="showType('fuel')"><span class="tab-icon">⛽</span>Combustible</button>
+    <button class="tab-btn" id="tb-toll" onclick="showType('toll')"><span class="tab-icon">🛣️</span>Peaje</button>
+  </div>
+
+  <!-- FUEL FORM -->
+  <div id="form-fuel">
+    <div class="card">
+      <h3>⛽ Registro de Combustible</h3>
+      <div class="form-group">
+        <label>Litros Cargados</label>
+        <input class="field" type="number" id="fuel-litros" placeholder="Ej: 45.5" step="0.1" inputmode="decimal"/>
+      </div>
+      <div class="form-group">
+        <label>Monto Total (CLP)</label>
+        <input class="field" type="number" id="fuel-monto" placeholder="Ej: 35000" inputmode="numeric"/>
+      </div>
+      <input type="file" id="fuel-photo" accept="image/*" capture="environment" style="display:none" onchange="onPhoto('fuel',event)"/>
+      <button class="photo-btn" id="fuel-photo-btn" onclick="document.getElementById('fuel-photo').click()">📸 Adjuntar Boleta (obligatorio)</button>
+      <img id="fuel-preview" class="photo-preview"/>
+      <button class="btn-save" onclick="registrarGasto('combustible')">💾 Registrar Combustible</button>
+    </div>
+  </div>
+
+  <!-- TOLL FORM -->
+  <div id="form-toll" style="display:none">
+    <div class="card">
+      <h3>🛣️ Registro de Peaje</h3>
+      <div class="form-group">
+        <label>Monto Total (CLP)</label>
+        <input class="field" type="number" id="toll-monto" placeholder="Ej: 3200" inputmode="numeric"/>
+      </div>
+      <input type="file" id="toll-photo" accept="image/*" capture="environment" style="display:none" onchange="onPhoto('toll',event)"/>
+      <button class="photo-btn" id="toll-photo-btn" onclick="document.getElementById('toll-photo').click()">📸 Adjuntar Boleta (obligatorio)</button>
+      <img id="toll-preview" class="photo-preview"/>
+      <button class="btn-save" onclick="registrarGasto('peaje')">💾 Registrar Peaje</button>
+    </div>
+  </div>
+
+  <!-- Total bar -->
+  <div class="total-bar">
+    <span class="total-lbl">Total Gastos del Turno</span>
+    <span class="total-val" id="total-amount">$0</span>
+  </div>
+
+  <!-- History -->
+  <div id="gasto-list"></div>
+  <div id="gasto-empty" class="empty" style="display:none">Sin gastos registrados en este turno.</div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let _uid='',_email='',_name='',_turnoId='',_gastos=[];
+let _fuelFile=null, _tollFile=null;
+
+requireAuth(async(user,data)=>{
+  _uid=user.uid;
+  _email=data.correo_electronico||data.email||user.email;
+  _name=data.name||data.nombre||'';
+
+  const tSnap=await db.collection('turnos').where('conductor_uid','==',_uid).where('estado','==','abierto').get();
+  if(tSnap.empty){showToast('No hay turno activo','error');setTimeout(()=>location.href='turno.html',1500);return;}
+  _turnoId=tSnap.docs[0].id;
+  await loadGastos();
+});
+
+function showType(t){
+  document.getElementById('form-fuel').style.display=t==='fuel'?'block':'none';
+  document.getElementById('form-toll').style.display=t==='toll'?'block':'none';
+  document.getElementById('tb-fuel').classList.toggle('active',t==='fuel');
+  document.getElementById('tb-toll').classList.toggle('active',t==='toll');
+}
+
+function onPhoto(type,e){
+  const file=e.target.files[0];
+  if(!file)return;
+  if(type==='fuel')_fuelFile=file; else _tollFile=file;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    document.getElementById(type+'-preview').src=ev.target.result;
+    document.getElementById(type+'-preview').style.display='block';
+    document.getElementById(type+'-photo-btn').textContent='✅ Boleta adjunta';
+    document.getElementById(type+'-photo-btn').classList.add('has-photo');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function registrarGasto(tipo){
+  const isFuel=tipo==='combustible';
+  const montoVal=document.getElementById(isFuel?'fuel-monto':'toll-monto').value.trim();
+  const litrosVal=isFuel?document.getElementById('fuel-litros').value.trim():'0';
+  const file=isFuel?_fuelFile:_tollFile;
+
+  if(montoVal===''){showToast('Ingresa el monto','error');return;}
+  const monto=parseInt(montoVal,10);
+  if(isNaN(monto)||monto<=0){showToast('Ingresa un monto válido (entero mayor a 0)','error');return;}
+
+  let litros=0;
+  if(isFuel){
+    if(litrosVal===''){showToast('Ingresa los litros','error');return;}
+    litros=parseFloat(litrosVal);
+    if(isNaN(litros)||litros<=0){showToast('Ingresa una cantidad de litros válida y mayor a 0','error');return;}
+  }
+  if(!file){showToast('📸 La foto de la boleta es obligatoria','error');return;}
+
+  const btn=document.querySelector(`#form-${isFuel?'fuel':'toll'} .btn-save`);
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Guardando…';
+
+  try{
+    const ref=storage.ref(`gastos/${_turnoId}/${tipo}_${Date.now()}.jpg`);
+    await ref.put(file);
+    const fotoUrl=await ref.getDownloadURL();
+
+    await db.collection('gastos_ruta').add({
+      turno_id:_turnoId,tipo:tipo,monto_clp:monto,litros:litros,
+      foto_boleta_url:fotoUrl,descripcion:'',
+      conductor_uid:_uid,conductor_email:_email,
+      fecha:firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showToast(`✅ ${isFuel?'Combustible':'Peaje'} registrado`,'success');
+    // Reset
+    if(isFuel){document.getElementById('fuel-litros').value='';document.getElementById('fuel-monto').value='';document.getElementById('fuel-preview').style.display='none';document.getElementById('fuel-photo-btn').textContent='📸 Adjuntar Boleta (obligatorio)';document.getElementById('fuel-photo-btn').classList.remove('has-photo');_fuelFile=null;}
+    else{document.getElementById('toll-monto').value='';document.getElementById('toll-preview').style.display='none';document.getElementById('toll-photo-btn').textContent='📸 Adjuntar Boleta (obligatorio)';document.getElementById('toll-photo-btn').classList.remove('has-photo');_tollFile=null;}
+    await loadGastos();
+  }catch(e){showToast('Error: '+e.message,'error');}
+  btn.disabled=false;btn.innerHTML=`💾 Registrar ${isFuel?'Combustible':'Peaje'}`;
+}
+
+async function loadGastos(){
+  try{
+    const s=await db.collection('gastos_ruta').where('turno_id','==',_turnoId).get();
+    _gastos=[];s.forEach(d=>{_gastos.push({id:d.id,...d.data()});});
+    _gastos.sort((a,b)=>{const ta=a.fecha?.toDate?a.fecha.toDate():new Date(0);const tb=b.fecha?.toDate?b.fecha.toDate():new Date(0);return tb-ta;});
+    renderGastos();
+  }catch(e){console.warn(e);}
+}
+
+function renderGastos(){
+  const list=document.getElementById('gasto-list');
+  const empty=document.getElementById('gasto-empty');
+  if(!_gastos.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  let total=0;
+  list.innerHTML=_gastos.map(g=>{
+    total+=g.monto_clp||0;
+    const isFuel=g.tipo==='combustible';
+    const fecha=g.fecha?formatTime(g.fecha):'—';
+    return `<div class="gasto-item">
+      <div class="gi-left">
+        <div class="gi-icon ${isFuel?'gi-fuel':'gi-toll'}">${isFuel?'⛽':'🛣️'}</div>
+        <div class="gi-info">
+          <div class="gi-type">${isFuel?'Combustible':'Peaje'}${isFuel&&g.litros?' · '+g.litros+'L':''}</div>
+          <div class="gi-date">${fecha}</div>
+        </div>
+      </div>
+      <div class="gi-amount">$${(g.monto_clp||0).toLocaleString('es-CL')}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('total-amount').textContent='$'+total.toLocaleString('es-CL');
+}
+</script>
+</body>
+</html>

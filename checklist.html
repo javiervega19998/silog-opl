@@ -30,6 +30,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 .toggle input:checked+.slider::before{transform:translateX(16px);background:#fff}
 .select-field,.text-field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;font-family:'Inter',sans-serif;outline:none}
 .select-field:focus,.text-field:focus{border-color:var(--primary)}
+.check-item .select-field{width:auto!important;min-width:105px;max-width:160px;padding:7px 10px;font-size:.8rem;appearance:auto}
 .form-row{margin-bottom:12px}
 .form-row label{display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .btn-submit{width:100%;padding:15px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;margin-top:8px;transition:.2s}
@@ -109,11 +110,11 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
     <div class="section-card">
       <h3>💧 Niveles de Fluidos</h3>
       <div class="check-grid">
-        <div class="check-item"><label>Nivel Aceite</label><select class="select-field" id="chequeo_nivel_aceite" style="width:100px;padding:6px"><option value="" disabled selected>—</option><option>Máximo</option><option>Normal</option><option>Bajo</option><option>Vacío</option></select></div>
-        <div class="check-item"><label>Refrigerante</label><select class="select-field" id="chequeo_nivel_refrigerante" style="width:100px;padding:6px"><option value="" disabled selected>—</option><option>Máximo</option><option>Normal</option><option>Bajo</option><option>Vacío</option></select></div>
-        <div class="check-item"><label>Liq. Freno</label><select class="select-field" id="chequeo_liquido_freno" style="width:100px;padding:6px"><option value="" disabled selected>—</option><option>Máximo</option><option>Normal</option><option>Bajo</option><option>Vacío</option></select></div>
-        <div class="check-item"><label>Liq. Dirección</label><select class="select-field" id="chequeo_liquido_direccion" style="width:100px;padding:6px"><option value="" disabled selected>—</option><option>Máximo</option><option>Normal</option><option>Bajo</option><option>Vacío</option></select></div>
-        <div class="check-item"><label>Agua Parabrisas</label><select class="select-field" id="chequeo_agua_parabrisas" style="width:100px;padding:6px"><option value="" disabled selected>—</option><option>Máximo</option><option>Normal</option><option>Bajo</option><option>Vacío</option></select></div>
+        <div class="check-item"><label>Nivel Aceite</label><select class="select-field" id="chequeo_nivel_aceite" style="width:100px;padding:6px"><option value="" disabled selected>—</option><option>Maximo</option><option>Normal</option><option>Bajo</option><option>Vacio</option></select></div>
+        <div class="check-item"><label>Refrigerante</label><select class="select-field" id="chequeo_nivel_refrigerante" style="width:100px;padding:6px"><option value="" disabled selected>—</option><option>Maximo</option><option>Normal</option><option>Bajo</option><option>Vacio</option></select></div>
+        <div class="check-item"><label>Liq. Freno</label><select class="select-field" id="chequeo_liquido_freno" style="width:100px;padding:6px"><option value="" disabled selected>—</option><option>Maximo</option><option>Normal</option><option>Bajo</option><option>Vacio</option></select></div>
+        <div class="check-item"><label>Liq. Dirección</label><select class="select-field" id="chequeo_liquido_direccion" style="width:100px;padding:6px"><option value="" disabled selected>—</option><option>Maximo</option><option>Normal</option><option>Bajo</option><option>Vacio</option></select></div>
+        <div class="check-item"><label>Agua Parabrisas</label><select class="select-field" id="chequeo_agua_parabrisas" style="width:100px;padding:6px"><option value="" disabled selected>—</option><option>Maximo</option><option>Normal</option><option>Bajo</option><option>Vacio</option></select></div>
       </div>
     </div>
 
@@ -222,6 +223,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/logo-data.js"></script>
 <script src="js/checklist-pdf.js"></script>
 <script>
 let _userEmail='', _userName='', _isAdmin=false, _allDocs=[];
@@ -314,7 +316,31 @@ async function submitChecklist(){
       chequeo_observaciones:gv('chequeo_observaciones'),
     };
     await db.collection('chequeo_operacional').add(data);
-    // Notificar a administradores
+
+    // Auto-completar la tarea de checklist correspondiente si existe
+    try {
+      const tSnap = await db.collection('tareas')
+        .where('asignado_a', '==', _userEmail)
+        .where('tipo', '==', 'checklist')
+        .where('estado', '==', 'pendiente')
+        .get();
+
+      if (!tSnap.empty) {
+        const batch = db.batch();
+        tSnap.forEach(doc => {
+          batch.update(doc.ref, {
+            estado: 'completada',
+            fecha_completado: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        });
+        await batch.commit();
+        console.log('Tarea de checklist auto-completada con éxito.');
+      }
+    } catch(err) {
+      console.warn('Error auto-completando tarea de checklist:', err);
+    }
+
+    // Notificar a administradores (tanto checklist como tarea completada)
     await db.collection('notificaciones').add({
       tipo:'checklist',
       operador:_userEmail,
@@ -324,6 +350,20 @@ async function submitChecklist(){
       leida:false,
       mensaje:`Checklist enviado por ${_userName} para vehículo ${patente}`,
     });
+
+    try {
+      await db.collection('notificaciones').add({
+        tipo: 'tarea_completada',
+        operador: _userEmail,
+        nombre_operador: _userName,
+        mensaje: `${_userName} completó su checklist obligatorio para vehículo ${patente}`,
+        fecha: firebase.firestore.FieldValue.serverTimestamp(),
+        leida: false
+      });
+    } catch(err) {
+      console.warn('Error creando notificación de tarea completada:', err);
+    }
+
     showToast('✅ Checklist enviado correctamente','success');
     setTimeout(()=>window.location.href='dashboard.html',1500);
   }catch(e){
@@ -357,7 +397,7 @@ async function loadAllChecklists(){
   const list=document.getElementById('all-list');
   list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px"><span class="spinner"></span></div>';
   try{
-    const snap=await db.collection('chequeo_operacional').get();
+    const snap=await db.collection('chequeo_operacional').limit(150).get();
     if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin checklists.</div>';return;}
     _allDocs=[];snap.forEach(d=>_allDocs.push({id:d.id,...d.data()}));
     _allDocs.sort((a,b)=>(b.fecha_chequeo?.toMillis?.()||0)-(a.fecha_chequeo?.toMillis?.()||0));

@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════
 // SILOG SpA — REPORTE DE CHECKLIST OPERACIONAL
-// Formato: Documento formal (estilo Docs / Word)
+// Formato: Documento formal (estilo Google Docs / Word)
 // Compartido: checklist.html  &  admin.html
 // ══════════════════════════════════════════════════════════
 
@@ -13,70 +13,153 @@ function generateChecklistPDF(r) {
   const operador = r.nombre_operador || '—';
   const combustible = r.nivel_combustible || '—';
 
+  // ── Logo (base64 from logo-data.js) ──────────────────────
+  const logoSrc = (typeof SILOG_LOGO_B64 !== 'undefined') ? SILOG_LOGO_B64 : '';
+
   // ── Helpers ──────────────────────────────────────────────
 
-  /** Select con colores */
-  function sc(val, good) {
-    if (!val || val === '—') return '<td class="na">—</td>';
-    const ok = good ? good.includes(val) : val === 'Check';
-    return `<td class="${ok ? 'ok' : 'warn'}">${val}</td>`;
+  /** Quita acentos para comparación robusta */
+  function strip(s) { return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); }
+
+  /** Normaliza un valor booleano (datos antiguos) o string (datos nuevos) */
+  function norm(val) {
+    if (val === true)  return 'Check';
+    if (val === false) return 'Falla';
+    if (!val || val === '—') return '';
+    return String(val).trim();
   }
 
-  /** Booleano */
-  function bc(val) {
-    return val
-      ? '<td class="ok">&#10003;&nbsp;Sí</td>'
-      : '<td class="warn">&#10007;&nbsp;No</td>';
+  /** Clasifica nivel de fluido: 'ok'|'info'|'warn'|'danger'|'' */
+  function fluidLevel(v) {
+    if (!v) return '';
+    const s = strip(v);
+    if (s === 'maximo' || s === 'full' || s === 'lleno' || s === 'check') return 'ok';
+    if (s === 'normal')       return 'info';
+    if (s === 'bajo' || s === '1/4') return 'warn';
+    if (s === 'vacio' || s === 'critico') return 'danger';
+    return 'warn'; // fallback
   }
 
-  /** Fila de tabla estándar */
-  function row(label, cell) {
-    return `<tr><td class="col-label">${label}</td>${cell}</tr>`;
+  // ── 4-Tier badge system ──────────────────────────────────
+
+  /** Badge para ítems mecánicos/equipamiento */
+  function mechBadge(val) {
+    const v = norm(val);
+    if (!v) return '<span class="badge badge-na">— Sin dato</span>';
+    if (strip(v) === 'check') return `<span class="badge badge-ok"><span class="dot dot-ok"></span>✓ ${v}</span>`;
+    if (/Falla|Sin |Roto/i.test(v)) return `<span class="badge badge-danger"><span class="dot dot-danger"></span>✗ ${v}</span>`;
+    return `<span class="badge badge-warn"><span class="dot dot-warn"></span>⚠ ${v}</span>`;
   }
 
-  /** Generar tabla a partir de lista de claves */
-  function tbl(keys, labels, good) {
-    return keys.map(k =>
-      row(labels[k] || k, sc(r['chequeo_' + k], good))
-    ).join('');
+  /** Mapea valor crudo a etiqueta de fluido para visualización */
+  function fluidLabel(v) {
+    const s = strip(v);
+    if (s === 'maximo' || s === 'full' || s === 'lleno' || s === 'check') return 'Maximo';
+    if (s === 'normal') return 'Normal';
+    if (s === 'bajo' || s === '1/4') return 'Bajo';
+    if (s === 'vacio' || s === 'critico' || s === 'minimo') return 'Vacio';
+    return v; // fallback: valor original
   }
+
+  /** Badge para niveles de fluidos (4 niveles con comparación sin acentos) */
+  function fluidBadge(val) {
+    const v = norm(val);
+    const lvl = fluidLevel(v);
+    const label = fluidLabel(v);
+    if (!v) return '<span class="badge badge-na">— Sin dato</span>';
+    if (lvl === 'ok')     return `<span class="badge badge-ok"><span class="dot dot-ok"></span>✓ ${label}</span>`;
+    if (lvl === 'info')   return `<span class="badge badge-info"><span class="dot dot-info"></span>● ${label}</span>`;
+    if (lvl === 'warn')   return `<span class="badge badge-warn"><span class="dot dot-warn"></span>⚠ ${label}</span>`;
+    if (lvl === 'danger') return `<span class="badge badge-danger"><span class="dot dot-danger"></span>✗ ${label}</span>`;
+    return `<span class="badge badge-warn"><span class="dot dot-warn"></span>⚠ ${v}</span>`;
+  }
+
+  /** Badge booleano */
+  function boolBadge(val) {
+    if (val === true || val === 'true') return '<span class="badge badge-ok"><span class="dot dot-ok"></span>✓ Sí</span>';
+    return '<span class="badge badge-danger"><span class="dot dot-danger"></span>✗ No</span>';
+  }
+
+  /** Fila de tabla */
+  function row(label, badgeHtml) {
+    return `<tr><td class="col-label">${label}</td><td class="col-value">${badgeHtml}</td></tr>`;
+  }
+
+  /** Tabla de ítems mecánicos */
+  function tblMech(keys, labels) {
+    return keys.map(k => row(labels[k] || k, mechBadge(r['chequeo_' + k]))).join('');
+  }
+
+  /** Tabla de fluidos */
+  function tblFluid(keys, labels) {
+    return keys.map(k => row(labels[k] || k, fluidBadge(r['chequeo_' + k]))).join('');
+  }
+
+  // ── Contadores para resumen ─────────────────────────────
+  const mechFields = [
+    'frenos','direccion','suspension','sistema_electrico','panel','bocina',
+    'sensor_retroceso','alarmas','neumaticos','neumatico_repuesto',
+    'medidor_presion','carroseria','vidrios','espejos','asientos','aseo',
+    'luces','cinturon','extintor','botiquin','conos','tacos','linterna',
+    'herramientas','gata'
+  ];
+  const fluidFields = ['nivel_aceite','nivel_refrigerante','liquido_freno','liquido_direccion','agua_parabrisas'];
+  const boolFields = [
+    'chequeo_licencia_conductor','chequeo_padron','chequeo_permiso_circulacion',
+    'chequeo_revision_tecnica','chequeo_soap','chequeo_medicion_gases',
+    'condicion_fisica','descanso_operador','salud_mental_operador',
+    'consiente_responsabilidad_chequeo'
+  ];
+
+  let totalItems = 0, okItems = 0, warnItems = 0, dangerItems = 0, naItems = 0;
+
+  mechFields.forEach(k => {
+    const v = norm(r['chequeo_' + k]);
+    totalItems++;
+    if (!v) { naItems++; return; }
+    if (strip(v) === 'check') okItems++;
+    else if (/Falla|Sin |Roto/i.test(v)) dangerItems++;
+    else warnItems++;
+  });
+
+  fluidFields.forEach(k => {
+    const v = norm(r['chequeo_' + k]);
+    totalItems++;
+    if (!v) { naItems++; return; }
+    const lvl = fluidLevel(v);
+    if (lvl === 'ok' || lvl === 'info') okItems++;   // Máximo y Normal = conforme
+    else if (lvl === 'danger') dangerItems++;         // Vacío = crítico
+    else warnItems++;                                 // Bajo = advertencia
+  });
+
+  boolFields.forEach(k => {
+    totalItems++;
+    if (r[k] === true || r[k] === 'true') okItems++;
+    else dangerItems++;
+  });
+
+  const pctOk = totalItems > 0 ? Math.round((okItems / totalItems) * 100) : 0;
+  const statusColor = pctOk >= 90 ? '#059669' : pctOk >= 70 ? '#d97706' : '#dc2626';
+  const statusText  = pctOk >= 90 ? 'APROBADO' : pctOk >= 70 ? 'OBSERVACIONES' : 'NO CONFORME';
 
   const L = {
-    frenos:            'Frenos',
-    direccion:         'Direcci\u00f3n',
-    suspension:        'Suspensi\u00f3n',
-    sistema_electrico: 'Sistema El\u00e9ctrico',
-    panel:             'Panel de Instrumentos',
-    bocina:            'Bocina',
-    sensor_retroceso:  'Sensor de Retroceso',
-    alarmas:           'Alarmas',
-    nivel_aceite:      'Aceite Motor',
-    nivel_refrigerante:'Refrigerante',
-    liquido_freno:     'L\u00edquido de Frenos',
-    liquido_direccion: 'L\u00edquido Direcci\u00f3n',
-    agua_parabrisas:   'Agua Parabrisas',
-    neumaticos:        'Neum\u00e1ticos',
-    neumatico_repuesto:'Neum\u00e1tico Repuesto',
-    medidor_presion:   'Medidor Presi\u00f3n',
-    carroseria:        'Carrocer\u00eda',
-    vidrios:           'Vidrios',
-    espejos:           'Espejos',
-    asientos:          'Asientos',
-    aseo:              'Aseo Interior',
-    luces:             'Luces',
-    cinturon:          'Cintur\u00f3n de Seguridad',
-    extintor:          'Extintor',
-    botiquin:          'Botiqu\u00edn',
-    conos:             'Conos de Seguridad',
-    tacos:             'Tacos',
-    linterna:          'Linterna',
-    herramientas:      'Herramientas',
-    gata:              'Gata',
+    frenos:'Frenos', direccion:'Dirección', suspension:'Suspensión',
+    sistema_electrico:'Sistema Eléctrico', panel:'Panel de Instrumentos',
+    bocina:'Bocina', sensor_retroceso:'Sensor de Retroceso', alarmas:'Alarmas',
+    nivel_aceite:'Aceite Motor', nivel_refrigerante:'Refrigerante',
+    liquido_freno:'Líquido de Frenos', liquido_direccion:'Líquido Dirección',
+    agua_parabrisas:'Agua Parabrisas', neumaticos:'Neumáticos',
+    neumatico_repuesto:'Neumático Repuesto', medidor_presion:'Medidor Presión',
+    carroseria:'Carrocería', vidrios:'Vidrios', espejos:'Espejos',
+    asientos:'Asientos', aseo:'Aseo Interior', luces:'Luces',
+    cinturon:'Cinturón de Seguridad', extintor:'Extintor', botiquin:'Botiquín',
+    conos:'Conos de Seguridad', tacos:'Tacos', linterna:'Linterna',
+    herramientas:'Herramientas', gata:'Gata',
   };
 
-  // Número de documento (últimos 6 chars del timestamp o random)
   const now = new Date();
   const docNum = `CK-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${patente.replace(/[^A-Z0-9]/gi,'')}`;
+  const emitDate = now.toLocaleDateString('es-CL', {day:'2-digit', month:'long', year:'numeric'});
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -84,353 +167,235 @@ function generateChecklistPDF(r) {
 <meta charset="UTF-8">
 <title>Reporte Checklist ${patente} — ${fecha}</title>
 <style>
-  /* ── Page setup ─────────────────── */
-  @page {
-    size: letter portrait;
-    margin: 22mm 20mm 22mm 25mm;
-  }
+  @page { size: letter portrait; margin: 18mm 18mm 22mm 22mm; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .no-break { page-break-inside: avoid; }
   }
-
-  /* ── Base ───────────────────────── */
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin:0; padding:0; box-sizing:border-box; }
   body {
-    font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
-    font-size: 11pt;
-    color: #1a202c;
-    line-height: 1.55;
-    background: #fff;
-    max-width: 820px;
-    margin: 0 auto;
-    padding: 28px 36px 40px;
+    font-family: 'Segoe UI','Calibri','Helvetica Neue',Arial,sans-serif;
+    font-size: 10.5pt; color: #1e293b; line-height: 1.5;
+    background: #fff; max-width: 820px; margin: 0 auto; padding: 24px 32px 36px;
   }
 
-  /* ── Letterhead ──────────────────── */
-  .letterhead {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding-bottom: 14px;
-    border-bottom: 3px solid #1B4B9B;
-    margin-bottom: 6px;
+  /* ── Header ─────────────────── */
+  .header-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding-bottom:6px; border-bottom:3px solid #1B4B9B; margin-bottom:2px;
   }
-  .lh-logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .logo-box {
-    width: 52px; height: 52px;
-    background: linear-gradient(135deg, #1B4B9B 0%, #2563EB 100%);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    color: #fff;
-    font-weight: 900; font-size: 13px; letter-spacing: -0.5px;
-    flex-shrink: 0;
-  }
-  .lh-company { }
-  .lh-company .name { font-size: 21px; font-weight: 800; color: #1B4B9B; letter-spacing: -0.5px; }
-  .lh-company .sub  { font-size: 9pt; color: #64748b; font-weight: 400; margin-top: 1px; }
-  .lh-meta { text-align: right; }
-  .lh-meta .doc-type { font-size: 13px; font-weight: 700; color: #1B4B9B; }
-  .lh-meta .doc-num  { font-size: 8.5pt; color: #94a3b8; letter-spacing: 0.6px; margin-top: 3px; }
-  .lh-meta .doc-date { font-size: 9pt; color: #475569; margin-top: 4px; }
+  .header-left { display:flex; align-items:center; gap:12px; }
+  .logo-img { height:150px; width:auto; object-fit:contain; }
+  .company-info .name { font-size:19px; font-weight:800; color:#1B4B9B; letter-spacing:-0.5px; line-height:1.2; }
+  .company-info .tagline { font-size:8.5pt; color:#64748b; }
+  .doc-meta { text-align:right; }
+  .doc-meta .doc-type { font-size:12px; font-weight:700; color:#1B4B9B; text-transform:uppercase; letter-spacing:0.5px; }
+  .doc-meta .doc-id { font-size:8pt; color:#94a3b8; letter-spacing:0.8px; margin-top:2px; font-family:'Consolas','Courier New',monospace; }
+  .doc-meta .doc-date { font-size:8.5pt; color:#475569; margin-top:3px; }
+  .accent-line { height:2px; background:linear-gradient(90deg,#F47920 0%,#F47920 30%,transparent 100%); margin-bottom:10px; }
 
-  /* ── Document title block ────────── */
-  .doc-title-block {
-    margin: 14px 0 18px;
-    padding: 14px 20px;
-    background: #f1f5f9;
-    border-left: 5px solid #1B4B9B;
-    border-radius: 0 8px 8px 0;
-  }
-  .doc-title-block h1 {
-    font-size: 15pt;
-    font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 2px;
-  }
-  .doc-title-block .subtitle {
-    font-size: 9.5pt;
-    color: #64748b;
-  }
+  /* ── Title ──────────────────── */
+  .title-block { margin-bottom:16px; }
+  .title-block h1 { font-size:16pt; font-weight:700; color:#0f172a; margin-bottom:2px; }
+  .title-block .subtitle { font-size:9pt; color:#64748b; }
 
-  /* ── Info grid (cover data) ──────── */
-  .info-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: 22px;
-  }
-  .info-cell {
-    padding: 10px 14px;
-    border-right: 1px solid #cbd5e1;
-  }
-  .info-cell:last-child { border-right: none; }
-  .info-cell .lbl {
-    font-size: 7.5pt;
-    text-transform: uppercase;
-    letter-spacing: 0.9px;
-    color: #94a3b8;
-    font-weight: 600;
-    margin-bottom: 3px;
-  }
-  .info-cell .val {
-    font-size: 12.5pt;
-    font-weight: 700;
-    color: #0f172a;
-  }
+  /* ── Info grid ──────────────── */
+  .info-grid { display:grid; grid-template-columns:repeat(4,1fr); border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; margin-bottom:14px; }
+  .info-cell { padding:10px 14px; border-right:1px solid #e2e8f0; background:#f8fafc; }
+  .info-cell:last-child { border-right:none; }
+  .info-cell .lbl { font-size:7pt; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; font-weight:600; margin-bottom:3px; }
+  .info-cell .val { font-size:12pt; font-weight:700; color:#0f172a; }
 
-  /* ── Section headings ────────────── */
-  .sec-heading {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 10.5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #1B4B9B;
-    margin: 18px 0 6px;
-    padding-bottom: 5px;
-    border-bottom: 1.5px solid #bfdbfe;
-  }
-  .sec-heading .sec-num {
-    background: #1B4B9B;
-    color: #fff;
-    font-size: 8pt;
-    font-weight: 800;
-    width: 20px; height: 20px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
+  /* ── Summary bar ────────────── */
+  .summary-bar { display:flex; align-items:center; justify-content:space-between; border:1px solid #e2e8f0; border-radius:8px; padding:12px 18px; margin-bottom:20px; background:#fafbfc; }
+  .summary-stats { display:flex; gap:20px; }
+  .summary-stat { text-align:center; }
+  .summary-stat .num { font-size:17pt; font-weight:800; line-height:1.1; }
+  .summary-stat .num.c-ok { color:#059669; }
+  .summary-stat .num.c-warn { color:#d97706; }
+  .summary-stat .num.c-danger { color:#dc2626; }
+  .summary-stat .num.c-na { color:#94a3b8; }
+  .summary-stat .s-label { font-size:7pt; text-transform:uppercase; letter-spacing:0.8px; color:#64748b; font-weight:600; }
+  .summary-result { text-align:right; }
+  .summary-result .pct { font-size:22pt; font-weight:800; line-height:1; }
+  .summary-result .status-label { font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; padding:2px 10px; border-radius:4px; display:inline-block; margin-top:3px; }
 
-  /* ── Tables ──────────────────────── */
-  .data-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 10.5pt;
-    margin-bottom: 4px;
-  }
-  .data-table td {
-    padding: 5.5px 12px;
-    border-bottom: 1px solid #f1f5f9;
-    vertical-align: middle;
-  }
-  .data-table tr:last-child td { border-bottom: none; }
-  .data-table tr:nth-child(even) td { background: #f8fafc; }
-  .col-label { color: #475569; width: 52%; font-weight: 500; }
-  td.ok    { color: #059669; font-weight: 600; }
-  td.warn  { color: #d97706; font-weight: 600; }
-  td.danger{ color: #dc2626; font-weight: 600; }
-  td.na    { color: #94a3b8; font-style: italic; }
+  /* ── Section headings ───────── */
+  .sec-heading { display:flex; align-items:center; gap:8px; font-size:10pt; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#1B4B9B; margin:16px 0 6px; padding-bottom:4px; border-bottom:1.5px solid #dbeafe; }
+  .sec-num { background:#1B4B9B; color:#fff; font-size:7.5pt; font-weight:800; width:19px; height:19px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
 
-  /* ── Two-column layout ───────────── */
-  .two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-  .two-col .col-wrap { }
+  /* ── Tables ─────────────────── */
+  .data-table { width:100%; border-collapse:collapse; font-size:10pt; margin-bottom:4px; }
+  .data-table td { padding:5px 10px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table tr:nth-child(even) td { background:#fafbfc; }
+  .col-label { color:#475569; width:50%; font-weight:500; padding-left:14px!important; }
+  .col-value { text-align:left; }
 
-  /* ── Observations box ────────────── */
-  .obs-section {
-    margin-top: 18px;
-    border: 1px solid #bfdbfe;
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .obs-header {
-    background: #eff6ff;
-    padding: 7px 14px;
-    font-size: 9.5pt;
-    font-weight: 700;
-    color: #1B4B9B;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    border-bottom: 1px solid #bfdbfe;
-  }
-  .obs-body {
-    padding: 10px 14px;
-    font-size: 10.5pt;
-    color: #334155;
-    min-height: 36px;
-    white-space: pre-wrap;
-  }
+  /* ── Badges (4 tiers) ───────── */
+  .badge { display:inline-flex; align-items:center; gap:5px; font-size:9pt; font-weight:600; padding:2px 10px; border-radius:12px; white-space:nowrap; }
+  .badge-ok     { background:#ecfdf5; color:#059669; }
+  .badge-info   { background:#eff6ff; color:#2563eb; }
+  .badge-warn   { background:#fffbeb; color:#d97706; }
+  .badge-danger { background:#fef2f2; color:#dc2626; }
+  .badge-na     { background:#f1f5f9; color:#94a3b8; font-style:italic; font-weight:400; }
+  .dot { width:7px; height:7px; border-radius:50%; display:inline-block; flex-shrink:0; }
+  .dot-ok     { background:#059669; }
+  .dot-info   { background:#2563eb; }
+  .dot-warn   { background:#d97706; }
+  .dot-danger { background:#dc2626; }
 
-  /* ── Signature block ─────────────── */
-  .sig-block {
-    margin-top: 30px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 32px;
-  }
-  .sig-field {
-    border-top: 1px solid #475569;
-    padding-top: 6px;
-    font-size: 9pt;
-    color: #64748b;
-  }
-  .sig-field strong { display: block; font-size: 10pt; color: #1a202c; }
+  /* ── Two-column layout ──────── */
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
 
-  /* ── Footer ──────────────────────── */
-  .doc-footer {
-    margin-top: 28px;
-    padding-top: 10px;
-    border-top: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    font-size: 8pt;
-    color: #94a3b8;
-  }
-  .doc-footer strong { color: #1B4B9B; }
+  /* ── Observations ───────────── */
+  .obs-section { margin-top:16px; border:1px solid #dbeafe; border-radius:8px; overflow:hidden; }
+  .obs-header { background:#eff6ff; padding:7px 14px; font-size:9pt; font-weight:700; color:#1B4B9B; text-transform:uppercase; letter-spacing:0.8px; border-bottom:1px solid #dbeafe; }
+  .obs-body { padding:10px 14px; font-size:10pt; color:#334155; min-height:32px; white-space:pre-wrap; }
+
+  /* ── Signatures ─────────────── */
+  .sig-block { margin-top:28px; display:grid; grid-template-columns:1fr 1fr; gap:40px; }
+  .sig-field { padding-top:8px; border-top:1px solid #334155; }
+  .sig-field .sig-name { font-size:10pt; font-weight:700; color:#0f172a; }
+  .sig-field .sig-role { font-size:8.5pt; color:#64748b; margin-top:1px; }
+
+  /* ── Footer ─────────────────── */
+  .doc-footer { margin-top:24px; padding-top:10px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:flex-end; font-size:7.5pt; color:#94a3b8; }
+  .doc-footer .confidential { font-size:7pt; text-transform:uppercase; letter-spacing:0.5px; color:#cbd5e1; margin-top:2px; }
+  .doc-footer strong { color:#1B4B9B; }
+
+  /* ── Fluid legend ───────────── */
+  .legend { display:flex; gap:14px; flex-wrap:wrap; margin:4px 0 2px 14px; }
+  .legend-item { display:flex; align-items:center; gap:4px; font-size:7.5pt; color:#64748b; }
 </style>
 </head>
 <body>
 
-<!-- ══ LETTERHEAD ══════════════════════════════════════════ -->
-<div class="letterhead">
-  <div class="lh-logo">
-    <div class="logo-box">SILOG</div>
-    <div class="lh-company">
+<!-- ══ HEADER ═════════════════════════════════════════ -->
+<div class="header-bar">
+  <div class="header-left">
+    ${logoSrc ? '<img class="logo-img" src="'+logoSrc+'" alt="Silog SpA"/>' : '<div style="width:48px;height:48px;background:linear-gradient(135deg,#1B4B9B,#2563EB);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:11px;flex-shrink:0">SILOG</div>'}
+    <div class="company-info">
       <div class="name">SILOG SpA</div>
-      <div class="sub">Transporte &amp; Log&iacute;stica de &Uacute;ltima Milla</div>
+      <div class="tagline">Transporte &amp; Logística de Última Milla</div>
     </div>
   </div>
-  <div class="lh-meta">
+  <div class="doc-meta">
     <div class="doc-type">Reporte Operacional</div>
-    <div class="doc-num">${docNum}</div>
-    <div class="doc-date">Emitido: ${now.toLocaleDateString('es-CL',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    <div class="doc-id">${docNum}</div>
+    <div class="doc-date">${emitDate}</div>
+  </div>
+</div>
+<div class="accent-line"></div>
+
+<!-- ══ TÍTULO ════════════════════════════════════════ -->
+<div class="title-block">
+  <h1>Checklist de Inspección Operacional</h1>
+  <div class="subtitle">Registro de revisión diaria obligatoria — Silog SpA Ops Manager v2.0</div>
+</div>
+
+<!-- ══ DATOS GENERALES ══════════════════════════════ -->
+<div class="info-grid no-break">
+  <div class="info-cell"><div class="lbl">Patente</div><div class="val">${patente}</div></div>
+  <div class="info-cell"><div class="lbl">Operador</div><div class="val" style="font-size:10.5pt">${operador}</div></div>
+  <div class="info-cell"><div class="lbl">Fecha Inspección</div><div class="val" style="font-size:10pt">${fecha}</div></div>
+  <div class="info-cell"><div class="lbl">Combustible</div><div class="val">${combustible}</div></div>
+</div>
+
+<!-- ══ RESUMEN ══════════════════════════════════════ -->
+<div class="summary-bar no-break">
+  <div class="summary-stats">
+    <div class="summary-stat"><div class="num c-ok">${okItems}</div><div class="s-label">Conformes</div></div>
+    <div class="summary-stat"><div class="num c-warn">${warnItems}</div><div class="s-label">Advertencias</div></div>
+    <div class="summary-stat"><div class="num c-danger">${dangerItems}</div><div class="s-label">Críticos</div></div>
+    <div class="summary-stat"><div class="num c-na">${naItems}</div><div class="s-label">Sin dato</div></div>
+  </div>
+  <div class="summary-result">
+    <div class="pct" style="color:${statusColor}">${pctOk}%</div>
+    <div class="status-label" style="background:${statusColor}15;color:${statusColor}">${statusText}</div>
   </div>
 </div>
 
-<!-- ══ TÍTULO ══════════════════════════════════════════════ -->
-<div class="doc-title-block">
-  <h1>Checklist de Inspección Operacional de Vehículo</h1>
-  <div class="subtitle">Registro de revisión diaria obligatoria &mdash; Silog SpA Ops Manager</div>
-</div>
-
-<!-- ══ DATOS GENERALES ════════════════════════════════════ -->
-<div class="info-grid">
-  <div class="info-cell">
-    <div class="lbl">Patente</div>
-    <div class="val">${patente}</div>
-  </div>
-  <div class="info-cell">
-    <div class="lbl">Operador</div>
-    <div class="val" style="font-size:11.5pt">${operador}</div>
-  </div>
-  <div class="info-cell">
-    <div class="lbl">Fecha Inspección</div>
-    <div class="val" style="font-size:11pt">${fecha}</div>
-  </div>
-  <div class="info-cell">
-    <div class="lbl">Combustible</div>
-    <div class="val">${combustible}</div>
-  </div>
-</div>
-
-<!-- ══ SECCIONES EN DOS COLUMNAS ══════════════════════════ -->
+<!-- ══ SECCIONES EN DOS COLUMNAS ═══════════════════ -->
 <div class="two-col">
-
-  <!-- Columna 1 -->
-  <div class="col-wrap">
-
-    <div class="sec-heading no-break">
-      <div class="sec-num">1</div>
-      Condición Mecánica
-    </div>
+  <div>
+    <div class="sec-heading no-break"><span class="sec-num">1</span>Condición Mecánica</div>
     <table class="data-table no-break">
-      ${tbl(['frenos','direccion','suspension','sistema_electrico','panel','bocina','sensor_retroceso','alarmas'], L, ['Check'])}
+      ${tblMech(['frenos','direccion','suspension','sistema_electrico','panel','bocina','sensor_retroceso','alarmas'], L)}
     </table>
 
-    <div class="sec-heading no-break">
-      <div class="sec-num">2</div>
-      Niveles de Fluidos
+    <div class="sec-heading no-break"><span class="sec-num">2</span>Niveles de Fluidos</div>
+    <div class="legend">
+      <span class="legend-item"><span class="dot dot-ok"></span>Máximo</span>
+      <span class="legend-item"><span class="dot dot-info"></span>Normal</span>
+      <span class="legend-item"><span class="dot dot-warn"></span>Bajo</span>
+      <span class="legend-item"><span class="dot dot-danger"></span>Vacío</span>
     </div>
     <table class="data-table no-break">
-      ${tbl(['nivel_aceite','nivel_refrigerante','liquido_freno','liquido_direccion','agua_parabrisas'], L, ['M\u00e1ximo','Normal'])}
+      ${tblFluid(['nivel_aceite','nivel_refrigerante','liquido_freno','liquido_direccion','agua_parabrisas'], L)}
     </table>
-
   </div>
 
-  <!-- Columna 2 -->
-  <div class="col-wrap">
-
-    <div class="sec-heading no-break">
-      <div class="sec-num">3</div>
-      Neumáticos y Carrocería
-    </div>
+  <div>
+    <div class="sec-heading no-break"><span class="sec-num">3</span>Neumáticos y Carrocería</div>
     <table class="data-table no-break">
-      ${tbl(['neumaticos','neumatico_repuesto','medidor_presion','carroseria','vidrios','espejos','asientos','aseo'], L, ['Check'])}
+      ${tblMech(['neumaticos','neumatico_repuesto','medidor_presion','carroseria','vidrios','espejos','asientos','aseo'], L)}
     </table>
 
-    <div class="sec-heading no-break">
-      <div class="sec-num">4</div>
-      Luces, Seguridad y Equipamiento
-    </div>
+    <div class="sec-heading no-break"><span class="sec-num">4</span>Luces, Seguridad y Equipamiento</div>
     <table class="data-table no-break">
-      ${tbl(['luces','cinturon','extintor','botiquin','conos','tacos','linterna','herramientas','gata'], L, ['Check'])}
+      ${tblMech(['luces','cinturon','extintor','botiquin','conos','tacos','linterna','herramientas','gata'], L)}
     </table>
-
   </div>
 </div>
 
-<!-- ══ DOCUMENTACIÓN ══════════════════════════════════════ -->
-<div class="sec-heading no-break">
-  <div class="sec-num">5</div>
-  Documentación del Vehículo y Conductor
+<!-- ══ DOCUMENTACIÓN + OPERADOR (2 col) ═══════════ -->
+<div class="two-col" style="margin-top:8px;">
+  <div>
+    <div class="sec-heading no-break"><span class="sec-num">5</span>Documentación Vehículo</div>
+    <table class="data-table no-break">
+      ${row('Licencia de Conductor',  boolBadge(r.chequeo_licencia_conductor))}
+      ${row('Padrón del Vehículo',    boolBadge(r.chequeo_padron))}
+      ${row('Permiso de Circulación', boolBadge(r.chequeo_permiso_circulacion))}
+      ${row('Revisión Técnica',       boolBadge(r.chequeo_revision_tecnica))}
+      ${row('SOAP',                   boolBadge(r.chequeo_soap))}
+      ${row('Medición de Gases',      boolBadge(r.chequeo_medicion_gases))}
+    </table>
+  </div>
+  <div>
+    <div class="sec-heading no-break"><span class="sec-num">6</span>Estado del Operador</div>
+    <table class="data-table no-break">
+      ${row('Condición Física',   boolBadge(r.condicion_fisica))}
+      ${row('Descanso Adecuado',  boolBadge(r.descanso_operador))}
+      ${row('Salud Mental',       boolBadge(r.salud_mental_operador))}
+      ${row('Medicamentos',
+        r.medicamentos_chequeo
+          ? '<span class="badge badge-warn"><span class="dot dot-warn"></span>⚠ Sí — '+(r.medicamentos_detalle||'Sin detalle')+'</span>'
+          : '<span class="badge badge-ok"><span class="dot dot-ok"></span>✓ No</span>'
+      )}
+      ${row('Acepta Responsabilidad', boolBadge(r.consiente_responsabilidad_chequeo))}
+    </table>
+  </div>
 </div>
-<table class="data-table no-break" style="max-width:480px">
-  ${row('Licencia de Conductor',         bc(r.chequeo_licencia_conductor))}
-  ${row('Padr\u00f3n del Veh\u00edculo', bc(r.chequeo_padron))}
-  ${row('Permiso de Circulaci\u00f3n',   bc(r.chequeo_permiso_circulacion))}
-  ${row('Revisi\u00f3n T\u00e9cnica',    bc(r.chequeo_revision_tecnica))}
-  ${row('SOAP',                           bc(r.chequeo_soap))}
-  ${row('Medici\u00f3n de Gases',         bc(r.chequeo_medicion_gases))}
-</table>
 
-<!-- ══ ESTADO DEL OPERADOR ════════════════════════════════ -->
-<div class="sec-heading no-break">
-  <div class="sec-num">6</div>
-  Estado del Operador
-</div>
-<table class="data-table no-break" style="max-width:480px">
-  ${row('Condici\u00f3n F\u00edsica',   bc(r.condicion_fisica))}
-  ${row('Descanso Adecuado',             bc(r.descanso_operador))}
-  ${row('Salud Mental',                  bc(r.salud_mental_operador))}
-  ${row('Consumo de Medicamentos',
-    `<td class="${r.medicamentos_chequeo ? 'warn' : 'ok'}">${r.medicamentos_chequeo ? '&#9888;&nbsp;S\u00ed &mdash; ' + (r.medicamentos_detalle || 'Sin detalle') : '&#10003;&nbsp;No'}</td>`
-  )}
-  ${row('Acepta Responsabilidad',         bc(r.consiente_responsabilidad_chequeo))}
-</table>
-
-<!-- ══ OBSERVACIONES ══════════════════════════════════════ -->
+<!-- ══ OBSERVACIONES ═══════════════════════════════ -->
 <div class="obs-section no-break">
-  <div class="obs-header">&#128221; Observaciones del Operador</div>
-  <div class="obs-body">${r.chequeo_observaciones ? r.chequeo_observaciones : '<span style="color:#94a3b8;font-style:italic">Sin observaciones registradas.</span>'}</div>
+  <div class="obs-header">📝 Observaciones del Operador</div>
+  <div class="obs-body">${r.chequeo_observaciones || '<span style="color:#94a3b8;font-style:italic">Sin observaciones registradas.</span>'}</div>
 </div>
 
-<!-- ══ FIRMA ═══════════════════════════════════════════════ -->
+<!-- ══ FIRMAS ══════════════════════════════════════ -->
 <div class="sig-block no-break">
-  <div class="sig-field">
-    <strong>${operador}</strong>
-    Firma del Operador / Conductor
-  </div>
-  <div class="sig-field">
-    <strong>Supervisión Silog SpA</strong>
-    V&deg;B&deg; Jefatura de Operaciones
-  </div>
+  <div class="sig-field"><div class="sig-name">${operador}</div><div class="sig-role">Firma del Operador / Conductor</div></div>
+  <div class="sig-field"><div class="sig-name">Supervisión Silog SpA</div><div class="sig-role">V°B° Jefatura de Operaciones</div></div>
 </div>
 
-<!-- ══ FOOTER ══════════════════════════════════════════════ -->
+<!-- ══ FOOTER ═════════════════════════════════════ -->
 <div class="doc-footer">
-  <span>Documento generado el ${now.toLocaleString('es-CL')} &mdash; Silog SpA Ops Manager</span>
+  <div>
+    <span>Documento generado el ${now.toLocaleString('es-CL')} — Silog SpA Ops Manager</span>
+    <div class="confidential">Documento de uso interno — Confidencial</div>
+  </div>
   <strong>www.silog.cl</strong>
 </div>
 

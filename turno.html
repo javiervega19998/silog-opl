@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Turno</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:1rem;display:flex;align-items:center;gap:8px}.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
+.main{max-width:500px;margin:0 auto;padding:20px 16px 100px}
+
+/* Greeting */
+.greeting{margin-bottom:24px;text-align:center}
+.greeting h1{font-size:1.6rem;font-weight:800;margin-bottom:4px}
+.greeting p{color:var(--text2);font-size:.88rem}
+
+/* Card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:16px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.card h3{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+/* Form */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.78rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:600}
+.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;color:var(--text);font-size:1rem;font-family:'Inter',sans-serif;outline:none;transition:border .2s}
+.field:focus{border-color:var(--primary)}
+select.field{appearance:auto;cursor:pointer}
+
+/* Big button */
+.btn-xl{width:100%;padding:18px;border:none;border-radius:14px;color:#fff;font-size:1.1rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.2s;display:flex;align-items:center;justify-content:center;gap:10px;min-height:56px}
+.btn-xl:active{transform:scale(.97)}
+.btn-xl:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-start{background:linear-gradient(135deg,var(--success),#059669)}
+.btn-start:hover:not(:disabled){box-shadow:0 8px 24px rgba(16,185,129,.4)}
+.btn-close-turno{background:linear-gradient(135deg,var(--danger),#DC2626)}
+.btn-close-turno:hover:not(:disabled){box-shadow:0 8px 24px rgba(239,68,68,.4)}
+
+/* Turno activo banner */
+.turno-banner{background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(16,185,129,.05));border:1px solid rgba(16,185,129,.3);border-radius:14px;padding:16px 20px;margin-bottom:16px;display:none}
+.turno-banner .tb-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.turno-banner .tb-plate{font-size:1.2rem;font-weight:800;color:var(--success)}
+.turno-banner .tb-status{font-size:.72rem;font-weight:600;color:var(--success);text-transform:uppercase;letter-spacing:1px;background:rgba(16,185,129,.15);padding:3px 10px;border-radius:20px}
+.turno-banner .tb-info{font-size:.82rem;color:var(--text2)}
+.turno-banner .tb-info b{color:var(--text)}
+
+/* Tabs */
+.tab-row{display:flex;gap:8px;margin-bottom:20px}
+.tab-btn{flex:1;padding:12px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:10px;cursor:pointer;font-size:.88rem;font-weight:600;font-family:'Inter',sans-serif;transition:.2s;text-align:center}
+.tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* Monday gate */
+.monday-gate{background:linear-gradient(135deg,rgba(244,121,32,.15),rgba(244,121,32,.05));border:2px solid var(--accent);border-radius:16px;padding:24px;text-align:center;margin-bottom:20px}
+.monday-gate h3{font-size:1.1rem;color:var(--accent);margin-bottom:8px}
+.monday-gate p{color:var(--text2);font-size:.88rem;margin-bottom:16px}
+.monday-gate .btn-checklist{background:var(--accent);color:#fff;border:none;padding:14px 28px;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif}
+
+/* Nav buttons */
+.nav-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.nav-card{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;cursor:pointer;transition:.2s;text-decoration:none;color:var(--text)}
+.nav-card:hover{border-color:var(--primary);transform:translateY(-2px)}
+.nav-card .nc-icon{font-size:1.8rem;margin-bottom:6px}
+.nav-card .nc-label{font-size:.82rem;font-weight:600}
+
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}.toast-info{border-color:var(--primary);color:#93C5FD}
+</style>
+</head>
+<body>
+<!-- Overlay de carga inicial de alta gama (Navy & Orange Accent) -->
+<div id="loading-overlay" style="position:fixed; inset:0; background:#060D1F; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px; transition: opacity 0.3s ease;">
+  <span class="spinner" style="width:40px; height:40px; border-width:3px; border-top-color:var(--accent);"></span>
+  <span style="font-size:0.9rem; color:var(--text2); font-weight:500; font-family:'Inter',sans-serif; letter-spacing:0.5px;">Cargando jornada...</span>
+</div>
+
+<nav class="nav" id="main-nav">
+  <div class="nav-brand"><span>SILOG</span> SpA</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="user-name" style="font-size:.82rem;color:var(--text2)"></span>
+    <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+  </div>
+</nav>
+
+<div class="main">
+  <!-- Greeting -->
+  <div id="greeting-wrap" class="greeting">
+    <h1 id="greeting-text">Hola, Conductor</h1>
+    <p id="greeting-date"></p>
+  </div>
+
+  <!-- Monday checklist gate (hidden by default) -->
+  <div id="monday-gate" class="monday-gate" style="display:none">
+    <h3>📋 Checklist Semanal Obligatorio</h3>
+    <p>Es lunes — debes completar el checklist operacional antes de iniciar tu jornada.</p>
+    <button class="btn-checklist" onclick="window.location.href='checklist.html'">Ir al Checklist →</button>
+  </div>
+
+  <!-- Turno activo banner -->
+  <div id="turno-banner" class="turno-banner">
+    <div class="tb-top">
+      <span class="tb-plate" id="tb-plate">—</span>
+      <span class="tb-status">🟢 Turno Activo</span>
+    </div>
+    <div class="tb-info">
+      KM Inicio: <b id="tb-km">—</b> · Hora: <b id="tb-hora">—</b>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('apertura')" id="tb-apertura">🚛 Apertura</button>
+    <button class="tab-btn" onclick="showTab('cierre')" id="tb-cierre">🔴 Cierre</button>
+  </div>
+
+  <!-- TAB: APERTURA -->
+  <div id="tab-apertura">
+    <div id="form-apertura">
+      <div class="card">
+        <h3>🚛 Iniciar Jornada</h3>
+        <div class="form-group">
+          <label>Vehículo Asignado</label>
+          <select class="field" id="sel-vehiculo">
+            <option value="" disabled selected>Seleccionar vehículo…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Kilometraje Inicial</label>
+          <input class="field" type="number" id="km-inicial" placeholder="Ej: 61000" inputmode="numeric"/>
+        </div>
+        <button class="btn-xl btn-start" id="btn-iniciar" onclick="iniciarTurno()">
+          🚛 Iniciar Jornada
+        </button>
+      </div>
+    </div>
+
+    <!-- Already open: navigation -->
+    <div id="turno-nav" style="display:none">
+      <div class="card">
+        <h3>📍 Operaciones del Turno</h3>
+        <p style="color:var(--text2);font-size:.85rem;margin-bottom:16px">Tu turno está activo. Selecciona una operación:</p>
+        <div class="nav-grid">
+          <a class="nav-card" href="ruta.html">
+            <div class="nc-icon">📋</div>
+            <div class="nc-label">Mi Ruta</div>
+          </a>
+          <a class="nav-card" href="gastos.html">
+            <div class="nc-icon">💰</div>
+            <div class="nc-label">Gastos</div>
+          </a>
+          <a class="nav-card" href="checklist.html">
+            <div class="nc-icon">✅</div>
+            <div class="nc-label">Checklist</div>
+          </a>
+          <a class="nav-card" href="viajes.html">
+            <div class="nc-icon">📊</div>
+            <div class="nc-label">Historial</div>
+          </a>
+        </div>
+        <button class="btn-xl btn-close-turno" style="margin-top:20px" onclick="showCierreForm()">
+          🔴 Cerrar Turno
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: CIERRE -->
+  <div id="tab-cierre" style="display:none">
+    <div id="cierre-empty" class="card" style="text-align:center;color:var(--text2)">
+      <p>No hay turno activo para cerrar.</p>
+    </div>
+    <div id="form-cierre" style="display:none">
+      <div class="card">
+        <h3>🔴 Cerrar Jornada</h3>
+        <div style="background:var(--surface2);border-radius:10px;padding:12px 16px;margin-bottom:16px">
+          <div style="font-size:.78rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Vehículo</div>
+          <div style="font-size:1.1rem;font-weight:700;color:var(--accent)" id="cierre-plate">—</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:10px;padding:12px 16px;margin-bottom:16px">
+          <div style="font-size:.78rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">KM Inicial</div>
+          <div style="font-size:1.1rem;font-weight:700" id="cierre-km-ini">—</div>
+        </div>
+        <div class="form-group">
+          <label>Kilometraje Final</label>
+          <input class="field" type="number" id="km-final" placeholder="Ej: 61250" inputmode="numeric"/>
+        </div>
+        <button class="btn-xl btn-close-turno" id="btn-cerrar" onclick="cerrarTurno()">
+          🔴 Finalizar Jornada
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let _uid='', _email='', _name='', _turnoActivo=null, _turnoDocId=null;
+
+requireAuth(async(user,data)=>{
+  _uid=user.uid;
+  _email=data.correo_electronico||data.email||user.email;
+  _name=data.name||data.nombre||'';
+  document.getElementById('user-name').textContent=_name;
+  document.getElementById('greeting-text').textContent=`Hola, ${_name.split(' ')[0] || 'Conductor'}`;
+  document.getElementById('greeting-date').textContent=new Date().toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  try {
+    // Check Monday gate
+    const today = new Date();
+    if (today.getDay() === 1) { // Lunes
+      await checkMondayChecklist();
+    }
+
+    // Load vehicles
+    await loadVehicles();
+
+    // Check active turno
+    await checkActiveTurno();
+  } catch (err) {
+    console.error("Error durante la inicialización:", err);
+  } finally {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+      overlay.style.opacity = '0';
+      setTimeout(() => { overlay.style.display = 'none'; }, 300);
+    }
+  }
+});
+
+async function checkMondayChecklist() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const monday = new Date(today);
+  // Find start of this week (Monday)
+  const day = monday.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  monday.setDate(monday.getDate() - diff);
+  const ts = firebase.firestore.Timestamp.fromDate(monday);
+  
+  const snap = await db.collection('chequeo_operacional')
+    .where('operador','==',_email)
+    .where('fecha_chequeo','>=',ts)
+    .get();
+  
+  if (snap.empty) {
+    document.getElementById('monday-gate').style.display='block';
+    document.getElementById('form-apertura').style.display='none';
+  }
+}
+
+function getVehicleEmoji(marca, modelo) {
+  const m = ((marca || '') + ' ' + (modelo || '')).toLowerCase();
+  if (m.includes('renault') || m.includes('master')) return '🚐';
+  if (m.includes('opel') || m.includes('combo')) return '🚙';
+  if (m.includes('foton')) return '🚛';
+  return '🚛';
+}
+
+async function loadVehicles() {
+  const sel = document.getElementById('sel-vehiculo');
+  try {
+    const snap = await db.collection('vehiculos').get();
+    snap.forEach(d => {
+      const v = d.data();
+      if (v.estado === 'Disponible' || v.conductor === _email) {
+        const emoji = getVehicleEmoji(v.marca, v.modelo);
+        const opt = document.createElement('option');
+        opt.value = v.patente || d.id;
+        opt.textContent = `${emoji} ${v.patente || d.id} — ${v.marca||''} ${v.modelo||''}`.trim();
+        if (v.conductor === _email) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    });
+  } catch(e) { console.warn('Error loading vehicles:', e); }
+}
+
+async function checkActiveTurno() {
+  try {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const ts = firebase.firestore.Timestamp.fromDate(today);
+    const snap = await db.collection('turnos')
+      .where('conductor_uid','==',_uid)
+      .where('estado','==','abierto')
+      .get();
+    
+    if (!snap.empty) {
+      const doc = snap.docs[0];
+      _turnoActivo = doc.data();
+      _turnoDocId = doc.id;
+      showTurnoActivo();
+    }
+  } catch(e) { console.warn('Error checking turno:', e); }
+}
+
+function showTurnoActivo() {
+  // Show banner
+  const banner = document.getElementById('turno-banner');
+  banner.style.display = 'block';
+  document.getElementById('tb-plate').textContent = _turnoActivo.patente || '—';
+  document.getElementById('tb-km').textContent = _turnoActivo.km_inicial || '—';
+  document.getElementById('tb-hora').textContent = formatTime(_turnoActivo.hora_apertura);
+
+  // Hide form, show nav
+  document.getElementById('form-apertura').style.display = 'none';
+  document.getElementById('turno-nav').style.display = 'block';
+
+  // Hide greeting, tabs when turno active (direct to menu)
+  document.getElementById('greeting-wrap').style.display = 'none';
+  document.querySelector('.tab-row').style.display = 'none';
+
+  // Enable cierre tab
+  document.getElementById('cierre-empty').style.display = 'none';
+  document.getElementById('form-cierre').style.display = 'block';
+  document.getElementById('cierre-plate').textContent = _turnoActivo.patente;
+  document.getElementById('cierre-km-ini').textContent = _turnoActivo.km_inicial;
+}
+
+function showTab(t) {
+  document.getElementById('tab-apertura').style.display = t==='apertura'?'block':'none';
+  document.getElementById('tab-cierre').style.display = t==='cierre'?'block':'none';
+  document.getElementById('tb-apertura').classList.toggle('active', t==='apertura');
+  document.getElementById('tb-cierre').classList.toggle('active', t==='cierre');
+}
+
+function showCierreForm() {
+  // Show cierre tab, hide apertura
+  document.getElementById('tab-apertura').style.display = 'none';
+  document.getElementById('tab-cierre').style.display = 'block';
+  // Scroll to cierre form
+  document.getElementById('tab-cierre').scrollIntoView({behavior:'smooth'});
+}
+
+async function iniciarTurno() {
+  const patente = document.getElementById('sel-vehiculo').value;
+  const kmIni = parseInt(document.getElementById('km-inicial').value);
+  if (!patente) { showToast('Selecciona un vehículo','error'); return; }
+  if (!kmIni || kmIni <= 0) { showToast('Ingresa el kilometraje inicial','error'); return; }
+  const btn = document.getElementById('btn-iniciar');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Verificando…';
+  try {
+    const vSnap = await db.collection('vehiculos').where('patente','==',patente.toUpperCase()).limit(1).get();
+    if (vSnap.empty) {
+      showToast(`Vehículo ${patente} no encontrado`,'error');
+      btn.disabled=false; btn.innerHTML='🚛 Iniciar Jornada'; return;
+    }
+    const vehicleDocRef = vSnap.docs[0].ref;
+
+    btn.innerHTML='<span class="spinner"></span> Abriendo turno…';
+    let newTurnoId = '';
+    await db.runTransaction(async (transaction) => {
+      const vDoc = await transaction.get(vehicleDocRef);
+      if (!vDoc.exists) throw new Error("El vehículo no existe en el sistema.");
+      const vData = vDoc.data();
+      const lastKm = vData.km || vData.kilometraje || 0;
+      if (kmIni < lastKm) {
+        throw new Error(`KM Inicial (${kmIni}) no puede ser menor al último KM registrado (${lastKm})`);
+      }
+      if (vData.estado === 'En Ruta' && vData.conductor !== _email) {
+        throw new Error(`Vehículo ${patente} ya está en ruta con otro conductor`);
+      }
+
+      const newTurnoRef = db.collection('turnos').doc();
+      newTurnoId = newTurnoRef.id;
+      transaction.set(newTurnoRef, {
+        conductor_uid: _uid, conductor_email: _email, conductor_nombre: _name,
+        patente: patente.toUpperCase(), km_inicial: kmIni, km_final: null,
+        estado: 'abierto',
+        hora_apertura: firebase.firestore.FieldValue.serverTimestamp(),
+        hora_cierre: null, fecha: firebase.firestore.FieldValue.serverTimestamp(),
+        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      transaction.update(vehicleDocRef, { estado: 'En Ruta', conductor: _email, km: kmIni });
+    });
+
+    _turnoDocId = newTurnoId;
+    _turnoActivo = { patente: patente.toUpperCase(), km_inicial: kmIni, hora_apertura: new Date() };
+    showToast('✅ Turno iniciado correctamente','success');
+    showTurnoActivo();
+  } catch(e) {
+    showToast('Error: '+e.message,'error');
+    btn.disabled=false; btn.innerHTML='🚛 Iniciar Jornada';
+  }
+}
+async function cerrarTurno() {
+  if (!_turnoDocId) { showToast('No hay turno activo','error'); return; }
+  const kmFin = parseInt(document.getElementById('km-final').value);
+  const kmIni = _turnoActivo.km_inicial;
+  if (!kmFin || kmFin <= 0) { showToast('Ingresa el kilometraje final','error'); return; }
+  if (kmFin <= kmIni) { showToast(`KM Final (${kmFin}) debe ser mayor al KM Inicial (${kmIni})`,'error'); return; }
+  if (!confirm(`¿Finalizar jornada?\nKM recorridos: ${kmFin - kmIni} km`)) return;
+  const btn = document.getElementById('btn-cerrar');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Cerrando turno…';
+  try {
+    const vSnap = await db.collection('vehiculos').where('patente','==',_turnoActivo.patente).limit(1).get();
+    if (vSnap.empty) {
+      throw new Error(`Vehículo ${_turnoActivo.patente} no encontrado`);
+    }
+    const vehicleDocRef = vSnap.docs[0].ref;
+    const turnoDocRef = db.collection('turnos').doc(_turnoDocId);
+
+    // ═══ Compilar Viaje / Hoja de Ruta para Finanzas ═══
+    const despSnap = await db.collection('despachos').where('turno_id','==',_turnoDocId).get();
+    const entregas = []; let devoluciones = 0, distribuidor = '';
+    despSnap.forEach(d => {
+      const dd = d.data();
+      if (!distribuidor && dd.distribuidor) distribuidor = dd.distribuidor;
+      if (dd.estado === 'devuelto') devoluciones++;
+      entregas.push({
+        correlativo: dd.correlativo || 0,
+        documento: dd.guia_numero || dd.factura_numero || '',
+        cliente: dd.cliente_nombre || '', direccion: dd.cliente_direccion || '',
+        comuna: dd.cliente_comuna || '', observaciones: dd.descripcion || '',
+        estado: dd.estado || 'pendiente', valor_diario: dd.valor_diario || 0,
+        devolucion_motivo: dd.devolucion_motivo || '',
+      });
+    });
+    entregas.sort((a,b) => a.correlativo - b.correlativo);
+
+    // Gastos del turno
+    let combustible = 0, peaje = 0;
+    try {
+      const gSnap = await db.collection('gastos_ruta').where('turno_id','==',_turnoDocId).get();
+      gSnap.forEach(g => {
+        const gd = g.data();
+        if (gd.tipo === 'combustible') {
+          combustible += gd.monto_clp || gd.monto || 0;
+        } else if (gd.tipo === 'peaje') {
+          peaje += gd.monto_clp || gd.monto || 0;
+        }
+      });
+    } catch(ge) {
+      console.warn('Error al obtener gastos del turno:', ge);
+    }
+
+    const fecha = new Date().toISOString().split('T')[0];
+    const hojaId = `${fecha}_${_name.replace(/\s+/g,'_')}`;
+    const hojaDocRef = db.collection('hojas_ruta').doc(hojaId);
+
+    await db.runTransaction(async (transaction) => {
+      transaction.update(turnoDocRef, {
+        km_final: kmFin, estado: 'cerrado',
+        hora_cierre: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      transaction.update(vehicleDocRef, { km: kmFin, kilometraje: kmFin, estado: 'Disponible' });
+      transaction.set(hojaDocRef, {
+        turno_id: _turnoDocId, conductor_uid: _uid, conductor_email: _email,
+        conductor_nombre: _name, distribuidor: distribuidor,
+        patente: _turnoActivo.patente, fecha: fecha,
+        hora_inicio: _turnoActivo.hora_apertura || null,
+        hora_termino: firebase.firestore.FieldValue.serverTimestamp(),
+        km_inicial: kmIni, km_final: kmFin, km_recorridos: kmFin - kmIni,
+        entregas: entregas, total_entregas: entregas.length,
+        total_devoluciones: devoluciones, combustible: combustible, peaje: peaje,
+        n_guias: '', estado: 'pendiente_revision', revisado_por: null,
+        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    showToast('✅ Jornada finalizada. KM recorridos: '+(kmFin - kmIni),'success');
+    setTimeout(()=>window.location.href='dashboard.html',1500);
+  } catch(e) {
+    showToast('Error: '+e.message,'error');
+    btn.disabled=false; btn.innerHTML='🔴 Finalizar Jornada';
+  }
+}
+</script>
+</body>
+</html>

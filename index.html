@@ -17,7 +17,7 @@
       --text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;
       --success:#10B981;--danger:#EF4444;--warning:#F59E0B;
     }
-    body{min-height:100vh;background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);display:flex;align-items:center;justify-content:center;padding:16px;overflow:hidden}
+    body{min-height:100vh;background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
 
     /* Fondo animado */
     .bg-orbs{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
@@ -32,10 +32,11 @@
       position:relative;z-index:1;width:100%;max-width:440px;
       background:rgba(13,27,53,.85);backdrop-filter:blur(20px);
       border:1px solid var(--border);border-radius:24px;padding:40px 36px;
-      box-shadow:0 24px 80px rgba(0,0,0,.5);
+      box-shadow:0 24px 80px rgba(0,0,0,.5);max-height:95vh;overflow-y:auto;
     }
     .logo-wrap{text-align:center;margin-bottom:28px}
-    .logo-wrap img{height:60px;object-fit:contain;filter:drop-shadow(0 0 16px rgba(244,121,32,.4))}
+    .logo-emoji{font-size:3.5rem;line-height:1;margin-bottom:6px;filter:drop-shadow(0 0 16px rgba(244,121,32,.4));animation:bounce 2s ease-in-out infinite;display:inline-block}
+    @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
     .logo-wrap h1{font-size:1.6rem;font-weight:800;letter-spacing:.5px;margin-top:10px}
     .logo-wrap h1 span{color:var(--accent)}
     .logo-wrap p{font-size:.8rem;color:var(--text2);margin-top:4px}
@@ -101,7 +102,7 @@
 <div class="login-card">
   <!-- Logo -->
   <div class="logo-wrap">
-    <img src="assets/logo.png" alt="Silog SpA" onerror="this.style.display='none'"/>
+    <div class="logo-emoji">🚛</div>
     <h1>SILOG <span>SpA</span></h1>
     <p>Gestión Operacional · Última Milla Chile</p>
   </div>
@@ -125,6 +126,24 @@
              onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <button class="btn-primary" id="btn-login" onclick="doLogin()">Iniciar Sesión</button>
+    <div style="text-align:center;margin-top:12px">
+      <a href="#" onclick="event.preventDefault();switchTab('reset')" style="color:var(--accent);font-size:.8rem;text-decoration:none;font-weight:600">¿Olvidaste tu contraseña?</a>
+    </div>
+  </div>
+
+  <!-- ─── PANEL RESET PASSWORD ─── -->
+  <div class="tab-panel" id="panel-reset">
+    <div class="alert alert-error" id="reset-error"></div>
+    <div class="alert alert-success" id="reset-success"></div>
+    <p style="font-size:.85rem;color:var(--text2);margin-bottom:16px;text-align:center">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
+    <div class="form-group">
+      <label>Correo Electrónico</label>
+      <input type="email" id="reset-email" placeholder="tu@correo.com" onkeydown="if(event.key==='Enter')doReset()"/>
+    </div>
+    <button class="btn-primary" id="btn-reset" onclick="doReset()">📧 Enviar Enlace de Recuperación</button>
+    <div style="text-align:center;margin-top:12px">
+      <a href="#" onclick="event.preventDefault();switchTab('login')" style="color:var(--text2);font-size:.8rem;text-decoration:none">← Volver a Iniciar Sesión</a>
+    </div>
   </div>
 
   <!-- ─── PANEL REGISTRO ─── -->
@@ -134,12 +153,16 @@
     <div class="row-2">
       <div class="form-group">
         <label>Nombre</label>
-        <input type="text" id="reg-nombre" placeholder="Juan Pérez"/>
+        <input type="text" id="reg-nombre" placeholder="Juan"/>
       </div>
       <div class="form-group">
-        <label>RUT</label>
-        <input type="text" id="reg-rut" placeholder="12.345.678-9"/>
+        <label>Apellido</label>
+        <input type="text" id="reg-apellido" placeholder="Pérez"/>
       </div>
+    </div>
+    <div class="form-group">
+      <label>RUT</label>
+      <input type="text" id="reg-rut" placeholder="12.345.678-9"/>
     </div>
     <div class="form-group">
       <label>Correo Electrónico</label>
@@ -164,8 +187,16 @@
       <select id="reg-area">
         <option value="Operaciones">Operaciones</option>
         <option value="Distribución">Distribución</option>
-        <option value="Logística">Logística</option>
-        <option value="Administración">Administración</option>
+        <option value="Administración & Finanzas">Administración & Finanzas</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Rol</label>
+      <select id="reg-rol">
+        <option value="conductor">🚛 Conductor</option>
+        <option value="bodeguero">🏭 Bodeguero</option>
+        <option value="administrativo">💼 Administrativo</option>
+        <option value="admin">⚙️ Admin</option>
       </select>
     </div>
     <button class="btn-primary" id="btn-register" onclick="doRegister()">Crear Cuenta</button>
@@ -181,7 +212,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
 <script>
@@ -191,7 +221,8 @@
   function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('tab-' + tab).classList.add('active');
+    const tabBtn = document.getElementById('tab-' + tab);
+    if (tabBtn) tabBtn.classList.add('active');
     document.getElementById('panel-' + tab).classList.add('active');
   }
 
@@ -221,22 +252,28 @@
 
   async function doRegister() {
     const nombre = document.getElementById('reg-nombre').value.trim();
-    const rut    = document.getElementById('reg-rut').value.trim();
+    const apellido = document.getElementById('reg-apellido').value.trim();
+    const rutRaw = document.getElementById('reg-rut').value.trim();
     const email  = document.getElementById('reg-email').value.trim();
     const pass   = document.getElementById('reg-pass').value;
     const pass2  = document.getElementById('reg-pass2').value;
     const tel    = document.getElementById('reg-tel').value.trim();
     const area   = document.getElementById('reg-area').value;
+    const rol    = document.getElementById('reg-rol').value;
     const errEl  = document.getElementById('reg-error');
     const sucEl  = document.getElementById('reg-success');
     const btn    = document.getElementById('btn-register');
     errEl.style.display = 'none'; sucEl.style.display = 'none';
-    if (!nombre || !rut || !email || !pass) { showErr(errEl, 'Completa todos los campos obligatorios.'); return; }
+    if (!nombre || !apellido || !rutRaw || !email || !pass) { showErr(errEl, 'Completa todos los campos obligatorios.'); return; }
+    // RUT validation
+    const rutClean = rutRaw.replace(/[^0-9kK]/g, '');
+    if (rutClean.length < 8 || rutClean.length > 9) { showErr(errEl, 'El RUT debe tener 8 o 9 dígitos (ej: 12345678-9).'); return; }
+    const rut = formatRUT(rutClean);
     if (pass.length < 8) { showErr(errEl, 'La contraseña debe tener mínimo 8 caracteres.'); return; }
     if (pass !== pass2)  { showErr(errEl, 'Las contraseñas no coinciden.'); return; }
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Registrando…';
     try {
-      await registerUser(email, pass, { nombre, rut, telefono: tel, area });
+      await registerUser(email, pass, { nombre, apellido, rut, telefono: tel, area, rol, roles: [rol] });
       btn.disabled = false; btn.innerHTML = 'Crear Cuenta';
       sucEl.textContent = '✅ Cuenta creada. Serás redirigido al dashboard.';
       sucEl.style.display = 'block';
@@ -252,7 +289,39 @@
     }
   }
 
+  // RUT formatter: 12345678-9 → 12.345.678-9
+  function formatRUT(clean) {
+    const dv = clean.slice(-1).toUpperCase();
+    const body = clean.slice(0, -1);
+    const formatted = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return formatted + '-' + dv;
+  }
+  // Auto-format RUT on blur
+  document.getElementById('reg-rut').addEventListener('blur', function() {
+    const v = this.value.replace(/[^0-9kK]/g, '');
+    if (v.length >= 8 && v.length <= 9) this.value = formatRUT(v);
+  });
+
   function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+
+  async function doReset(){
+    const email=document.getElementById('reset-email').value.trim();
+    const errEl=document.getElementById('reset-error');
+    const sucEl=document.getElementById('reset-success');
+    const btn=document.getElementById('btn-reset');
+    errEl.style.display='none';sucEl.style.display='none';
+    if(!email){showErr(errEl,'Ingresa tu correo electrónico.');return;}
+    btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Enviando…';
+    try{
+      await auth.sendPasswordResetEmail(email);
+      sucEl.textContent='✅ Se envió un enlace a '+email+'. Revisa tu bandeja de entrada (y spam).';
+      sucEl.style.display='block';
+    }catch(e){
+      const msgs={'auth/user-not-found':'Este correo no está registrado.','auth/invalid-email':'Correo inválido.'};
+      showErr(errEl,msgs[e.code]||'Error: '+e.message);
+    }
+    btn.disabled=false;btn.innerHTML='📧 Enviar Enlace de Recuperación';
+  }
 </script>
 </body>
 </html>

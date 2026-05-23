@@ -49,6 +49,8 @@
 #toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
 .toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
 .toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+.btn-delete-trip{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#FCA5A5;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif;margin-top:10px;transition:.2s;display:block}
+.btn-delete-trip:hover{background:rgba(239,68,68,.2);border-color:var(--danger);color:#fff}
 </style>
 </head>
 <body>
@@ -128,16 +130,24 @@
 
   <!-- MIS VIAJES -->
   <div id="tab-history" style="display:none">
+    <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:.8rem;color:var(--text2);white-space:nowrap">Filtrar por fecha:</label>
+      <input type="date" id="filter-date-history" class="field" style="flex:1;max-width:180px" onchange="loadHistory()"/>
+      <button class="btn-back" onclick="clearFilterDate('history')" style="padding:10px 14px">✕ Limpiar</button>
+    </div>
     <div id="history-list"><div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div></div>
   </div>
 
   <!-- ADMIN: todos los viajes -->
   <div id="tab-admin" style="display:none">
     <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <label style="font-size:.8rem;color:var(--text2);white-space:nowrap">Filtrar conductor:</label>
-      <select id="filter-conductor" class="field" style="flex:1;max-width:320px" onchange="loadAdminViajes()">
+      <label style="font-size:.8rem;color:var(--text2);white-space:nowrap">Conductor:</label>
+      <select id="filter-conductor" class="field" style="flex:1;max-width:200px" onchange="loadAdminViajes()">
         <option value="">Todos los conductores</option>
       </select>
+      <label style="font-size:.8rem;color:var(--text2);white-space:nowrap;margin-left:8px">Fecha:</label>
+      <input type="date" id="filter-date-admin" class="field" style="flex:1;max-width:160px" onchange="loadAdminViajes()"/>
+      <button class="btn-back" onclick="clearFilterDate('admin')" style="padding:10px 14px">✕ Limpiar</button>
     </div>
     <div id="admin-viajes-list"><div style="color:var(--text2);text-align:center;padding:32px">Selecciona un filtro o carga todos</div></div>
   </div>
@@ -150,7 +160,7 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
 <script>
-let _email='', _name='', _isViewer=false;
+let _email='', _name='', _isViewer=false, _activeTab='form';
 
 requireAuth(async(user,data)=>{
   _email=data.correo_electronico||data.email||user.email;
@@ -162,6 +172,7 @@ requireAuth(async(user,data)=>{
   document.getElementById('id_viaje').value=String(now.getDate()).padStart(2,'0')+String(now.getMonth()+1).padStart(2,'0')+now.getFullYear();
   const vs=await db.collection('vehiculos').where('conductor','==',_email).limit(1).get();
   if(!vs.empty) document.getElementById('patente').value=vs.docs[0].data().patente||'';
+  
   if(_isViewer){
     document.getElementById('tbtn-admin').style.display='block';
     const usersSnap=await db.collection('users').get();
@@ -170,10 +181,15 @@ requireAuth(async(user,data)=>{
       const u=d.data(), em=u.correo_electronico||u.email||'';
       if(em){const o=document.createElement('option');o.value=em;o.textContent=u.nombre||u.name||em;sel.appendChild(o);}
     });
+  } else {
+    // Conductor: Hide 'Nuevo Viaje' and default to 'Mis Viajes'
+    document.getElementById('tbtn-form').style.display='none';
+    showTab('history');
   }
 });
 
 function showTab(t){
+  _activeTab=t;
   ['form','history','admin'].forEach(id=>{
     const el=document.getElementById('tab-'+id);if(el)el.style.display=t===id?'block':'none';
   });
@@ -229,32 +245,75 @@ async function submitViaje(){
     setTimeout(()=>window.location.href='dashboard.html',1500);
   }catch(e){btn.disabled=false;btn.innerHTML='📋 Registrar Hoja de Ruta';showToast('Error: '+e.message,'error');}
 }
-
 function tripCard(r){
-  const km=(r.km_final_viaje||0)-(r.km_inicial||0);
-  const badgeCls=r.estado_viaje==='Conforme'?'badge-conf':r.estado_viaje==='Incidente'?'badge-inc':'badge-obs';
+  const km = r.km_recorridos || (r.km_final && r.km_inicial ? r.km_final - r.km_inicial : 0);
+  const badgeCls = r.estado === 'revisada' ? 'badge-conf' : r.estado === 'observada' ? 'badge-inc' : 'badge-obs';
+  const badgeTxt = r.estado === 'revisada' ? 'Revisada' : r.estado === 'observada' ? 'Observada' : 'Pendiente';
+  const dateStr = r.fecha || (r.created_at ? formatDate(r.created_at) : '—');
   return `<div class="trip-card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
       <div>
-        <div class="trip-id">🚛 ${r.patente||'—'} · ${r.nombre_conductor_viaje||r.correo_conductor||''} · ID: ${r.id_viaje||'—'}</div>
-        <div class="trip-dist">${r.nombre_distribuidor||'—'}</div>
-        <div class="trip-meta">📅 ${formatDate(r.fecha_viaje)} · ${km} km · ${r.cant_guias||0} guías · ${(r.clientes_despacho||[]).length} clientes</div>
-        ${r.carga_combustible_viaje?`<div class="trip-meta" style="margin-top:4px">⛽ ${r.litros_combustible}L · $${(r.monto_combustible||0).toLocaleString('es-CL')}</div>`:''}
+        <div class="trip-id">🚛 ${sanitize(r.patente)||'—'} · ${sanitize(r.conductor_nombre||r.conductor_email)||''}</div>
+        <div class="trip-dist">${sanitize(r.distribuidor)||'—'}</div>
+        <div class="trip-meta">📅 ${dateStr} · ${km} km · ${r.total_entregas||0} entregas · ${r.total_devoluciones||0} devoluciones</div>
+        ${r.combustible || r.peaje ? `<div class="trip-meta" style="margin-top:4px">⛽ $${(r.combustible||0).toLocaleString('es-CL')} · 🛣️ $${(r.peaje||0).toLocaleString('es-CL')}</div>` : ''}
+        ${_isViewer && r.id ? `<button class="btn-delete-trip" onclick="deleteTrip('${r.id}', this)">🗑️ Eliminar Viaje</button>` : ''}
       </div>
-      <span class="${badgeCls}">${r.estado_viaje||'—'}</span>
+      <span class="${badgeCls}">${badgeTxt}</span>
     </div>
   </div>`;
+}
+
+async function deleteTrip(tripId, btn){
+  if(!confirm('¿Estás seguro de que deseas eliminar este viaje? Esta acción no se puede deshacer.')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Eliminando…';
+  try{
+    await db.collection('hojas_ruta').doc(tripId).delete();
+    showToast('✅ Viaje eliminado correctamente','success');
+    if(_activeTab === 'history') await loadHistory();
+    else if(_activeTab === 'admin') await loadAdminViajes();
+  }catch(e){
+    btn.disabled = false;
+    btn.innerHTML = '🗑️ Eliminar Viaje';
+    showToast('Error al eliminar viaje: ' + e.message, 'error');
+  }
 }
 
 async function loadHistory(){
   const list=document.getElementById('history-list');
   list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div>';
+  const filterDate = document.getElementById('filter-date-history').value;
   try{
-    const snap=await db.collection('viajes').where('correo_conductor','==',_email).get();
+    let snap;
+    if(filterDate) {
+      snap = await db.collection('hojas_ruta').where('fecha','==',filterDate).get();
+    } else {
+      snap = await db.collection('hojas_ruta').where('conductor_email','==',_email).get();
+    }
+    
     if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';return;}
-    let docs=[];snap.forEach(d=>docs.push(d.data()));
-    docs.sort((a,b)=>(b.fecha_viaje?.toMillis?.()??0)-(a.fecha_viaje?.toMillis?.()??0));
-    list.innerHTML=docs.map(tripCard).join('');
+    let docs=[];
+    snap.forEach(d=>{
+      const data = d.data();
+      if(filterDate && data.conductor_email !== _email) return;
+      docs.push({id: d.id, ...data});
+    });
+    
+    if(!docs.length){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';return;}
+    
+    docs.sort((a,b)=>{
+      const da = a.created_at?.toMillis?.() || (a.fecha ? new Date(a.fecha).getTime() : 0);
+      const db = b.created_at?.toMillis?.() || (b.fecha ? new Date(b.fecha).getTime() : 0);
+      return db - da;
+    });
+
+    let displayDocs = docs;
+    if(!filterDate) {
+      displayDocs = docs.slice(0, 7);
+    }
+    
+    list.innerHTML=displayDocs.map(tripCard).join('');
   }catch(e){list.innerHTML=`<div style="color:var(--text2);text-align:center;padding:32px">Error: ${e.message}</div>`;}
 }
 
@@ -262,15 +321,48 @@ async function loadAdminViajes(){
   const list=document.getElementById('admin-viajes-list');
   list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div>';
   const filtro=document.getElementById('filter-conductor').value;
+  const filterDate = document.getElementById('filter-date-admin').value;
   try{
-    let snap=filtro
-      ? await db.collection('viajes').where('correo_conductor','==',filtro).get()
-      : await db.collection('viajes').get();
+    let snap;
+    if(filterDate) {
+      snap = await db.collection('hojas_ruta').where('fecha','==',filterDate).get();
+    } else if(filtro) {
+      snap = await db.collection('hojas_ruta').where('conductor_email','==',filtro).get();
+    } else {
+      snap = await db.collection('hojas_ruta').orderBy('created_at','desc').limit(7).get();
+    }
+    
     if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes.</div>';return;}
-    let docs=[];snap.forEach(d=>docs.push(d.data()));
-    docs.sort((a,b)=>(b.fecha_viaje?.toMillis?.()??0)-(a.fecha_viaje?.toMillis?.()??0));
-    list.innerHTML=docs.map(tripCard).join('');
+    let docs=[];
+    snap.forEach(d=>{
+      const data = d.data();
+      if(filterDate && filtro && data.conductor_email !== filtro) return;
+      docs.push({id: d.id, ...data});
+    });
+    
+    if(!docs.length){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes.</div>';return;}
+    
+    if(filterDate || filtro) {
+      docs.sort((a,b)=>{
+        const da = a.created_at?.toMillis?.() || (a.fecha ? new Date(a.fecha).getTime() : 0);
+        const db = b.created_at?.toMillis?.() || (b.fecha ? new Date(b.fecha).getTime() : 0);
+        return db - da;
+      });
+    }
+    
+    let displayDocs = docs;
+    if(!filterDate) {
+      displayDocs = docs.slice(0, 7);
+    }
+    
+    list.innerHTML=displayDocs.map(tripCard).join('');
   }catch(e){list.innerHTML=`<div style="color:var(--text2);text-align:center;padding:32px">Error: ${e.message}</div>`;}
+}
+
+function clearFilterDate(type) {
+  document.getElementById('filter-date-' + type).value = '';
+  if(type === 'history') loadHistory();
+  else if(type === 'admin') loadAdminViajes();
 }
 </script>
 </body>

@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · WMS Bodega</title>
+<link rel="manifest" href="manifest.json"/><link rel="icon" href="assets/logo.png"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<link rel="stylesheet" href="css/main.css"/>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:6px}.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif}
+.main{max-width:700px;margin:0 auto;padding:16px 14px 100px}
+
+/* Tabs */
+.tab-row{display:flex;gap:4px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab-btn{flex-shrink:0;padding:10px 16px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:10px;cursor:pointer;font-size:.8rem;font-weight:600;font-family:'Inter',sans-serif;transition:.2s;white-space:nowrap}
+.tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.mini-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center}
+.mini-stat .ms-num{font-size:1.4rem;font-weight:800;line-height:1.1}
+.mini-stat .ms-lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:600;margin-top:2px}
+
+/* Card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:12px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.card h3{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+
+/* Inversa items */
+.inv-item{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px;transition:.2s}
+.inv-item:hover{border-color:var(--primary)}
+.inv-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.inv-client{font-weight:700;font-size:.92rem}
+.inv-badge{font-size:.65rem;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+.badge-pend{background:rgba(245,158,11,.15);color:var(--warning)}
+.badge-recv{background:rgba(37,99,235,.15);color:#60A5FA}
+.badge-done{background:rgba(16,185,129,.15);color:var(--success)}
+.inv-meta{font-size:.78rem;color:var(--text2);margin-bottom:8px}
+.inv-motivo{font-size:.82rem;color:var(--text);background:var(--bg);padding:6px 10px;border-radius:8px;margin-bottom:8px}
+.inv-actions{display:flex;gap:6px}
+.inv-btn{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.78rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;min-height:44px;transition:.2s;display:flex;align-items:center;justify-content:center;gap:4px}
+.inv-btn:hover{border-color:var(--primary)}
+.inv-btn-stock{border-color:rgba(16,185,129,.3);color:var(--success)}
+.inv-btn-merma{border-color:rgba(239,68,68,.3);color:var(--danger)}
+
+/* Scan section */
+.scan-card{background:linear-gradient(135deg,rgba(37,99,235,.1),rgba(37,99,235,.03));border:1px solid rgba(37,99,235,.2);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center}
+.scan-card h3{justify-content:center;color:#60A5FA}
+#scanner-container{width:100%;max-width:350px;margin:0 auto 14px;border-radius:12px;overflow:hidden;display:none;background:#000}
+#scanner-container video{width:100%;display:block}
+.scan-btn{padding:14px 28px;background:linear-gradient(135deg,var(--primary),#2563EB);border:none;border-radius:12px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;min-height:48px}
+.scan-btn:active{transform:scale(.97)}
+.scan-result{margin-top:12px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;display:none}
+.scan-result .sr-code{font-size:1.1rem;font-weight:800;color:var(--accent);font-family:'Consolas',monospace}
+.scan-result .sr-name{font-size:.88rem;color:var(--text);margin-top:4px}
+
+/* Movement form */
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:.72rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600}
+.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:.92rem;font-family:'Inter',sans-serif;outline:none}
+.field:focus{border-color:var(--primary)}
+select.field{appearance:auto;cursor:pointer}
+.btn-save{width:100%;padding:14px;background:linear-gradient(135deg,var(--primary),#2563EB);border:none;border-radius:12px;color:#fff;font-size:.92rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;min-height:48px}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+
+/* Movement history */
+.mov-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;font-size:.82rem}
+.mov-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0}
+.mov-in{background:rgba(16,185,129,.15)}.mov-out{background:rgba(239,68,68,.15)}.mov-adj{background:rgba(245,158,11,.15)}.mov-dev{background:rgba(147,51,234,.15)}
+.mov-info{flex:1;min-width:0}
+.mov-info .mv-prod{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mov-info .mv-meta{font-size:.72rem;color:var(--text2)}
+.mov-qty{font-weight:800;white-space:nowrap}
+.mov-qty.pos{color:var(--success)}.mov-qty.neg{color:var(--danger)}
+
+.empty{text-align:center;padding:30px;color:var(--text2);font-size:.85rem}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+
+/* Estilos adicionales para Tab Inventario */
+.search-wrap {
+  display: flex;
+  align-items: center;
+  background: rgba(11, 22, 48, 0.5);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 0px;
+  width: 100%;
+}
+.filter-tab {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+  font-family: 'Inter', sans-serif;
+}
+.filter-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.filter-tab:hover:not(.active) { border-color: var(--primary); color: var(--text); }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> WMS Bodega</div>
+  <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+</nav>
+
+<div class="main">
+  <!-- Tabs -->
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('inversa')">📥 Logística Inversa</button>
+    <button class="tab-btn" onclick="showTab('scan')">📷 Escaneo</button>
+    <button class="tab-btn" onclick="showTab('movimientos')">📊 Movimientos</button>
+    <button class="tab-btn" onclick="showTab('ingreso')">➕ Ingreso</button>
+    <button class="tab-btn" onclick="showTab('salida')">➖ Salida</button>
+    <button class="tab-btn" onclick="showTab('inventario')">📦 Inventario</button>
+  </div>
+
+  <!-- ═══ TAB: LOGÍSTICA INVERSA ═══ -->
+  <div id="tab-inversa">
+    <div class="stats-row">
+      <div class="mini-stat"><div class="ms-num" style="color:var(--warning)" id="inv-pend">0</div><div class="ms-lbl">Pendientes</div></div>
+      <div class="mini-stat"><div class="ms-num" style="color:#60A5FA" id="inv-recv">0</div><div class="ms-lbl">Recibidos</div></div>
+      <div class="mini-stat"><div class="ms-num" style="color:var(--success)" id="inv-done">0</div><div class="ms-lbl">Reclasificados</div></div>
+    </div>
+    <div id="inversa-list"></div>
+    <div id="inversa-empty" class="empty" style="display:none">
+      <div style="font-size:2.5rem;margin-bottom:8px">✅</div>
+      <p>Sin recepciones pendientes</p>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: ESCANEO ═══ -->
+  <div id="tab-scan" style="display:none">
+    <div class="scan-card">
+      <h3>📷 Escanear Código</h3>
+      <p style="font-size:.82rem;color:var(--text2);margin-bottom:14px">Usa la cámara para escanear código de barras o QR del producto</p>
+      <div id="scanner-container"><video id="scanner-video" playsinline></video></div>
+      <button class="scan-btn" id="btn-scan" onclick="toggleScanner()">📸 Iniciar Escaneo</button>
+      <div>
+        <p style="font-size:.72rem;color:var(--text2);margin:10px 0 4px">O ingresa manualmente:</p>
+        <input class="field" type="text" id="manual-code" placeholder="Código SKU / Barras" style="max-width:300px;margin:0 auto;text-align:center"/>
+        <button style="margin-top:8px;padding:8px 20px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.82rem" onclick="buscarProducto(document.getElementById('manual-code').value)">🔍 Buscar</button>
+      </div>
+      <div class="scan-result" id="scan-result">
+        <div class="sr-code" id="sr-code">—</div>
+        <div class="sr-name" id="sr-name">—</div>
+        <div style="margin-top:8px;font-size:.78rem;color:var(--text2)" id="sr-detail">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: MOVIMIENTOS ═══ -->
+  <div id="tab-movimientos" style="display:none">
+    <p style="font-size:.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Últimos Movimientos</p>
+    <div id="mov-list"></div>
+    <div id="mov-empty" class="empty" style="display:none">Sin movimientos registrados.</div>
+  </div>
+
+  <!-- ═══ TAB: INGRESO ═══ -->
+  <div id="tab-ingreso" style="display:none">
+    <div class="card">
+      <h3>➕ Ingreso a Bodega</h3>
+      <div class="form-group">
+        <label>Validar por Código / SKU / Barras</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" class="field" id="ing-codigo" placeholder="Ej: PKG-20250001 o SKU-001" style="flex:1"/>
+          <button type="button" class="btn btn-outline" onclick="validarCodigo('ingreso')" style="font-size:0.8rem;padding:0 14px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:10px;cursor:pointer;">🔍 Validar</button>
+        </div>
+        <div id="ing-valid-feedback" style="font-size:0.75rem;margin-top:6px;display:none;padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border)"></div>
+      </div>
+      <div class="form-group">
+        <label>Producto Seleccionado</label>
+        <select class="field" id="ing-producto" onchange="seleccionarProductoDropdown('ingreso')">
+          <option value="" disabled selected>Seleccionar producto…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tipo de Ingreso</label>
+        <select class="field" id="ing-tipo">
+          <option value="abastecimiento">Abastecimiento (Proveedor)</option>
+          <option value="devolucion">Devolución (Logística Inversa)</option>
+          <option value="ajuste">Ajuste de Inventario</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Cantidad</label>
+        <input class="field" type="number" id="ing-cant" placeholder="Ej: 10" inputmode="numeric"/>
+      </div>
+      <div class="form-group">
+        <label>Ubicación en Bodega</label>
+        <input class="field" type="text" id="ing-ubicacion" placeholder="Ej: A3-02"/>
+      </div>
+      <div class="form-group">
+        <label>Referencia (Guía/Factura)</label>
+        <input class="field" type="text" id="ing-ref" placeholder="Ej: GD-0045"/>
+      </div>
+      <button class="btn-save" onclick="registrarMovimiento('ingreso')">✅ Confirmar Ingreso</button>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: SALIDA ═══ -->
+  <div id="tab-salida" style="display:none">
+    <div class="card">
+      <h3>➖ Salida de Bodega</h3>
+      <div class="form-group">
+        <label>Validar por Código / SKU / Barras</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" class="field" id="sal-codigo" placeholder="Ej: PKG-20250001 o SKU-001" style="flex:1"/>
+          <button type="button" class="btn btn-outline" onclick="validarCodigo('salida')" style="font-size:0.8rem;padding:0 14px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:10px;cursor:pointer;">🔍 Validar</button>
+        </div>
+        <div id="sal-valid-feedback" style="font-size:0.75rem;margin-top:6px;display:none;padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border)"></div>
+      </div>
+      <div class="form-group">
+        <label>Producto Seleccionado</label>
+        <select class="field" id="sal-producto" onchange="seleccionarProductoDropdown('salida')">
+          <option value="" disabled selected>Seleccionar producto…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tipo de Salida</label>
+        <select class="field" id="sal-tipo">
+          <option value="despacho">Despacho a Cliente</option>
+          <option value="merma">Merma / Baja</option>
+          <option value="ajuste">Ajuste de Inventario</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Cantidad</label>
+        <input class="field" type="number" id="sal-cant" placeholder="Ej: 5" inputmode="numeric"/>
+      </div>
+      <div class="form-group">
+        <label>Referencia (Guía/Factura)</label>
+        <input class="field" type="text" id="sal-ref" placeholder="Ej: GD-0046"/>
+      </div>
+      <button class="btn-save" style="background:linear-gradient(135deg,var(--danger),#DC2626)" onclick="registrarMovimiento('salida')">📦 Confirmar Salida</button>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: INVENTARIO ═══ -->
+  <div id="tab-inventario" style="display:none">
+    <!-- Alert: low stock -->
+    <div id="stock-alert" style="display:none;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:.84rem">
+      <span style="font-size:1.2rem">⚠️</span>
+      <span><strong style="color:#FCA5A5" id="alert-count">0</strong> productos bajo stock mínimo</span>
+    </div>
+
+    <!-- Search + Add -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+      <div class="search-wrap" style="flex:1;margin:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:16px;height:16px;color:var(--text2);margin-left:12px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" class="search-input" id="search-inv" placeholder="Buscar por código, nombre..." style="width:100%;background:transparent;border:none;outline:none;color:var(--text);font-size:.85rem;padding:10px 10px 10px 8px"/>
+      </div>
+      <button class="btn btn-accent btn-sm" onclick="openModal()">+ Agregar</button>
+    </div>
+
+    <!-- Import/Export toolbar -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+      <input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importExcel(event)"/>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('import-file').click()" style="font-size:.75rem">📤 Importar Excel</button>
+      <button class="btn btn-outline btn-sm" onclick="exportResumen()" style="font-size:.75rem">📥 Resumen</button>
+      <button class="btn btn-outline btn-sm" onclick="exportMovimientosReport()" style="font-size:.75rem">📥 Ing/Sal</button>
+      <button class="btn btn-outline btn-sm" onclick="exportConsolidado()" style="font-size:.75rem">📥 Consolidado</button>
+      <button class="btn btn-outline btn-sm" onclick="downloadPlantilla()" style="font-size:.75rem;color:#8A9DC0">📋 Plantilla</button>
+    </div>
+
+    <!-- Filter tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:18px;overflow-x:auto;padding-bottom:4px">
+      <button class="filter-tab active" data-filter="all">Todos</button>
+      <button class="filter-tab" data-filter="disponible">Disponible</button>
+      <button class="filter-tab" data-filter="en_transito">En Tránsito</button>
+      <button class="filter-tab" data-filter="agotado">No Disponible / Agotado</button>
+      <button class="filter-tab" data-filter="entregado">Entregado</button>
+    </div>
+
+    <div id="inv-container"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let _uid='',_email='',_name='',_inversas=[],_productos=[],_movimientos=[];
+let _scannerStream=null, _scanning=false;
+
+// Variables de estado del Inventario
+let allItems = [];
+let currentFilter = 'all';
+let editingId = null;
+let userRole = 'operador';
+const statusColors = {
+  disponible:'badge-done', en_transito:'badge-active',
+  entregado:'badge-done', agotado:'badge-danger', dañado:'badge-danger',
+  no_disponible:'badge-danger'
+};
+const statusLabels = {
+  disponible:'Disponible', en_transito:'En Tránsito',
+  entregado:'Entregado', agotado:'Agotado', dañado:'Dañado',
+  no_disponible:'No Disponible'
+};
+
+requireAuth(async(user,data)=>{
+  _uid=user.uid;
+  _email=data.correo_electronico||data.email||user.email;
+  _name=data.name||data.nombre||'';
+  userRole = data.role || 'operador';
+  await Promise.all([loadInversas(),loadProductos(),loadMovimientos(),loadInventory()]);
+  checkLowStock();
+});
+
+function showTab(t){
+  ['inversa','scan','movimientos','ingreso','salida','inventario'].forEach(id=>{
+    const el = document.getElementById('tab-'+id);
+    if (el) el.style.display=id===t?'block':'none';
+  });
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabsList = ['inversa','scan','movimientos','ingreso','salida','inventario'];
+  tabButtons.forEach((b,i)=>{
+    if (tabsList[i]) {
+      b.classList.toggle('active', tabsList[i]===t);
+    }
+  });
+  if(t!=='scan'&&_scanning) stopScanner();
+}
+
+// ═══ LOGÍSTICA INVERSA ═══
+async function loadInversas(){
+  try{
+    const s=await db.collection('logistica_inversa').get();
+    _inversas=[];s.forEach(d=>{_inversas.push({id:d.id,...d.data()});});
+    _inversas.sort((a,b)=>{
+      const order={recepcion_pendiente:0,recibido:1,reclasificado:2};
+      return (order[a.estado]??9)-(order[b.estado]??9);
+    });
+    renderInversas();
+  }catch(e){console.warn(e);}
+}
+
+function renderInversas(){
+  const list=document.getElementById('inversa-list');
+  const empty=document.getElementById('inversa-empty');
+  const pend=_inversas.filter(i=>i.estado==='recepcion_pendiente').length;
+  const recv=_inversas.filter(i=>i.estado==='recibido').length;
+  const done=_inversas.filter(i=>i.estado==='reclasificado').length;
+  document.getElementById('inv-pend').textContent=pend;
+  document.getElementById('inv-recv').textContent=recv;
+  document.getElementById('inv-done').textContent=done;
+
+  if(!_inversas.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  list.innerHTML=_inversas.map(inv=>{
+    const st=inv.estado||'recepcion_pendiente';
+    const badgeCls={recepcion_pendiente:'badge-pend',recibido:'badge-recv',reclasificado:'badge-done'}[st]||'badge-pend';
+    const badgeTxt={recepcion_pendiente:'⏳ Pendiente',recibido:'📥 Recibido',reclasificado:'✅ Reclasificado'}[st]||st;
+    const fecha=inv.fecha_devolucion?formatDate(inv.fecha_devolucion):'—';
+
+    let actions='';
+    if(st==='recepcion_pendiente'){
+      actions=`<div class="inv-actions">
+        <button class="inv-btn" onclick="confirmarRecepcion('${inv.id}', this)">📥 Confirmar Recepción</button>
+      </div>`;
+    } else if(st==='recibido'){
+      actions=`<div class="inv-actions">
+        <button class="inv-btn inv-btn-stock" onclick="reclasificar('${inv.id}','stock_disponible', this)">📦 Stock Disponible</button>
+        <button class="inv-btn inv-btn-merma" onclick="reclasificar('${inv.id}','merma', this)">🗑️ Merma</button>
+      </div>`;
+    }
+
+    return `<div class="inv-item">
+      <div class="inv-top">
+        <div class="inv-client">${sanitize(inv.cliente||'—')}</div>
+        <div class="inv-badge ${badgeCls}">${badgeTxt}</div>
+      </div>
+      <div class="inv-meta">📅 ${fecha} · 🚛 ${sanitize(inv.conductor_email||'—').split('@')[0]}</div>
+      <div class="inv-motivo">💬 ${sanitize(inv.motivo||'Sin motivo')}</div>
+      ${inv.foto_url?`<img src="${inv.foto_url}" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:8px"/>`:''}
+      ${actions}
+      ${st==='reclasificado'?`<div style="font-size:.75rem;color:var(--text2);margin-top:4px">Clasificado: <b style="color:${inv.clasificacion==='merma'?'var(--danger)':'var(--success)'}"> ${inv.clasificacion==='merma'?'🗑️ Merma':'📦 Stock'}</b></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function confirmarRecepcion(id, btn){
+  if(!confirm('¿Confirmar que la mercadería ingresó a bodega?'))return;
+  if(btn) {
+    btn.disabled = true;
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> Procesando...';
+  }
+  try{
+    await db.collection('logistica_inversa').doc(id).update({
+      estado:'recibido',
+      fecha_recepcion:firebase.firestore.FieldValue.serverTimestamp(),
+      operario_uid:_uid
+    });
+    showToast('📥 Recepción confirmada','success');
+    await loadInversas();
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+    if(btn) {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.originalHtml;
+    }
+  }
+}
+
+async function reclasificar(id, tipo, btn){
+  const label=tipo==='merma'?'MERMA':'STOCK DISPONIBLE';
+  if(!confirm(`¿Clasificar como ${label}?`))return;
+  if(btn) {
+    btn.disabled = true;
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>...';
+  }
+  try{
+    await db.collection('logistica_inversa').doc(id).update({
+      estado:'reclasificado',
+      clasificacion:tipo,
+      operario_uid:_uid
+    });
+    // If stock, create ingreso movement
+    if(tipo==='stock_disponible'){
+      const inv=_inversas.find(i=>i.id===id);
+      await db.collection('movimientos_bodega').add({
+        producto_id:'',tipo:'devolucion',cantidad:1,
+        ubicacion:'Pendiente asignar',
+        operario_uid:_uid,operario_nombre:_name,
+        referencia:`Dev: ${inv?.cliente||'—'}`,
+        scan_validado:false,
+        fecha:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    showToast(`✅ Clasificado como ${label}`,'success');
+    await loadInversas();
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+    if(btn) {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.originalHtml;
+    }
+  }
+}
+
+// ═══ PRODUCTOS ═══
+async function loadProductos(){
+  try{
+    const s=await db.collection('inventory').get();
+    _productos=[];s.forEach(d=>{_productos.push({id:d.id,...d.data()});});
+    _productos.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+    populateProductSelects();
+  }catch(e){console.warn(e);}
+}
+
+function populateProductSelects(){
+  ['ing-producto','sal-producto'].forEach(selId=>{
+    const sel=document.getElementById(selId);
+    while(sel.options.length>1)sel.remove(1);
+    _productos.forEach(p=>{
+      const o=document.createElement('option');
+      o.value=p.id;
+      o.textContent=`${p.name||p.nombre||p.id} ${p.sku?'('+p.sku+')':''}  — Stock: ${p.qty??p.cantidad??0}`;
+      sel.appendChild(o);
+    });
+  });
+}
+
+function validarCodigo(dir) {
+  const isIn = dir === 'ingreso';
+  const codigoInput = document.getElementById(isIn ? 'ing-codigo' : 'sal-codigo');
+  const feedbackEl = document.getElementById(isIn ? 'ing-valid-feedback' : 'sal-valid-feedback');
+  const selectEl = document.getElementById(isIn ? 'ing-producto' : 'sal-producto');
+  
+  if (!codigoInput) return;
+  const val = codigoInput.value.trim().toLowerCase();
+  
+  if (!val) {
+    showToast('Ingresa un código para validar', 'error');
+    if (feedbackEl) {
+      feedbackEl.style.display = 'block';
+      feedbackEl.style.border = '1px solid var(--danger)';
+      feedbackEl.style.color = '#FCA5A5';
+      feedbackEl.style.background = 'rgba(239, 68, 68, 0.08)';
+      feedbackEl.innerHTML = '⚠️ Por favor, ingresa un código (SKU, Código de barras o ID).';
+    }
+    return;
+  }
+  
+  // Search in _productos
+  const prod = _productos.find(p => 
+    (p.code || '').toLowerCase() === val || 
+    (p.sku || '').toLowerCase() === val || 
+    (p.codigo_barras || '').toLowerCase() === val || 
+    (p.id || '').toLowerCase() === val
+  );
+  
+  if (prod) {
+    // Select the product in the dropdown
+    selectEl.value = prod.id;
+    
+    // Check stock
+    const stock = prod.qty ?? prod.cantidad ?? 0;
+    
+    // Display visual feedback card
+    feedbackEl.style.display = 'block';
+    feedbackEl.style.border = '1px solid var(--success)';
+    feedbackEl.style.color = '#6EE7B7';
+    feedbackEl.style.background = 'rgba(16, 185, 129, 0.08)';
+    feedbackEl.innerHTML = `
+      <strong>✅ Producto Validado:</strong> ${prod.nombre || prod.name || 'Sin Nombre'}<br>
+      <span style="font-size:0.72rem;color:var(--text2)">
+        SKU: ${prod.sku || '—'} | Barras: ${prod.codigo_barras || '—'}<br>
+        Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'} | Ubicación: ${prod.location || '—'}
+      </span>
+    `;
+    showToast(`✅ Código validado: ${prod.nombre || prod.name}`, 'success');
+  } else {
+    // Reset dropdown selection
+    selectEl.value = '';
+    
+    feedbackEl.style.display = 'block';
+    feedbackEl.style.border = '1px solid var(--danger)';
+    feedbackEl.style.color = '#FCA5A5';
+    feedbackEl.style.background = 'rgba(239, 68, 68, 0.08)';
+    feedbackEl.innerHTML = `
+      <strong>❌ Código no registrado:</strong> "${codigoInput.value.trim()}"<br>
+      <span style="font-size:0.72rem;color:var(--text2)">
+        El código ingresado no coincide con ningún producto en inventario.
+      </span>
+    `;
+    showToast('❌ Producto no encontrado por código', 'error');
+  }
+}
+
+function seleccionarProductoDropdown(dir) {
+  const isIn = dir === 'ingreso';
+  const selectEl = document.getElementById(isIn ? 'ing-producto' : 'sal-producto');
+  const codigoInput = document.getElementById(isIn ? 'ing-codigo' : 'sal-codigo');
+  const feedbackEl = document.getElementById(isIn ? 'ing-valid-feedback' : 'sal-valid-feedback');
+  
+  if (!selectEl) return;
+  const prodId = selectEl.value;
+  if (!prodId) {
+    if (codigoInput) codigoInput.value = '';
+    if (feedbackEl) feedbackEl.style.display = 'none';
+    return;
+  }
+  
+  const prod = _productos.find(p => p.id === prodId);
+  if (prod) {
+    // Put code/sku/barcode in input
+    if (codigoInput) {
+      codigoInput.value = prod.sku || prod.code || prod.codigo_barras || prod.id;
+    }
+    
+    // Display feedback card
+    const stock = prod.qty ?? prod.cantidad ?? 0;
+    feedbackEl.style.display = 'block';
+    feedbackEl.style.border = '1px solid var(--primary)';
+    feedbackEl.style.color = 'var(--text)';
+    feedbackEl.style.background = 'rgba(27, 75, 155, 0.08)';
+    feedbackEl.innerHTML = `
+      <strong>ℹ️ Producto Seleccionado:</strong> ${prod.nombre || prod.name || 'Sin Nombre'}<br>
+      <span style="font-size:0.72rem;color:var(--text2)">
+        SKU: ${prod.sku || '—'} | Barras: ${prod.codigo_barras || '—'}<br>
+        Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'} | Ubicación: ${prod.location || '—'}
+      </span>
+    `;
+  }
+}
+
+// ═══ ESCANEO ═══
+async function toggleScanner(){
+  if(_scanning){stopScanner();return;}
+  const container=document.getElementById('scanner-container');
+  const video=document.getElementById('scanner-video');
+  const btn=document.getElementById('btn-scan');
+  try{
+    _scannerStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    video.srcObject=_scannerStream;
+    await video.play();
+    container.style.display='block';
+    btn.textContent='⏹️ Detener Escaneo';
+    _scanning=true;
+    // Use BarcodeDetector if available, otherwise fallback to manual
+    if('BarcodeDetector' in window){
+      const detector=new BarcodeDetector({formats:['qr_code','ean_13','ean_8','code_128','code_39']});
+      scanFrame(detector,video);
+    }else{
+      showToast('Escaneo automático no soportado. Ingresa el código manualmente.','info');
+    }
+  }catch(e){
+    showToast('Error accediendo a cámara: '+e.message,'error');
+  }
+}
+
+async function scanFrame(detector,video){
+  if(!_scanning)return;
+  try{
+    const barcodes=await detector.detect(video);
+    if(barcodes.length>0){
+      const code=barcodes[0].rawValue;
+      stopScanner();
+      buscarProducto(code);
+      return;
+    }
+  }catch(e){}
+  requestAnimationFrame(()=>scanFrame(detector,video));
+}
+
+function stopScanner(){
+  _scanning=false;
+  if(_scannerStream){_scannerStream.getTracks().forEach(t=>t.stop());_scannerStream=null;}
+  document.getElementById('scanner-container').style.display='none';
+  document.getElementById('btn-scan').textContent='📸 Iniciar Escaneo';
+}
+
+function buscarProducto(code){
+  if(!code){showToast('Ingresa un código','error');return;}
+  code=code.trim();
+  const prod=_productos.find(p=>
+    p.sku===code||p.codigo_barras===code||p.nombre===code||p.id===code
+  );
+  const result=document.getElementById('scan-result');
+  result.style.display='block';
+  if(prod){
+    document.getElementById('sr-code').textContent=prod.sku||prod.codigo_barras||prod.id;
+    document.getElementById('sr-name').textContent=prod.name||prod.nombre||'—';
+    document.getElementById('sr-detail').textContent=`Stock: ${prod.qty??prod.cantidad??0} ${prod.unit||'un'} · Ubicación: ${prod.location||'—'} · Min: ${prod.stock_minimo||0}`;
+    showToast('✅ Producto encontrado','success');
+  }else{
+    document.getElementById('sr-code').textContent=code;
+    document.getElementById('sr-name').textContent='❌ Producto no encontrado';
+    document.getElementById('sr-detail').textContent='Verifica el código o agrega el producto en Inventario';
+    showToast('Producto no encontrado','error');
+  }
+}
+
+// ═══ MOVIMIENTOS ═══
+async function loadMovimientos(){
+  try{
+    let s;
+    try {
+      s=await db.collection('movimientos_bodega').orderBy('fecha','desc').limit(50).get();
+    } catch(err) {
+      console.warn("Ordered query for movements failed, using fallback limit 50:", err);
+      s=await db.collection('movimientos_bodega').limit(50).get();
+    }
+    _movimientos=[];s.forEach(d=>{_movimientos.push({id:d.id,...d.data()});});
+    _movimientos.sort((a,b)=>{const ta=a.fecha?.toDate?a.fecha.toDate():new Date(0);const tb=b.fecha?.toDate?b.fecha.toDate():new Date(0);return tb-ta;});
+    renderMovimientos();
+  }catch(e){console.warn(e);}
+}
+
+function renderMovimientos(){
+  const list=document.getElementById('mov-list');
+  const empty=document.getElementById('mov-empty');
+  if(!_movimientos.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  list.innerHTML=_movimientos.map(m=>{
+    const isIn=['ingreso','devolucion','abastecimiento','ajuste_pos'].includes(m.tipo);
+    const icons={ingreso:'📥',salida:'📤',despacho:'🚛',merma:'🗑️',devolucion:'🔄',abastecimiento:'📥',ajuste:'🔧'};
+    const iconCls={ingreso:'mov-in',salida:'mov-out',despacho:'mov-out',merma:'mov-out',devolucion:'mov-dev',abastecimiento:'mov-in',ajuste:'mov-adj'};
+    const prod=_productos.find(p=>p.id===m.producto_id);
+    return `<div class="mov-item">
+      <div class="mov-icon ${iconCls[m.tipo]||'mov-adj'}">${icons[m.tipo]||'📦'}</div>
+      <div class="mov-info">
+        <div class="mv-prod">${sanitize(prod?.nombre||m.referencia||m.tipo)}</div>
+        <div class="mv-meta">${m.fecha?formatDateTime(m.fecha):'—'} · ${sanitize(m.operario_nombre||'—')}</div>
+      </div>
+      <div class="mov-qty ${isIn?'pos':'neg'}">${isIn?'+':'-'}${m.cantidad||0}</div>
+    </div>`;
+  }).join('');
+}
+
+async function registrarMovimiento(dir){
+  const isIn=dir==='ingreso';
+  const prodId=document.getElementById(isIn?'ing-producto':'sal-producto').value;
+  const tipo=document.getElementById(isIn?'ing-tipo':'sal-tipo').value;
+  const cant=parseInt(document.getElementById(isIn?'ing-cant':'sal-cant').value);
+  const ref=document.getElementById(isIn?'ing-ref':'sal-ref').value.trim();
+  const ubicacion=isIn?document.getElementById('ing-ubicacion').value.trim():'';
+
+  if(!prodId){showToast('Selecciona un producto','error');return;}
+  if(!cant||cant<=0){showToast('Ingresa la cantidad','error');return;}
+
+  const prod=_productos.find(p=>p.id===prodId);
+  if(!isIn&&prod){
+    const stock=prod.qty??prod.cantidad??0;
+    if(stock===0){
+      showToast('❌ Acción no válida: Producto SIN STOCK disponible.', 'error');
+      alert(`La acción no es válida:\nEl producto seleccionado se encuentra actualmente sin stock disponible en bodega para registrar salidas.`);
+      return;
+    }
+    if(cant>stock){
+      showToast(`❌ Acción no válida: Cantidad supera el stock disponible (${stock}).`, 'error');
+      alert(`La acción no es válida:\nLa cantidad de salida solicitada (${cant}) supera la cantidad disponible actual en bodega (${stock}).`);
+      return;
+    }
+  }
+
+  const btn = document.querySelector(isIn ? '#tab-ingreso .btn-save' : '#tab-salida .btn-save');
+  if(btn) {
+    btn.disabled = true;
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> Procesando...';
+  }
+
+  try{
+    // Save movement
+    await db.collection('movimientos_bodega').add({
+      producto_id:prodId,
+      tipo:isIn?tipo:(tipo==='despacho'?'salida':tipo),
+      cantidad:cant,
+      ubicacion:ubicacion,
+      operario_uid:_uid,operario_nombre:_name,
+      referencia:ref,scan_validado:false,
+      fecha:firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Update stock
+    const newStock=(prod?.qty??prod?.cantidad??0)+(isIn?cant:-cant);
+    const updateData={
+      qty: newStock,
+      cantidad: newStock,
+      status: newStock===0?'no_disponible':'disponible',
+      litros_actuales: (prod?.litros_por_unidad || 0) * newStock,
+      kg_actuales: (prod?.kg_por_unidad || 0) * newStock,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: _uid
+    };
+    if(ubicacion&&isIn) updateData.location=ubicacion;
+    await db.collection('inventory').doc(prodId).update(updateData);
+
+    showToast(`✅ ${isIn?'Ingreso':'Salida'} registrado: ${cant} ${prod?.unit||prod?.unidad||'un'}`,'success');
+    // Reset
+    document.getElementById(isIn?'ing-cant':'sal-cant').value='';
+    document.getElementById(isIn?'ing-ref':'sal-ref').value='';
+    document.getElementById(isIn?'ing-codigo':'sal-codigo').value='';
+    document.getElementById(isIn?'ing-valid-feedback':'sal-valid-feedback').style.display='none';
+    if(isIn)document.getElementById('ing-ubicacion').value='';
+    await Promise.all([loadProductos(),loadMovimientos()]);
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+  }finally{
+    if(btn) {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.originalHtml;
+    }
+  }
+}
+
+// ═══ TAB INVENTARIO LÓGICA COMPLETA ═══
+
+function renderItems(items) {
+  const container = document.getElementById('inv-container');
+  if (!items.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📦</div><h3>Sin ítems</h3><p>No hay registros en esta categoría.</p></div>`;
+    return;
+  }
+
+  // Override status dynamically for qty === 0 items to 'no_disponible'
+  items.forEach(item => {
+    if ((item.qty || item.cantidad || 0) === 0) {
+      item.status = 'no_disponible';
+    }
+  });
+
+  let slidedownBtn = '';
+  let tableStyle = '';
+  if (items.length > 10) {
+    tableStyle = 'style="max-height: 520px; overflow: hidden; transition: max-height 0.5s ease-in-out; position: relative;" id="inv-table-wrap"';
+    slidedownBtn = `
+      <div id="slidedown-btn-wrap" style="text-align:center; margin-top:12px;">
+        <button class="btn btn-outline btn-full" onclick="slideDownTable()" style="font-size:0.8rem; border-style:dashed; padding:10px; font-weight:600; color:var(--accent);">Mostrar todos los productos 👇</button>
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="table-wrap" ${tableStyle}>
+      <table>
+        <thead><tr>
+          <th>Código</th><th>Nombre</th><th>Cantidad</th>
+          <th>Un. Medida</th><th>Estado</th><th>Acciones</th>
+        </tr></thead>
+        <tbody>${items.map(item => `
+          <tr>
+            <td><code style="color:#F47920;font-size:0.8rem">${item.code || '—'}</code>${item.sku?`<br><span style="font-size:.68rem;color:#8A9DC0">${item.sku}</span>`:''}</td>
+            <td><strong style="font-size:0.88rem">${item.name || '—'}</strong>${item.notes ? `<br><span style="font-size:0.72rem;color:#8899BB">${item.notes}</span>` : ''}</td>
+            <td><b>${item.qty || 0}</b>
+              ${(item.qty||0)>0 && (item.qty||0)<=3 ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#F59E0B;font-weight:600">⚠️ CRÍTICO</span>':''}
+              ${(item.qty||0)===0 ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#EF4444;font-weight:600">⚠️ SIN STOCK</span>':''}
+            </td>
+            <td style="font-size:0.85rem;color:#8899BB;font-weight:500">${item.unit || '—'}</td>
+            <td><span class="badge ${statusColors[item.status] || 'badge-pending'}">${statusLabels[item.status] || item.status}</span></td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="editItem('${item.id}')" style="margin-right:4px">✏️</button>
+              ${userRole === 'admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}')">🗑️</button>` : ''}
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${slidedownBtn}`;
+}
+
+window.slideDownTable = function() {
+  const wrap = document.getElementById('inv-table-wrap');
+  const btnWrap = document.getElementById('slidedown-btn-wrap');
+  if (wrap) {
+    wrap.style.maxHeight = '10000px';
+  }
+  if (btnWrap) {
+    btnWrap.style.display = 'none';
+  }
+};
+
+function applyFilter() {
+  const q = document.getElementById('search-inv').value.toLowerCase();
+  let filtered = allItems;
+  
+  // Override status dynamically for filtering
+  filtered.forEach(i => {
+    if ((i.qty || i.cantidad || 0) === 0) {
+      i.status = 'no_disponible';
+    }
+  });
+
+  if (currentFilter !== 'all') {
+    if (currentFilter === 'agotado') {
+      filtered = filtered.filter(i => i.status === 'agotado' || i.status === 'no_disponible');
+    } else {
+      filtered = filtered.filter(i => i.status === currentFilter);
+    }
+  }
+  if (q) filtered = filtered.filter(i =>
+    (i.code||'').toLowerCase().includes(q) ||
+    (i.name||'').toLowerCase().includes(q) ||
+    (i.location||'').toLowerCase().includes(q)
+  );
+  renderItems(filtered);
+}
+
+async function loadInventory() {
+  const snap = await db.collection('inventory').orderBy('updatedAt','desc').get();
+  allItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  applyFilter();
+}
+
+function openModal(id = null) {
+  editingId = id;
+  document.getElementById('modal-title').textContent = id ? 'Editar Ítem' : 'Nuevo Ítem';
+  if (!id) document.getElementById('inv-form').reset();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function editItem(id) {
+  const item = allItems.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('item-id').value       = id;
+  document.getElementById('item-code').value     = item.code || '';
+  document.getElementById('item-sku').value      = item.sku || '';
+  document.getElementById('item-name').value     = item.name || '';
+  document.getElementById('item-barcode').value  = item.codigo_barras || '';
+  document.getElementById('item-qty').value      = item.qty || 1;
+  document.getElementById('item-min').value      = item.stock_minimo || 0;
+  document.getElementById('item-unit').value     = item.unit || 'unidad';
+  document.getElementById('item-litros-por-unidad').value = item.litros_por_unidad || 0;
+  document.getElementById('item-kg-por-unidad').value = item.kg_por_unidad || 0;
+  document.getElementById('item-location').value = item.location || '';
+  document.getElementById('item-status').value   = item.status || 'disponible';
+  document.getElementById('item-notes').value    = item.notes || '';
+  openModal(id);
+}
+
+async function deleteItem(id) {
+  if (!confirm('¿Eliminar este ítem del inventario?')) return;
+  await db.collection('inventory').doc(id).delete();
+  showToast('Ítem eliminado', 'success');
+  await loadInventory();
+  await loadProductos();
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal-overlay')) {
+    document.getElementById('modal-overlay').classList.remove('open');
+    editingId = null;
+  }
+}
+
+// Configurar listeners de la pestaña inventario al inicializar
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('search-inv');
+  if (searchInput) searchInput.addEventListener('input', applyFilter);
+
+  document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentFilter = tab.dataset.filter;
+      applyFilter();
+    });
+  });
+
+  const invForm = document.getElementById('inv-form');
+  if (invForm) {
+    invForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn-save-inv');
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      const qty = parseInt(document.getElementById('item-qty').value) || 0;
+      let status = document.getElementById('item-status').value;
+      if (qty === 0) status = 'no_disponible';
+      
+      const litrosPorUnidad = parseFloat(document.getElementById('item-litros-por-unidad').value) || 0;
+      const kgPorUnidad = parseFloat(document.getElementById('item-kg-por-unidad').value) || 0;
+
+      const data = {
+        code:          document.getElementById('item-code').value.trim(),
+        sku:           document.getElementById('item-sku').value.trim(),
+        name:          document.getElementById('item-name').value.trim(),
+        codigo_barras: document.getElementById('item-barcode').value.trim(),
+        qty:           qty,
+        cantidad:      qty,
+        stock_minimo:  parseInt(document.getElementById('item-min').value) || 0,
+        unit:          document.getElementById('item-unit').value,
+        litros_por_unidad: litrosPorUnidad,
+        kg_por_unidad:     kgPorUnidad,
+        litros_actuales:   litrosPorUnidad * qty,
+        kg_actuales:       kgPorUnidad * qty,
+        location:      document.getElementById('item-location').value.trim(),
+        nombre:        document.getElementById('item-name').value.trim(),
+        status:        status,
+        notes:         document.getElementById('item-notes').value.trim(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: _uid,
+      };
+      try {
+        if (editingId) {
+          await db.collection('inventory').doc(editingId).update(data);
+          showToast('Ítem actualizado ✅', 'success');
+        } else {
+          data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+          data.createdBy = _uid;
+          await db.collection('inventory').add(data);
+          showToast('Ítem agregado ✅', 'success');
+        }
+        closeModal();
+        await loadInventory();
+        await loadProductos();
+        checkLowStock();
+      } catch(err) {
+        showToast('Error al guardar: ' + err.message, 'error');
+      }
+      btn.disabled = false; btn.textContent = 'Guardar';
+    });
+  }
+});
+
+function checkLowStock(){
+  try{
+    let low=0;
+    allItems.forEach(item=>{
+      const qty = item.qty || item.cantidad || 0;
+      if(qty > 0 && qty <= 3) low++;
+    });
+    const alertEl = document.getElementById('stock-alert');
+    const alertCount = document.getElementById('alert-count');
+    if(low>0){
+      if(alertEl) alertEl.style.display='flex';
+      if(alertCount) alertCount.textContent=low;
+    } else {
+      if(alertEl) alertEl.style.display='none';
+    }
+  }catch(e){}
+}
+
+// ═══ IMPORT FROM EXCEL ═══
+async function importExcel(e){
+  const file=e.target.files[0];
+  if(!file){return;}
+  try{
+    const data=await file.arrayBuffer();
+    const wb=XLSX.read(data,{type:'array'});
+    
+    let totalUpdated=0;
+    let totalImported=0;
+    let totalErrors=0;
+    let totalMovs=0;
+    const batch=db.batch();
+
+    for(const sheetName of wb.SheetNames){
+      const ws=wb.Sheets[sheetName];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length) continue;
+
+      // Detect sheet type from columns of the first row
+      const firstRow=rows[0];
+      const firstRowKeys=Object.keys(firstRow).map(k=>k.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim());
+      const isMovements=firstRowKeys.includes('fecha de movimiento') || firstRowKeys.includes('cantidad de entrada') || firstRowKeys.includes('cantidad de salida');
+
+      if(isMovements){
+        // Movements sheet mapping
+        const movColMap={
+          'fecha de movimiento':'fecha_movimiento',
+          'n documento':'n_documento',
+          'numero documento':'n_documento',
+          'codigo de producto':'code',
+          'nombre de producto':'name',
+          'cantidad de entrada':'cantidad_entrada',
+          'cantidad de salida':'cantidad_salida',
+          'cantidad en stock':'cantidad_stock',
+          'valor':'valor',
+          'observaciones':'observaciones',
+          'obsarvaciones':'observaciones'
+        };
+
+        for(const row of rows){
+          const item={};
+          Object.entries(row).forEach(([k,v])=>{
+            const normKey=k.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            const mapped=movColMap[normKey];
+            if(mapped) item[mapped]=v;
+          });
+
+          if(!item.code){
+            totalErrors++;
+            continue;
+          }
+
+          const codeStr=String(item.code).trim();
+          const codeUpper=codeStr.toUpperCase();
+          const existing=allItems.find(i=>(i.code||'').toUpperCase()===codeUpper);
+
+          let prodId='';
+          let finalName=item.name||'';
+          let litrosPorUnidad=0;
+          let kgPorUnidad=0;
+
+          if(existing){
+            prodId=existing.id;
+            finalName=existing.name||finalName;
+            litrosPorUnidad=existing.litros_por_unidad||0;
+            kgPorUnidad=existing.kg_por_unidad||0;
+          } else {
+            const newProdRef=db.collection('inventory').doc();
+            prodId=newProdRef.id;
+            const startStock=parseInt(item.cantidad_stock)||0;
+            const newProdData={
+              code:codeStr,
+              name:finalName,
+              nombre:finalName,
+              qty:startStock,
+              cantidad:startStock,
+              litros_por_unidad:0,
+              kg_por_unidad:0,
+              litros_actuales:0,
+              kg_actuales:0,
+              unit:'unidad',
+              status:startStock===0?'no_disponible':'disponible',
+              stock_minimo:0,
+              location:'',
+              createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+              createdBy:_uid,
+              updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+              updatedBy:_uid
+            };
+            batch.set(newProdRef,newProdData);
+            allItems.push({id:prodId,...newProdData});
+          }
+
+          const cantEntrada=parseInt(item.cantidad_entrada)||0;
+          const cantSalida=parseInt(item.cantidad_salida)||0;
+          const valor=parseFloat(item.valor)||0;
+          const obs=String(item.observaciones||'').trim();
+          const docNum=String(item.n_documento||'').trim();
+
+          let tipoMov='ajuste';
+          let cantMov=0;
+          if(cantEntrada>0){
+            tipoMov='ingreso';
+            cantMov=cantEntrada;
+          } else if(cantSalida>0){
+            tipoMov='salida';
+            cantMov=cantSalida;
+          }
+
+          let fechaDate=new Date();
+          if(item.fecha_movimiento){
+            const parsedD=new Date(item.fecha_movimiento);
+            if(!isNaN(parsedD.getTime())){
+              fechaDate=parsedD;
+            }
+          }
+
+          // Create movement in movimientos_bodega
+          const movRef=db.collection('movimientos_bodega').doc();
+          batch.set(movRef,{
+            producto_id:prodId,
+            producto_nombre:finalName,
+            producto_codigo:codeStr,
+            tipo:tipoMov,
+            cantidad:cantMov,
+            valor_clp:valor,
+            numero_documento:docNum,
+            referencia:docNum?`Doc: ${docNum}`:(obs||'Movimiento importado'),
+            observaciones:obs,
+            operario_uid:_uid,
+            operario_nombre:_name,
+            fecha:firebase.firestore.Timestamp.fromDate(fechaDate),
+            scan_validado:false
+          });
+          totalMovs++;
+
+          // Update inventory stock and recalculated metric fields
+          if(item.cantidad_stock!==undefined&&item.cantidad_stock!==''){
+            const newStock=parseInt(item.cantidad_stock)||0;
+            const prodRef=db.collection('inventory').doc(prodId);
+            batch.update(prodRef,{
+              qty:newStock,
+              cantidad:newStock,
+              litros_actuales:litrosPorUnidad*newStock,
+              kg_actuales:kgPorUnidad*newStock,
+              status:newStock===0?'no_disponible':'disponible',
+              updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+              updatedBy:_uid
+            });
+            totalUpdated++;
+          }
+        }
+      } else {
+        // Stock / Inventory sheet mapping
+        const colMap={
+          'codigo producto':'code','codigo':'code','código':'code','code':'code','tracking':'code',
+          'nombre producto':'name','nombre':'name','name':'name','producto':'name','descripcion':'name',
+          'litros x unidad':'litros_por_unidad',
+          'kg x unidad':'kg_por_unidad',
+          'stock actual':'qty','cantidad':'qty','qty':'qty','stock':'qty',
+          'litros actuales':'litros_actuales',
+          'kg actuales':'kg_actuales'
+        };
+
+        for(const row of rows){
+          const item={};
+          Object.entries(row).forEach(([k,v])=>{
+            const normKey=k.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            const mapped=colMap[normKey];
+            if(mapped) item[mapped]=v;
+          });
+          
+          if(!item.code && !item.name){
+            totalErrors++;
+            continue;
+          }
+
+          item.code = String(item.code || '').trim();
+          item.name = String(item.name || '').trim();
+          item.nombre = item.name;
+
+          const qty = parseInt(item.qty) || 0;
+          item.qty = qty;
+          item.cantidad = qty;
+          item.status = qty === 0 ? 'no_disponible' : 'disponible';
+
+          const litrosPorUnidad = parseFloat(item.litros_por_unidad) || 0;
+          item.litros_por_unidad = litrosPorUnidad;
+
+          const kgPorUnidad = parseFloat(item.kg_por_unidad) || 0;
+          item.kg_por_unidad = kgPorUnidad;
+
+          item.litros_actuales = litrosPorUnidad * qty;
+          item.kg_actuales = kgPorUnidad * qty;
+
+          if(litrosPorUnidad > 0){
+            item.unit = 'Litros';
+          } else if(kgPorUnidad > 0){
+            item.unit = 'Kilos';
+          } else {
+            item.unit = 'unidad';
+          }
+
+          const codeUpper = item.code.toUpperCase();
+          const existing = allItems.find(i => (i.code || '').toUpperCase() === codeUpper);
+
+          if(existing){
+            const ref = db.collection('inventory').doc(existing.id);
+            const updateData = {
+              name: item.name,
+              nombre: item.nombre,
+              qty: item.qty,
+              cantidad: item.cantidad,
+              litros_por_unidad: item.litros_por_unidad,
+              kg_por_unidad: item.kg_por_unidad,
+              litros_actuales: item.litros_actuales,
+              kg_actuales: item.kg_actuales,
+              unit: item.unit,
+              status: item.status,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedBy: _uid
+            };
+            batch.update(ref, updateData);
+            totalUpdated++;
+          } else {
+            const ref = db.collection('inventory').doc();
+            const newData = {
+              ...item,
+              stock_minimo: 0,
+              location: '',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              createdBy: _uid,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedBy: _uid
+            };
+            batch.set(ref, newData);
+            totalImported++;
+          }
+        }
+      }
+    }
+    await batch.commit();
+    showToast(`✅ Importación completada: ${totalUpdated} stocks act., ${totalImported} prod. creados, ${totalMovs} mov. registrados${totalErrors?' ('+totalErrors+' omitidos)':''}`, 'success');
+    await loadInventory();
+    await loadProductos();
+    checkLowStock();
+  }catch(err){
+    showToast('Error al importar: '+err.message,'error');
+  }
+  e.target.value='';
+}
+
+// ═══ DOWNLOAD PLANTILLA ═══
+function downloadPlantilla(){
+  const wb=XLSX.utils.book_new();
+  const getColLetter = (colIdx) => {
+    let temp, letter = '';
+    while (colIdx >= 0) {
+      temp = colIdx % 26;
+      letter = String.fromCharCode(temp + 65) + letter;
+      colIdx = Math.floor(colIdx / 26) - 1;
+    }
+    return letter;
+  };
+
+  // Sheet 1: Stock de Inventario
+  const stockRows=[
+    ['CÓDIGO PRODUCTO','NOMBRE PRODUCTO','Litros x Unidad','KG x UNIDAD','STOCK ACTUAL','LITROS ACTUALES','KG ACTUALES'],
+    ['PROD-001','Aceite Lubricante 1L',1.0,0.0,150,150.0,0.0],
+    ['PROD-002','Harina Industrial 25KG',0.0,25.0,40,0.0,1000.0]
+  ];
+  const wsStock=XLSX.utils.aoa_to_sheet(stockRows);
+  wsStock['!cols']=[{wch:18},{wch:30},{wch:16},{wch:16},{wch:16},{wch:18},{wch:18}];
+  
+  // Style Stock Inventario headers (Row 1)
+  for (let c = 0; c < stockRows[0].length; c++) {
+    const ref = getColLetter(c) + '1';
+    if (wsStock[ref]) {
+      wsStock[ref].s = {
+        font: { bold: true },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb,wsStock,'Stock Inventario');
+
+  // Sheet 2: Movimientos
+  const movRows=[
+    ['FECHA DE MOVIMIENTO','N° DOCUMENTO','CODIGO DE PRODUCTO','NOMBRE DE PRODUCTO','CANTIDAD DE ENTRADA','CANTIDAD DE SALIDA','CANTIDAD EN STOCK','VALOR','OBSERVACIONES'],
+    [new Date().toISOString().slice(0,10),'GD-1001','PROD-001','Aceite Lubricante 1L',50,'',200,15000,'Abastecimiento inicial'],
+    [new Date().toISOString().slice(0,10),'GD-1002','PROD-002','Harina Industrial 25KG','',10,30,8000,'Despacho cliente']
+  ];
+  const wsMov=XLSX.utils.aoa_to_sheet(movRows);
+  wsMov['!cols']=[{wch:20},{wch:15},{wch:18},{wch:30},{wch:22},{wch:22},{wch:20},{wch:12},{wch:25}];
+  
+  // Style Movimientos headers (Row 1)
+  for (let c = 0; c < movRows[0].length; c++) {
+    const ref = getColLetter(c) + '1';
+    if (wsMov[ref]) {
+      wsMov[ref].s = {
+        font: { bold: true },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb,wsMov,'Movimientos');
+
+  XLSX.writeFile(wb,'SILOG_Plantilla_WMS.xlsx');
+}
+
+// ═══ EXPORT: Resumen Inventario ═══
+function exportResumen(){
+  const rows=[['RESUMEN DE INVENTARIO - SILOG SpA','','','','',''],
+    ['Fecha de generación:',new Date().toLocaleString('es-CL'),'','','',''],
+    [],
+    ['Código','SKU','Producto','Cantidad','Unidad','Estado','Ubicación','Stock Mínimo','Alerta']];
+  const sorted=[...allItems].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  sorted.forEach(i=>{
+    const alerta=(i.stock_minimo||0)>0&&(i.qty||0)<=(i.stock_minimo||0)?'⚠️ BAJO STOCK':'';
+    rows.push([i.code||'',i.sku||'',i.name||'',i.qty||0,i.unit||'',statusLabels[i.status]||i.status||'',i.location||'',i.stock_minimo||0,alerta]);
+  });
+  // Totals
+  const totalQty=allItems.reduce((s,i)=>s+(i.qty||0),0);
+  const byStatus={};
+  allItems.forEach(i=>{const s=i.status||'disponible';byStatus[s]=(byStatus[s]||0)+(i.qty||0);});
+  rows.push([]);
+  rows.push(['','','TOTAL PRODUCTOS',allItems.length,'','','','','']);
+  rows.push(['','','TOTAL UNIDADES',totalQty,'','','','','']);
+  Object.entries(byStatus).forEach(([s,c])=>rows.push(['','',statusLabels[s]||s,c,'','','','','']));
+  dlXLSX([{name:'Resumen Inventario',data:rows}],'SILOG_Resumen_Inventario');
+}
+
+// ═══ EXPORT: Ingresos y Salidas ═══
+async function exportMovimientosReport(){
+  try{
+    showToast('📥 Generando reporte…','info');
+    const snap=await db.collection('movimientos_bodega').get();
+    const movs=[];
+    snap.forEach(d=>{const m=d.data();m._date=m.fecha?.toDate?m.fecha.toDate():null;movs.push(m);});
+    movs.sort((a,b)=>(a._date||0)-(b._date||0));
+    const rows=[
+      ['FECHA DE MOVIMIENTO','N° DOCUMENTO','CODIGO DE PRODUCTO','NOMBRE DE PRODUCTO','CANTIDAD DE ENTRADA','CANTIDAD DE SALIDA','CANTIDAD EN STOCK','VALOR','OBSERVACIONES']
+    ];
+    movs.forEach(m=>{
+      const prod=allItems.find(p=>p.id===m.producto_id) || {};
+      const isEntry=['ingreso','devolucion','abastecimiento','ajuste_pos'].includes(m.tipo);
+      const qtyEntrada=isEntry ? (m.cantidad || 0) : '';
+      const qtySalida=!isEntry ? (m.cantidad || 0) : '';
+      rows.push([
+        m._date ? m._date.toLocaleDateString('es-CL') : '',
+        m.numero_documento || m.referencia || '',
+        m.producto_codigo || prod.code || '',
+        m.producto_nombre || prod.name || '',
+        qtyEntrada,
+        qtySalida,
+        prod.qty !== undefined ? prod.qty : (prod.cantidad || 0),
+        m.valor_clp || m.valor || 0,
+        m.observaciones || ''
+      ]);
+    });
+    dlXLSX([{name:'Movimientos',data:rows}],'SILOG_Movimientos_Inventario');
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+// ═══ EXPORT: Consolidado General ═══
+async function exportConsolidado(){
+  try{
+    showToast('📥 Generando consolidado WMS…','info');
+    
+    // 1. Fetch Movements
+    const movSnap=await db.collection('movimientos_bodega').get();
+    const movs=[];
+    movSnap.forEach(d=>{const m=d.data();m._date=m.fecha?.toDate?m.fecha.toDate():null;movs.push(m);});
+    movs.sort((a,b)=>(a._date||0)-(b._date||0));
+    
+    // 2. Fetch Dispatches
+    const despSnap=await db.collection('despachos').get();
+    const desps=[];
+    despSnap.forEach(d=>{const dp=d.data();dp.id=d.id;dp._date=dp.fecha?.toDate?dp.fecha.toDate():null;desps.push(dp);});
+    
+    // 3. Fetch Hojas de Ruta (Trips)
+    const hrSnap=await db.collection('hojas_ruta').get();
+    const hrMap={};
+    hrSnap.forEach(d=>{hrMap[d.id]=d.data();});
+
+    const sheets=[];
+
+    // --- SHEET 1: Stock de Inventario ---
+    const h1=[
+      ['CÓDIGO PRODUCTO','NOMBRE PRODUCTO','Litros x Unidad','KG x UNIDAD','STOCK ACTUAL','LITROS ACTUALES','KG ACTUALES']
+    ];
+    const sorted=[...allItems].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    sorted.forEach(i=>{
+      h1.push([
+        i.code||'',
+        i.name||'',
+        i.litros_por_unidad||0,
+        i.kg_por_unidad||0,
+        i.qty||0,
+        i.litros_actuales||0,
+        i.kg_actuales||0
+      ]);
+    });
+    sheets.push({name:'Stock Inventario',data:h1});
+
+    // --- SHEET 2: Movimientos ---
+    const h2=[
+      ['FECHA DE MOVIMIENTO','N° DOCUMENTO','CODIGO DE PRODUCTO','NOMBRE DE PRODUCTO','CANTIDAD DE ENTRADA','CANTIDAD DE SALIDA','CANTIDAD EN STOCK','VALOR','OBSERVACIONES']
+    ];
+    movs.forEach(m=>{
+      const prod=allItems.find(p=>p.id===m.producto_id) || {};
+      const isEntry=['ingreso','devolucion','abastecimiento','ajuste_pos'].includes(m.tipo);
+      const qtyEntrada=isEntry ? (m.cantidad || 0) : '';
+      const qtySalida=!isEntry ? (m.cantidad || 0) : '';
+      h2.push([
+        m._date ? m._date.toLocaleDateString('es-CL') : '',
+        m.numero_documento || m.referencia || '',
+        m.producto_codigo || prod.code || '',
+        m.producto_nombre || prod.name || '',
+        qtyEntrada,
+        qtySalida,
+        prod.qty !== undefined ? prod.qty : (prod.cantidad || 0),
+        m.valor_clp || m.valor || 0,
+        m.observaciones || ''
+      ]);
+    });
+    sheets.push({name:'Movimientos',data:h2});
+
+    // --- SHEET 3: Status ---
+    const docGroup={};
+    const getDocKey=(docNum)=>String(docNum || '').trim().toUpperCase();
+    
+    desps.forEach(d=>{
+      const docNum=d.guia_numero || d.n_documento || d.referencia;
+      if(!docNum)return;
+      const key=getDocKey(docNum);
+      if(!docGroup[key]){
+        docGroup[key]={
+          docNum,
+          fechaRecepcion:'',
+          cliente:d.cliente_nombre||'',
+          bultos:0,
+          litros:0,
+          kg:0,
+          fechaEntrega:'',
+          status:'',
+          movil:'',
+          conductor:'',
+          comuna:d.cliente_comuna||'',
+          region:d.cliente_region||d.region||'Metropolitana',
+          _desps:[],
+          _movs:[]
+        };
+      }
+      const g=docGroup[key];
+      g._desps.push(d);
+      
+      let b=parseInt(d.bultos)||parseInt(d.cantidad)||0;
+      if(!b&&d.descripcion){
+        const m=d.descripcion.match(/\d+/);
+        if(m)b=parseInt(m[0]);
+      }
+      if(!b)b=1;
+      g.bultos+=b;
+      g.litros+=parseFloat(d.litros)||parseFloat(d.litros_total)||0;
+      g.kg+=parseFloat(d.kg)||parseFloat(d.kg_total)||0;
+      
+      const trip=hrMap[d.turno_id]||{};
+      if(trip.fecha) g.fechaEntrega=trip.fecha;
+      if(trip.patente) g.movil=trip.patente;
+      if(trip.conductor_nombre) g.conductor=trip.conductor_nombre;
+    });
+
+    movs.forEach(m=>{
+      const docNum=m.numero_documento||m.referencia;
+      if(!docNum)return;
+      const key=getDocKey(docNum);
+      if(!docGroup[key]){
+        docGroup[key]={
+          docNum,
+          fechaRecepcion:'',
+          cliente:m.producto_nombre||'',
+          bultos:0,
+          litros:0,
+          kg:0,
+          fechaEntrega:m._date?m._date.toLocaleDateString('es-CL'):'',
+          status:'',
+          movil:'',
+          conductor:m.operario_nombre||'',
+          comuna:m.ubicacion||'',
+          region:'Metropolitana',
+          _desps:[],
+          _movs:[]
+        };
+      }
+      const g=docGroup[key];
+      g._movs.push(m);
+      
+      if(g._desps.length===0){
+        g.bultos+=m.cantidad||0;
+        const prod=allItems.find(p=>p.id===m.producto_id)||{};
+        if(prod.litros_por_unidad) g.litros+=(prod.litros_por_unidad*(m.cantidad||0));
+        if(prod.kg_por_unidad) g.kg+=(prod.kg_por_unidad*(m.cantidad||0));
+        if(!g.cliente&&m.producto_nombre) g.cliente=m.producto_nombre;
+      }
+    });
+
+    const h3=[
+      ['N°DOCUMENTO','FECHA DE RECEPCIÓN','CLIENTE','BULTOS','LITROS','KG','FECHA DE ENTREGA','STATUS','MOVIL','CONDUCTOR','COMUNA','REGIÓN']
+    ];
+
+    Object.values(docGroup).forEach(g=>{
+      let finalStatus='';
+      if(g._desps.length>0){
+        const hasDev=g._desps.some(d=>d.estado==='devuelto');
+        const allEnt=g._desps.every(d=>d.estado==='entregado');
+        if(allEnt){
+          finalStatus='ENTREGADO';
+        }else if(hasDev){
+          const hasRechazo=g._desps.some(d=>{
+            const mot=(d.devolucion_motivo||'').toLowerCase();
+            return mot.includes('rechazo')||mot.includes('rechazado');
+          });
+          finalStatus=hasRechazo?'RECHAZADO':'DEVOLUCION';
+        }else{
+          finalStatus='PENDIENTE';
+        }
+      }else{
+        const hasIng=g._movs.some(m=>['ingreso', 'devolucion', 'abastecimiento'].includes(m.tipo));
+        if(hasIng) finalStatus='';
+        else finalStatus='EGRESO';
+      }
+      h3.push([g.docNum,g.fechaRecepcion,g.cliente,g.bultos,g.litros,g.kg,g.fechaEntrega,finalStatus,g.movil,g.conductor,g.comuna,g.region]);
+    });
+    sheets.push({name:'Status',data:h3});
+
+    dlXLSX(sheets,'SILOG_Consolidado_WMS');
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+// ═══ XLSX HELPER ═══
+function dlXLSX(sheets,filename){
+  const wb=XLSX.utils.book_new();
+  sheets.forEach(s=>{
+    const ws=XLSX.utils.aoa_to_sheet(s.data);
+    const cols=s.data.reduce((max,row)=>Math.max(max,row.length),0);
+    ws['!cols']=Array.from({length:cols},(_,ci)=>{
+      let w=10;s.data.forEach(r=>{if(r[ci]!=null){const l=String(r[ci]).length;if(l>w)w=l;}});return{wch:Math.min(w+2,40)};
+    });
+    
+    // Style headers (bold & centered)
+    let headerRow = 1;
+    if (s.name === 'Resumen Inventario') {
+      headerRow = 4;
+    }
+    if (s.data && s.data.length >= headerRow && s.data[headerRow - 1]) {
+      const getColLetter = (colIdx) => {
+        let temp, letter = '';
+        while (colIdx >= 0) {
+          temp = colIdx % 26;
+          letter = String.fromCharCode(temp + 65) + letter;
+          colIdx = Math.floor(colIdx / 26) - 1;
+        }
+        return letter;
+      };
+      const colCount = s.data[headerRow - 1].length;
+      for (let c = 0; c < colCount; c++) {
+        const cellRef = getColLetter(c) + headerRow;
+        if (ws[cellRef]) {
+          ws[cellRef].s = {
+            font: { bold: true },
+            alignment: { horizontal: 'center', vertical: 'center' }
+          };
+        }
+      }
+    }
+
+    XLSX.utils.book_append_sheet(wb,ws,s.name.slice(0,31));
+  });
+  XLSX.writeFile(wb,`${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('📥 Excel descargado','success');
+}
+</script>
+<!-- Modal: Add/Edit Item -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">Nuevo Ítem de Inventario</div>
+    <form id="inv-form">
+      <input type="hidden" id="item-id"/>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Código / Tracking</label>
+          <input type="text" class="form-control" id="item-code" placeholder="PKG-20250001" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">SKU</label>
+          <input type="text" class="form-control" id="item-sku" placeholder="SKU-001"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre / Descripción</label>
+        <input type="text" class="form-control" id="item-name" placeholder="Ej: Caja electrónica frágil" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Código de Barras</label>
+        <input type="text" class="form-control" id="item-barcode" placeholder="Ej: 7801234567890"/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Cantidad</label>
+          <input type="number" class="form-control" id="item-qty" min="0" value="1"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock Mín.</label>
+          <input type="number" class="form-control" id="item-min" min="0" value="0" placeholder="0"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unidad</label>
+          <select class="form-control" id="item-unit">
+            <option>Litros</option><option>Kilos</option><option>caja</option><option>pallet</option><option>sobre</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Litros por Unidad</label>
+          <input type="number" step="any" class="form-control" id="item-litros-por-unidad" min="0" value="0" placeholder="Ej: 1.5"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kg por Unidad</label>
+          <input type="number" step="any" class="form-control" id="item-kg-por-unidad" min="0" value="0" placeholder="Ej: 25"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ubicación / Bodega</label>
+        <input type="text" class="form-control" id="item-location" placeholder="Ej: Bodega Norte – Estante 3B"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <select class="form-control" id="item-status">
+          <option value="disponible">Disponible</option>
+          <option value="en_transito">En Tránsito</option>
+          <option value="entregado">Entregado</option>
+          <option value="agotado">Agotado</option>
+          <option value="no_disponible">No Disponible</option>
+          <option value="dañado">Dañado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observaciones</label>
+        <textarea class="form-control" id="item-notes" rows="2" placeholder="Notas adicionales..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button type="button" class="btn btn-outline btn-full" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-full" id="btn-save-inv">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+</body>
+</html>

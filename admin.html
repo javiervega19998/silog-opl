@@ -48,7 +48,7 @@ tr:hover td{background:var(--surface2)}
 @media(min-width:600px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden}
 .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.s-blue::before{background:var(--primary-light,#2563EB)}.s-orange::before{background:var(--accent)}.s-green::before{background:var(--success)}.s-red::before{background:var(--danger)}
+.s-blue::before{background:var(--primary-light,#2563EB)}.s-orange::before{background:var(--accent)}.s-green::before{background:var(--success)}.s-red::before{background:var(--danger)}.s-purple::before{background:#8B5CF6}
 .stat-icon{font-size:1.4rem;margin-bottom:6px}.stat-value{font-size:1.8rem;font-weight:800}.stat-label{font-size:.72rem;color:var(--text2);margin-top:2px}
 /* Checklist list */
 .ck-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px}
@@ -62,6 +62,23 @@ tr:hover td{background:var(--surface2)}
 #toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
 .toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
 .toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+/* Dashboard Ejecutivo */
+.exec-section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden}
+.exec-section::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.exec-section h3{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.exec-grid{display:grid;grid-template-columns:1fr;gap:14px}@media(min-width:700px){.exec-grid{grid-template-columns:1fr 1fr}}
+.exec-grid .full{grid-column:1/-1}
+.mini-bar-chart{display:flex;align-items:flex-end;gap:4px;height:100px}
+.mini-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.mini-bar{width:100%;border-radius:3px 3px 0 0;min-height:2px;transition:height .5s}
+.mini-bar-lbl{font-size:.55rem;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center}
+.mini-bar-val{font-size:.6rem;font-weight:700;color:var(--text)}
+.prog-row{margin-bottom:10px}.prog-row-top{display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:3px}
+.prog-track{height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.prog-fill{height:100%;border-radius:4px;transition:width .8s}
+.kpi-row{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}@media(min-width:600px){.kpi-row{grid-template-columns:repeat(5,1fr)}}
+.kpi-mini{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center}
+.kpi-mini .km-val{font-size:1.2rem;font-weight:800}.kpi-mini .km-lbl{font-size:.6rem;color:var(--text2);text-transform:uppercase;letter-spacing:.3px;font-weight:600}
 </style>
 </head>
 <body>
@@ -81,10 +98,12 @@ tr:hover td{background:var(--surface2)}
   </div>
 
   <div class="tab-row">
-    <button class="tab-btn active" onclick="showTab('users')" id="tb-users">👥 Usuarios</button>
+    <button class="tab-btn active" onclick="showTab('ejecutivo')" id="tb-ejecutivo">📊 Dashboard</button>
+    <button class="tab-btn" onclick="showTab('users')" id="tb-users">👥 Usuarios</button>
     <button class="tab-btn" onclick="showTab('checklists')" id="tb-checklists">✅ Checklists</button>
     <button class="tab-btn" onclick="showTab('viajes')" id="tb-viajes">📋 Viajes</button>
     <button class="tab-btn" onclick="showTab('notif')" id="tb-notif">🔔 Notificaciones <span id="notif-badge" style="background:var(--danger);color:#fff;border-radius:10px;font-size:.65rem;padding:2px 6px;margin-left:4px;display:none">0</span></button>
+    <button class="tab-btn" onclick="showTab('inversa')" id="tb-inversa">🔄 Log. Inversa</button>
   </div>
 
   <!-- Toolbar exportar + paginación -->
@@ -97,7 +116,22 @@ tr:hover td{background:var(--surface2)}
     <span id="page-info" style="font-size:.78rem;color:var(--text2)"></span>
   </div>
 
-  <div id="tab-content"><div class="empty">Cargando…</div></div>
+  <!-- EXECUTIVE DASHBOARD -->
+  <div id="tab-ejecutivo">
+    <div class="kpi-row" id="exec-kpis"></div>
+    <div style="height:14px"></div>
+    <div class="exec-grid">
+      <div class="exec-section"><h3>🚛 Operaciones — Entregas vs Devoluciones</h3><div class="mini-bar-chart" id="ex-entregas"></div></div>
+      <div class="exec-section"><h3>⛽ Gastos Operacionales</h3><div class="mini-bar-chart" id="ex-gastos"></div></div>
+      <div class="exec-section"><h3>📊 OTIF por Vehículo</h3><div id="ex-otif"></div></div>
+      <div class="exec-section"><h3>📦 Inventario — Stock por Estado</h3><div id="ex-inv"></div></div>
+      <div class="exec-section"><h3>🏭 Bodega — Movimientos</h3><div class="mini-bar-chart" id="ex-bodega"></div></div>
+      <div class="exec-section"><h3>💰 Finanzas — Pre-Facturas</h3><div id="ex-finanzas"></div></div>
+      <div class="exec-section full"><h3>🏆 Top 5 Conductores</h3><div id="ex-ranking"></div></div>
+    </div>
+  </div>
+
+  <div id="tab-content" style="display:none"><div class="empty">Cargando…</div></div>
 </div>
 
 <!-- Modal editar usuario -->
@@ -107,9 +141,12 @@ tr:hover td{background:var(--surface2)}
     <input type="hidden" id="u-docid"/>
     <div class="row-2">
       <div class="form-row"><label>Nombre</label><input class="field" id="u-nombre"/></div>
-      <div class="form-row"><label>RUT</label><input class="field" id="u-rut"/></div>
+      <div class="form-row"><label>Apellido</label><input class="field" id="u-apellido"/></div>
     </div>
-    <div class="form-row"><label>Área</label><input class="field" id="u-area"/></div>
+    <div class="row-2">
+      <div class="form-row"><label>RUT</label><input class="field" id="u-rut"/></div>
+      <div class="form-row"><label>Área</label><input class="field" id="u-area"/></div>
+    </div>
     <div class="row-2">
       <div class="form-row"><label>Rol</label>
         <select class="field" id="u-rol">
@@ -138,9 +175,10 @@ tr:hover td{background:var(--surface2)}
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-functions-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/logo-data.js"></script>
 <script src="js/checklist-pdf.js"></script>
 <script>
-requireAdmin(async(user,data)=>{loadStats();showTab('users');});
+requireAdmin(async(user,data)=>{loadStats();showTab('ejecutivo');});
 
 async function loadStats(){
   // Usa try/catch individuales para que un fallo parcial no rompa todo
@@ -171,6 +209,19 @@ function showTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tb-'+tab).classList.add('active');
   const c = document.getElementById('tab-content');
+  const exec = document.getElementById('tab-ejecutivo');
+  const toolbar = document.getElementById('tab-toolbar');
+  if(tab==='ejecutivo'){
+    exec.style.display='block';c.style.display='none';toolbar.style.display='none';
+    loadExecDashboard();
+    return;
+  }
+  exec.style.display='none';c.style.display='block';
+  if(tab==='inversa'){
+    toolbar.style.display='none';
+  }else{
+    toolbar.style.display='flex';
+  }
   c.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
   // Mostrar/ocultar botones de toolbar según el tab
   const hasCsv  = ['checklists','viajes','users'].includes(tab);
@@ -181,6 +232,7 @@ function showTab(tab){
   if(tab === 'users')       loadUsers();
   else if(tab === 'checklists') loadChecklists();
   else if(tab === 'notif')  loadNotificaciones();
+  else if(tab === 'inversa') loadInversaConfig();
   else                      loadViajes();
 }
 
@@ -256,7 +308,8 @@ async function loadUsers(){
       const rolClass=isViewerRole(u.rol||u.role)?'p-admin':'p-conductor';
       const rolLabel=sanitize(u.rol||u.role||'conductor');
       const estClass=u.estado==='Activo'?'p-activo':'p-inactivo';
-      rows+=`<tr><td><strong>${sanitize(u.nombre||u.name||'—')}</strong><br><small style="color:var(--text2)">${sanitize(u.correo_electronico||u.email||'—')}</small></td><td>${sanitize(u.rut||'—')}</td><td>${sanitize(u.area||'—')}</td><td><span class="pill ${rolClass}">${rolLabel}</span></td><td><span class="pill ${estClass}">${sanitize(u.estado||'Activo')}</span></td><td style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm" onclick="editUser('${id}')">✏️ Editar</button><button class="btn-sm danger" onclick="deleteUser('${id}','${sanitize(u.nombre||u.name||'')}')">🗑️ Eliminar</button></td></tr>`;
+      const nombre_completo = u.nombre_completo || ((u.nombre||'') + ' ' + (u.apellido||'')).trim() || u.nombre || u.name || '—';
+      rows+=`<tr><td><strong>${sanitize(nombre_completo)}</strong><br><small style="color:var(--text2)">${sanitize(u.correo_electronico||u.email||'—')}</small></td><td>${sanitize(u.rut||'—')}</td><td>${sanitize(u.area||'—')}</td><td><span class="pill ${rolClass}">${rolLabel}</span></td><td><span class="pill ${estClass}">${sanitize(u.estado||'Activo')}</span></td><td style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm" onclick="editUser('${id}')">✏️ Editar</button><button class="btn-sm danger" onclick="deleteUser('${id}','${sanitize(nombre_completo)}')">🗑️ Eliminar</button></td></tr>`;
     });
     c.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Nombre / Correo</th><th>RUT</th><th>Área</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div><div style="margin-top:16px;padding:14px 16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px"><div><div style="font-size:.85rem;font-weight:600;margin-bottom:2px">&#x1F510; Herramientas de Roles</div><div style="font-size:.75rem;color:var(--text2)">Sincroniza o migra los roles a UID para activar seguridad avanzada.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-sm" onclick="syncClaimsAll()" style="background:var(--primary);color:#fff;border-color:var(--primary)">&#x1F504; Sincronizar Roles</button><button class="btn-sm" onclick="migrateUsers()" style="background:#7C3AED;color:#fff;border-color:#7C3AED">&#x1F501; Migrar a UID</button></div></div>`;
   }catch(e){
@@ -268,7 +321,8 @@ async function editUser(id){
   const d=await db.collection('users').doc(id).get();
   if(!d.exists)return;const u=d.data();
   document.getElementById('u-docid').value=id;
-  document.getElementById('u-nombre').value=u.nombre||u.name||'';
+  document.getElementById('u-nombre').value=u.nombre||'';
+  document.getElementById('u-apellido').value=u.apellido||'';
   document.getElementById('u-rut').value=u.rut||'';
   document.getElementById('u-area').value=u.area||'';
   document.getElementById('u-rol').value=(u.rol||u.role||'conductor').toLowerCase();
@@ -280,8 +334,13 @@ async function saveUser(){
   const id=document.getElementById('u-docid').value;
   if(!id)return;
   try{
+    const nombre = document.getElementById('u-nombre').value.trim();
+    const apellido = document.getElementById('u-apellido').value.trim();
+    const nombre_completo = (nombre + ' ' + apellido).trim();
     await db.collection('users').doc(id).update({
-      nombre:document.getElementById('u-nombre').value.trim(),
+      nombre: nombre,
+      apellido: apellido,
+      nombre_completo: nombre_completo,
       rut:document.getElementById('u-rut').value.trim(),
       area:document.getElementById('u-area').value.trim(),
       rol:document.getElementById('u-rol').value,
@@ -376,7 +435,7 @@ async function deleteChecklist(id){
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 async function deleteViaje(id){
-  if(!confirm('Eliminar este viaje?')) return;
+  if(!confirm('¿Eliminar este viaje?')) return;
   try{
     await db.collection('viajes').doc(id).delete();
     showToast('Viaje eliminado','success'); loadViajes();
@@ -393,26 +452,38 @@ function downloadChecklist(id){
 // ── Notificaciones de Checklists ────────────────────────────────
 async function loadNotificaciones(){
   const c=document.getElementById('tab-content');
-  const snap=await db.collection('notificaciones').where('tipo','==','checklist').get();
-  if(snap.empty){c.innerHTML='<div class="empty">Sin notificaciones.</div>';return;}
-  let docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));
-  docs.sort((a,b)=>(b.fecha?.toMillis?.()??0)-(a.fecha?.toMillis?.()??0));
-  c.innerHTML='';
-  docs.forEach(n=>{
-    c.innerHTML+=`<div class="ck-item" style="${n.leida?'opacity:.6':''}">
-      <div class="ck-top">
-        <div>
-          <div class="ck-plate">${n.leida?'':'🔴 '} ${n.mensaje||'Checklist recibido'}</div>
-          <div class="ck-name">👤 ${n.nombre_operador||n.operador||'—'} · 🚛 ${n.patente||'—'}</div>
+  try {
+    const snap=await db.collection('notificaciones').get();
+    let docs=[];
+    snap.forEach(d=>{
+      const data = d.data();
+      if (data.tipo === 'checklist' || data.tipo === 'tarea_completada') {
+        docs.push({id:d.id, ...data});
+      }
+    });
+
+    if(!docs.length){c.innerHTML='<div class="empty">Sin notificaciones.</div>';return;}
+    docs.sort((a,b)=>(b.fecha?.toMillis?.()??0)-(a.fecha?.toMillis?.()??0));
+    c.innerHTML='';
+    docs.forEach(n=>{
+      const icon = n.tipo === 'checklist' ? '📋' : '✅';
+      c.innerHTML+=`<div class="ck-item" style="${n.leida?'opacity:.6':''}">
+        <div class="ck-top">
+          <div>
+            <div class="ck-plate">${n.leida?'':'🔴 '} ${icon} ${sanitize(n.mensaje||'Notificación')}</div>
+            <div class="ck-name">👤 ${sanitize(n.nombre_operador||n.operador||'—')}${n.patente ? ` · 🚛 ${sanitize(n.patente)}` : ''}</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            ${!n.leida?`<button class="btn-sm" onclick="marcarLeida('${n.id}')">✅ Leída</button>`:'<span class="pill p-activo" style="font-size:.68rem">Leída</span>'}
+            <button class="btn-sm danger" onclick="deleteNotif('${n.id}')">🗑️</button>
+          </div>
         </div>
-        <div style="display:flex;gap:6px">
-          ${!n.leida?`<button class="btn-sm" onclick="marcarLeida('${n.id}')">✅ Leída</button>`:'<span class="pill p-activo" style="font-size:.68rem">Leída</span>'}
-          <button class="btn-sm danger" onclick="deleteNotif('${n.id}')">🗑️</button>
-        </div>
-      </div>
-      <div class="ck-date">📅 ${formatDate(n.fecha)}</div>
-    </div>`;
-  });
+        <div class="ck-date">📅 ${formatDate(n.fecha)}</div>
+      </div>`;
+    });
+  } catch(e) {
+    c.innerHTML='<div class="empty">Error: '+sanitize(e.message)+'</div>';
+  }
 }
 async function marcarLeida(id){
   await db.collection('notificaciones').doc(id).update({leida:true});
@@ -421,6 +492,297 @@ async function marcarLeida(id){
 async function deleteNotif(id){
   await db.collection('notificaciones').doc(id).delete();
   loadNotificaciones(); loadStats();
+}
+
+// ── Configuración de Logística Inversa por Distribuidor ─────────
+async function loadInversaConfig() {
+  const c = document.getElementById('tab-content');
+  c.innerHTML = '<div class="empty"><span class="spinner"></span> Cargando configuración...</div>';
+  try {
+    const snap = await db.collection('config_inversa').get();
+    let docs = [];
+    snap.forEach(d => docs.push({id:d.id, ...d.data()}));
+    
+    // Seed default if empty
+    if (docs.length === 0) {
+      await db.collection('config_inversa').add({
+        nombre: 'Distribuidor TOTAL',
+        activo: true,
+        creado_por: _uid || '',
+        fecha: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      const snap2 = await db.collection('config_inversa').get();
+      docs = [];
+      snap2.forEach(d => docs.push({id:d.id, ...d.data()}));
+    }
+    
+    let listHtml = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
+        <h3 style="font-size:1rem;color:var(--accent);margin-bottom:10px">🔄 Configuración de Logística Inversa</h3>
+        <p style="font-size:.82rem;color:var(--text2);margin-bottom:16px">
+          Determina qué distribuidores ingresarán mercadería a bodega en caso de devolución. El sistema predefinido habilita <b>Distribuidor TOTAL</b> por defecto.
+        </p>
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+          <input type="text" id="new-dist-inversa" class="field" placeholder="Nombre del Distribuidor (Ej: Falabella)" style="max-width:320px"/>
+          <button class="btn-sm" style="background:var(--primary);color:#fff;border-color:var(--primary);padding:10px 18px;font-weight:600;border-radius:8px" onclick="agregarDistribuidorInversa()">➕ Asignar Distribuidor</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Distribuidor</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    docs.sort((a,b) => (a.nombre||'').localeCompare(b.nombre||'','es'));
+    docs.forEach(d => {
+      const isDefault = (d.nombre || '').trim().toUpperCase() === 'DISTRIBUIDOR TOTAL';
+      const statusLabel = d.activo ? 'Habilitado' : 'Deshabilitado';
+      const statusClass = d.activo ? 'p-activo' : 'p-inactivo';
+      
+      listHtml += `
+        <tr>
+          <td><strong>${sanitize(d.nombre || '')}</strong></td>
+          <td><span class="pill ${statusClass}">${statusLabel}</span></td>
+          <td>
+            ${isDefault ? `<small style="color:var(--text2)">Predefinido por el sistema (Activo)</small>` : `
+              <button class="btn-sm" onclick="toggleDistribuidorInversa('${d.id}', ${!d.activo})">
+                ${d.activo ? 'Deshabilitar' : 'Habilitar'}
+              </button>
+              <button class="btn-sm danger" onclick="eliminarDistribuidorInversa('${d.id}')" style="margin-left:6px">🗑️ Eliminar</button>
+            `}
+          </td>
+        </tr>
+      `;
+    });
+    
+    listHtml += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    c.innerHTML = listHtml;
+  } catch (e) {
+    c.innerHTML = `<div class="empty">⚠️ Error: ${sanitize(e.message)}</div>`;
+  }
+}
+
+async function agregarDistribuidorInversa() {
+  const input = document.getElementById('new-dist-inversa');
+  const nombre = input.value.trim();
+  if (!nombre) { showToast('Ingresa el nombre del distribuidor', 'error'); return; }
+  try {
+    // Case-insensitive check
+    const query = await db.collection('config_inversa').get();
+    let exists = false;
+    query.forEach(d => {
+      if ((d.data().nombre || '').trim().toUpperCase() === nombre.toUpperCase()) exists = true;
+    });
+    if (exists) { showToast('Este distribuidor ya está configurado', 'error'); return; }
+    
+    await db.collection('config_inversa').add({
+      nombre: nombre,
+      activo: true,
+      creado_por: _uid || '',
+      fecha: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ Distribuidor asignado a logística inversa', 'success');
+    input.value = '';
+    loadInversaConfig();
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function toggleDistribuidorInversa(id, active) {
+  try {
+    await db.collection('config_inversa').doc(id).update({ activo: active });
+    showToast('✅ Estado del distribuidor actualizado', 'success');
+    loadInversaConfig();
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function eliminarDistribuidorInversa(id) {
+  if (!confirm('¿Eliminar este distribuidor de la configuración de logística inversa?')) return;
+  try {
+    await db.collection('config_inversa').doc(id).delete();
+    showToast('🗑️ Distribuidor eliminado de la configuración', 'success');
+    loadInversaConfig();
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD EJECUTIVO
+// ═══════════════════════════════════════════════════════════════
+async function loadExecDashboard(){
+  try{
+    const [tS,dS,gS,iS,mS,fS]=await Promise.all([
+      db.collection('turnos').get(),
+      db.collection('despachos').get(),
+      db.collection('gastos_ruta').get(),
+      db.collection('inventory').get(),
+      db.collection('movimientos_bodega').get(),
+      db.collection('prefacturas').get()
+    ]);
+    const turnos=[],despachos=[],gastos=[],invItems=[],movBodega=[],facturas=[];
+    const now=new Date(),cutoff=new Date();cutoff.setDate(now.getDate()-30);
+    tS.forEach(d=>{const t=d.data();t._date=t.fecha?.toDate?t.fecha.toDate():null;turnos.push(t);});
+    dS.forEach(d=>{const dp=d.data();dp._date=dp.fecha_entrega?.toDate?dp.fecha_entrega.toDate():(dp.created_at?.toDate?dp.created_at.toDate():(dp.fecha?.toDate?dp.fecha.toDate():null));despachos.push(dp);});
+    gS.forEach(d=>{const g=d.data();g._date=g.fecha?.toDate?g.fecha.toDate():null;gastos.push(g);});
+    iS.forEach(d=>invItems.push(d.data()));
+    mS.forEach(d=>{const m=d.data();m._date=m.fecha?.toDate?m.fecha.toDate():null;movBodega.push(m);});
+    fS.forEach(d=>facturas.push(d.data()));
+
+    // Filter last 30 days
+    const t30=turnos.filter(t=>t._date&&t._date>=cutoff);
+    const d30=despachos.filter(d=>d._date&&d._date>=cutoff);
+    const g30=gastos.filter(g=>g._date&&g._date>=cutoff);
+    const m30=movBodega.filter(m=>m._date&&m._date>=cutoff);
+    const entregados=d30.filter(d=>d.estado==='entregado');
+    const devueltos=d30.filter(d=>d.estado==='devuelto');
+    const totalGastos=g30.reduce((s,g)=>s+(g.monto_clp||0),0);
+    const otif=d30.length?Math.round(entregados.length/d30.length*100):0;
+    const totFact=facturas.reduce((s,f)=>s+(f.total||0),0);
+
+    // ── KPIs ──
+    document.getElementById('exec-kpis').innerHTML=[
+      {icon:'🚛',val:t30.length,lbl:'Turnos (30d)',cls:''},
+      {icon:'📦',val:entregados.length,lbl:'Entregas',cls:'color:var(--success)'},
+      {icon:'📊',val:otif+'%',lbl:'OTIF',cls:otif>=80?'color:var(--success)':otif>=60?'color:var(--warning)':'color:var(--danger)'},
+      {icon:'💰',val:'$'+(totalGastos/1000).toFixed(0)+'k',lbl:'Gastos Ruta',cls:'color:var(--danger)'},
+      {icon:'📄',val:'$'+(totFact/1000).toFixed(0)+'k',lbl:'Facturado',cls:'color:var(--success)'}
+    ].map(k=>`<div class="kpi-mini"><div style="font-size:1rem">${k.icon}</div><div class="km-val" style="${k.cls}">${k.val}</div><div class="km-lbl">${k.lbl}</div></div>`).join('');
+
+    // ── Entregas vs Devoluciones por día ──
+    renderMiniBar('ex-entregas',d30,14,d=>d.estado==='entregado'?'#10B981':'#EF4444');
+
+    // ── Gastos por día ──
+    renderMiniBarMoney('ex-gastos',g30,14);
+
+    // ── OTIF por vehículo ──
+    const byVeh={};
+    d30.forEach(d=>{const v=d.patente||'N/A';if(!byVeh[v])byVeh[v]={ok:0,tot:0};byVeh[v].tot++;if(d.estado==='entregado')byVeh[v].ok++;});
+    const vehEntries=Object.entries(byVeh).sort((a,b)=>b[1].tot-a[1].tot).slice(0,6);
+    document.getElementById('ex-otif').innerHTML=vehEntries.length?vehEntries.map(([v,d])=>{
+      const pct=Math.round(d.ok/Math.max(d.tot,1)*100);
+      const color=pct>=90?'var(--success)':pct>=70?'var(--warning)':'var(--danger)';
+      return`<div class="prog-row"><div class="prog-row-top"><span><code style="color:var(--accent)">${sanitize(v)}</code> <span style="font-size:.7rem;color:var(--text2)">${d.ok}/${d.tot}</span></span><span style="font-weight:700;color:${color}">${pct}%</span></div><div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div></div>`;
+    }).join(''):'<div class="empty">Sin datos</div>';
+
+    // ── Inventario por estado ──
+    const invByStatus={};
+    invItems.forEach(i=>{const s=i.status||'disponible';invByStatus[s]=(invByStatus[s]||0)+(i.qty||i.cantidad||0);});
+    const invColors={disponible:'#10B981',en_transito:'#3B82F6',reservado:'#F59E0B',dañado:'#EF4444'};
+    const invLabels={disponible:'Disponible',en_transito:'En Tránsito',reservado:'Reservado',dañado:'Dañado'};
+    const invTotal=Object.values(invByStatus).reduce((s,v)=>s+v,0)||1;
+    const lowStock=invItems.filter(i=>(i.stock_minimo||0)>0&&(i.qty||i.cantidad||0)<=(i.stock_minimo||0)).length;
+    document.getElementById('ex-inv').innerHTML=`
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">${Object.entries(invByStatus).map(([s,c])=>{
+          const pct=Math.round(c/invTotal*100);
+          return`<div class="prog-row"><div class="prog-row-top"><span>${invLabels[s]||s}</span><span style="font-weight:700">${c} uds (${pct}%)</span></div><div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${invColors[s]||'#8A9DC0'}"></div></div></div>`;
+        }).join('')}</div>
+        <div style="text-align:center">
+          <div style="font-size:2rem;font-weight:800">${invItems.length}</div>
+          <div style="font-size:.68rem;color:var(--text2)">PRODUCTOS</div>
+          ${lowStock?`<div style="margin-top:6px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:4px 10px;font-size:.72rem;color:#FCA5A5">⚠️ ${lowStock} bajo stock</div>`:''}
+        </div>
+      </div>`;
+
+    // ── Bodega movimientos ──
+    const mByType={};
+    movBodega.forEach(m=>{const t=(m.tipo_movimiento||m.tipo||'otro');mByType[t]=(mByType[t]||0)+(m.cantidad||1);});
+    const mColors={ingreso:'#10B981',salida:'#3B82F6',merma:'#EF4444',devolucion:'#F59E0B',ajuste:'#8B5CF6'};
+    const mEntries=Object.entries(mByType).sort((a,b)=>b[1]-a[1]);
+    const mMax=Math.max(...mEntries.map(([,v])=>v),1);
+    document.getElementById('ex-bodega').innerHTML=mEntries.length?mEntries.map(([t,c])=>{
+      const h=Math.max((c/mMax)*80,4);
+      return`<div class="mini-bar-col"><div class="mini-bar-val">${c}</div><div class="mini-bar" style="height:${h}px;background:${mColors[t]||'#8A9DC0'}"></div><div class="mini-bar-lbl">${sanitize(t)}</div></div>`;
+    }).join(''):'<div class="empty">Sin datos</div>';
+
+    // ── Finanzas ──
+    const fPagado=facturas.filter(f=>f.estado==='pagada').reduce((s,f)=>s+(f.total||0),0);
+    const fPendiente=facturas.filter(f=>f.estado!=='pagada').reduce((s,f)=>s+(f.total||0),0);
+    const fBorrador=facturas.filter(f=>f.estado==='borrador').length;
+    const fEnviada=facturas.filter(f=>f.estado==='enviada').length;
+    const fPaga=facturas.filter(f=>f.estado==='pagada').length;
+    document.getElementById('ex-finanzas').innerHTML=`
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">
+          <div class="prog-row"><div class="prog-row-top"><span style="color:var(--success)">✅ Pagado</span><span class="money" style="color:var(--success)">$${(fPagado/1000).toFixed(0)}k</span></div><div class="prog-track"><div class="prog-fill" style="width:${totFact?Math.round(fPagado/totFact*100):0}%;background:var(--success)"></div></div></div>
+          <div class="prog-row"><div class="prog-row-top"><span style="color:var(--warning)">⏳ Pendiente</span><span class="money" style="color:var(--warning)">$${(fPendiente/1000).toFixed(0)}k</span></div><div class="prog-track"><div class="prog-fill" style="width:${totFact?Math.round(fPendiente/totFact*100):0}%;background:var(--warning)"></div></div></div>
+        </div>
+        <div style="text-align:center">
+          <div style="display:flex;gap:10px">
+            <div><span style="font-size:1.2rem;font-weight:800;color:var(--text2)">${fBorrador}</span><div style="font-size:.6rem;color:var(--text2)">Borrador</div></div>
+            <div><span style="font-size:1.2rem;font-weight:800;color:#60A5FA">${fEnviada}</span><div style="font-size:.6rem;color:var(--text2)">Enviada</div></div>
+            <div><span style="font-size:1.2rem;font-weight:800;color:var(--success)">${fPaga}</span><div style="font-size:.6rem;color:var(--text2)">Pagada</div></div>
+          </div>
+        </div>
+      </div>`;
+
+    // ── Ranking conductores ──
+    const byDriver={};
+    d30.filter(d=>d.estado==='entregado').forEach(d=>{const n=d.conductor_nombre||d.conductor_email||'—';if(!byDriver[n])byDriver[n]={entregas:0,devoluciones:0};byDriver[n].entregas++;});
+    d30.filter(d=>d.estado==='devuelto').forEach(d=>{const n=d.conductor_nombre||d.conductor_email||'—';if(!byDriver[n])byDriver[n]={entregas:0,devoluciones:0};byDriver[n].devoluciones++;});
+    const ranked=Object.entries(byDriver).sort((a,b)=>b[1].entregas-a[1].entregas).slice(0,5);
+    const rankColors=['linear-gradient(135deg,#F59E0B,#D97706)','rgba(148,163,184,.3)','rgba(180,83,9,.3)','var(--surface)','var(--surface)'];
+    const rankTextColors=['#fff','#CBD5E1','#FBBF24','var(--text2)','var(--text2)'];
+    document.getElementById('ex-ranking').innerHTML=ranked.length?ranked.map(([name,d],i)=>{
+      const total=d.entregas+d.devoluciones;
+      const pct=total?Math.round(d.entregas/total*100):0;
+      return`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;margin-bottom:6px">
+        <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;background:${rankColors[i]};color:${rankTextColors[i]};flex-shrink:0">${i+1}</div>
+        <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sanitize(name.split(' ').slice(0,2).join(' '))}</div><div style="font-size:.7rem;color:var(--text2)">${d.entregas} entregas · ${d.devoluciones} devol. · ${pct}% OTIF</div></div>
+        <div style="font-weight:800;font-size:1rem;color:var(--success)">${d.entregas}</div>
+      </div>`;
+    }).join(''):'<div class="empty">Sin datos de entregas</div>';
+
+  }catch(e){console.warn('Exec dashboard error:',e);}
+}
+
+function renderMiniBar(containerId,items,days,colorFn){
+  const c=document.getElementById(containerId);
+  const buckets=[];
+  for(let i=days-1;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);d.setHours(0,0,0,0);
+    const next=new Date(d);next.setDate(next.getDate()+1);
+    const dayItems=items.filter(x=>x._date&&x._date>=d&&x._date<next);
+    const ok=dayItems.filter(x=>x.estado==='entregado').length;
+    const fail=dayItems.filter(x=>x.estado==='devuelto').length;
+    buckets.push({label:d.toLocaleDateString('es-CL',{day:'2-digit',month:'short'}),ok,fail,total:ok+fail});
+  }
+  const max=Math.max(...buckets.map(b=>b.total),1);
+  c.innerHTML=buckets.map(b=>{
+    const hOk=Math.max((b.ok/max)*80,0);
+    const hFail=Math.max((b.fail/max)*80,0);
+    return`<div class="mini-bar-col"><div class="mini-bar-val">${b.total||''}</div><div style="display:flex;flex-direction:column;width:100%;gap:1px"><div class="mini-bar" style="height:${hFail}px;background:#EF4444"></div><div class="mini-bar" style="height:${hOk}px;background:#10B981;border-radius:0 0 0 0"></div></div><div class="mini-bar-lbl">${b.label}</div></div>`;
+  }).join('');
+}
+
+function renderMiniBarMoney(containerId,items,days){
+  const c=document.getElementById(containerId);
+  const buckets=[];
+  for(let i=days-1;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);d.setHours(0,0,0,0);
+    const next=new Date(d);next.setDate(next.getDate()+1);
+    const total=items.filter(x=>x._date&&x._date>=d&&x._date<next).reduce((s,g)=>s+(g.monto_clp||0),0);
+    buckets.push({label:d.toLocaleDateString('es-CL',{day:'2-digit',month:'short'}),value:total});
+  }
+  const max=Math.max(...buckets.map(b=>b.value),1);
+  c.innerHTML=buckets.map(b=>{
+    const h=Math.max((b.value/max)*80,b.value?2:0);
+    return`<div class="mini-bar-col"><div class="mini-bar-val">${b.value?'$'+(b.value/1000).toFixed(0)+'k':''}</div><div class="mini-bar" style="height:${h}px;background:var(--accent)"></div><div class="mini-bar-lbl">${b.label}</div></div>`;
+  }).join('');
 }
 </script>
 </body>

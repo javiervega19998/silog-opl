@@ -124,10 +124,11 @@ function driveView(fileId){ return `https://drive.google.com/file/d/${fileId}/vi
 function toDateStr(d){ return d.toISOString().split('T')[0]; }
 function parseDate(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
 
-let _email='', _isAdmin=false, _readIds=new Set(), _currentEntry=null;
+let _email='', _isAdmin=false, _readIds=new Set(), _currentEntry=null, _userName='', _submittingCharla=false;
 
 requireAuth(async(user,data)=>{
   _email=data.correo_electronico||data.email||user.email;
+  _userName=data.nombre||data.name||_email;
   _isAdmin=isViewerRole(data.role||data.rol||'conductor');
 
   // Cargar charlas leídas
@@ -194,7 +195,7 @@ function renderCharlas(){
         <div class="charla-title">${sanitize(c.tema)}</div>
         <div class="charla-status">
           <span class="${read?'badge-read':'badge-unread'}">${read?'✅ Completada':'⏳ Pendiente'}</span>
-          ${!read?`<button class="btn-quick-done" onclick="event.stopPropagation();markRead('${c.date}')">✓ Listo</button>`:''}
+          ${!read?`<button class="btn-quick-done" onclick="event.stopPropagation();markRead('${c.date}', this)">✓ Listo</button>`:''}
         </div>
       </div>`;
     }
@@ -215,7 +216,7 @@ function openCharla(dateKey){
   const btnDone=document.getElementById('btn-mark-done');
   btnDone.disabled=_readIds.has(dateKey);
   btnDone.textContent=_readIds.has(dateKey)?'✅ Ya Completada':'✅ Marcar Completada';
-  btnDone.onclick=()=>markRead(dateKey);
+  btnDone.onclick=()=>markRead(dateKey, btnDone);
   document.getElementById('modal-charla').classList.add('open');
 }
 
@@ -224,8 +225,23 @@ function closeModal(){
   document.getElementById('pdf-iframe').src='';
 }
 
-async function markRead(dateKey){
+async function markRead(dateKey, btn){
   if(_readIds.has(dateKey)){showToast('Ya marcada como completada','info');closeModal();return;}
+  if(_submittingCharla) return;
+  _submittingCharla = true;
+
+  const modalBtn = document.getElementById('btn-mark-done');
+  if(btn) {
+    btn.disabled = true;
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '...';
+  }
+  if(modalBtn) {
+    modalBtn.disabled = true;
+    modalBtn.dataset.originalHtml = modalBtn.innerHTML;
+    modalBtn.innerHTML = 'Procesando...';
+  }
+
   const c=CALENDARIO.find(x=>x.date===dateKey);
   try{
     await db.collection('charlas_leidas').add({
@@ -234,11 +250,63 @@ async function markRead(dateKey){
       titulo:c?.tema||'',
       fecha_lectura:firebase.firestore.FieldValue.serverTimestamp(),
     });
+
+    // Auto-completar la tarea de charla correspondiente si existe
+    try {
+      const refKey = 'cal-' + dateKey;
+      const tSnap = await db.collection('tareas')
+        .where('asignado_a', '==', _email)
+        .where('tipo', '==', 'charla')
+        .where('referencia', '==', refKey)
+        .where('estado', '==', 'pendiente')
+        .get();
+
+      if (!tSnap.empty) {
+        const batch = db.batch();
+        tSnap.forEach(doc => {
+          batch.update(doc.ref, {
+            estado: 'completada',
+            fecha_completado: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        });
+        await batch.commit();
+        console.log('Tarea de charla auto-completada con éxito.');
+      }
+    } catch(err) {
+      console.warn('Error auto-completando tarea de charla:', err);
+    }
+
+    // Enviar notificación a los administradores
+    try {
+      await db.collection('notificaciones').add({
+        tipo: 'tarea_completada',
+        operador: _email,
+        nombre_operador: _userName,
+        mensaje: `${_userName} leyó la charla de seguridad: ${c?.tema || dateKey}`,
+        fecha: firebase.firestore.FieldValue.serverTimestamp(),
+        leida: false
+      });
+    } catch(err) {
+      console.warn('Error creando notificación de charla leída:', err);
+    }
+
     _readIds.add(dateKey);
     renderCharlas();
     closeModal();
     showToast('✅ Charla marcada como completada','success');
-  }catch(e){showToast('Error: '+e.message,'error');}
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+  }finally{
+    _submittingCharla = false;
+    if(btn) {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.originalHtml || '✓ Listo';
+    }
+    if(modalBtn) {
+      modalBtn.disabled = _readIds.has(dateKey);
+      modalBtn.innerHTML = _readIds.has(dateKey)?'✅ Ya Completada':'✅ Marcar Completada';
+    }
+  }
 }
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeModal();});

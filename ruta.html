@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Mi Ruta</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:6px}.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif}
+.main{max-width:520px;margin:0 auto;padding:12px 14px 120px}
+
+/* Search */
+.search-bar{position:relative;margin-bottom:14px}
+.search-bar input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px 12px 42px;color:var(--text);font-size:.92rem;font-family:'Inter',sans-serif;outline:none}
+.search-bar input:focus{border-color:var(--primary)}
+.search-bar::before{content:'🔍';position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:.9rem}
+
+/* Summary */
+.summary{display:flex;gap:8px;margin-bottom:14px}
+.sum-chip{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 10px;text-align:center}
+.sum-chip .num{font-size:1.3rem;font-weight:800;line-height:1.1}
+.sum-chip .lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:600}
+.num-pending{color:var(--warning)}.num-done{color:var(--success)}.num-fail{color:var(--danger)}
+
+/* Delivery cards */
+.card-delivery{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;transition:.2s;cursor:pointer;position:relative}
+.card-delivery:hover{border-color:var(--primary);transform:translateY(-1px)}
+.cd-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.cd-name{font-weight:700;font-size:.95rem}
+.cd-badge{font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.badge-pendiente{background:rgba(245,158,11,.15);color:var(--warning)}
+.badge-entregado{background:rgba(16,185,129,.15);color:var(--success)}
+.badge-devuelto{background:rgba(239,68,68,.15);color:var(--danger)}
+.cd-addr{font-size:.82rem;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:4px}
+.cd-meta{display:flex;gap:6px;font-size:.72rem;color:var(--text2);margin-bottom:10px;flex-wrap:wrap}
+.cd-meta span{background:var(--surface2);padding:2px 8px;border-radius:6px}
+.cd-actions{display:flex;gap:8px}
+.cd-btn{flex:1;padding:10px 8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.78rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;gap:4px;transition:.2s;min-height:44px}
+.cd-btn:hover{border-color:var(--primary)}
+.cd-btn-call{border-color:rgba(16,185,129,.3);color:var(--success)}
+.cd-btn-map{border-color:rgba(37,99,235,.3);color:#60A5FA}
+.cd-btn-pod{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3);color:var(--success);font-weight:700}
+.cd-btn-dev{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.2);color:var(--danger);font-weight:700}
+
+/* FAB - full width sticky bar */
+.fab-bar{position:fixed;bottom:0;left:0;right:0;padding:12px 16px;background:rgba(6,13,31,.95);backdrop-filter:blur(12px);border-top:1px solid var(--border);z-index:90;display:flex;justify-content:center}
+.fab-btn{width:100%;max-width:520px;padding:16px;background:linear-gradient(135deg,var(--accent),#E86B10);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 6px 24px rgba(244,121,32,.4);transition:.2s;min-height:54px}
+.fab-btn:active{transform:scale(.97)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(6,13,31,.85);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;padding:24px 20px 32px}
+.modal-title{font-size:1rem;font-weight:800;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;color:var(--text2);font-size:1.2rem;cursor:pointer;padding:4px 8px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600}
+.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:.95rem;font-family:'Inter',sans-serif;outline:none}
+.field:focus{border-color:var(--primary)}
+select.field{appearance:auto;cursor:pointer}
+textarea.field{resize:vertical;min-height:60px}
+.btn-save{width:100%;padding:14px;background:linear-gradient(135deg,var(--primary),#2563EB);border:none;border-radius:12px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif}
+
+/* POD Inline */
+.pod-section{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:8px;display:none}
+.pod-photo-btn{width:100%;padding:16px;border:2px dashed var(--border);border-radius:12px;background:var(--bg);color:var(--accent);font-size:1rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;text-align:center;margin-bottom:12px;min-height:52px}
+.pod-preview{width:100%;max-height:200px;object-fit:contain;border-radius:8px;margin-bottom:10px;display:none}
+
+/* Devolucion */
+.dev-section{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:16px;margin-top:8px;display:none}
+
+.empty{text-align:center;padding:40px 20px;color:var(--text2);font-size:.9rem}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> Mi Ruta</div>
+  <button class="btn-back" onclick="window.location.href='turno.html'">← Turno</button>
+</nav>
+
+<div class="main">
+  <!-- Search -->
+  <div class="search-bar">
+    <input type="text" id="search-input" placeholder="Buscar por cliente, guía o factura…" oninput="filterCards()"/>
+  </div>
+
+  <!-- Summary chips -->
+  <div class="summary">
+    <div class="sum-chip"><div class="num num-pending" id="cnt-pending">0</div><div class="lbl">Pendientes</div></div>
+    <div class="sum-chip"><div class="num num-done" id="cnt-done">0</div><div class="lbl">Entregados</div></div>
+    <div class="sum-chip"><div class="num num-fail" id="cnt-fail">0</div><div class="lbl">Devueltos</div></div>
+  </div>
+
+  <!-- Delivery list -->
+  <button class="btn-save" id="btn-optimize-route" onclick="optimizeDeliveryRoute(this)" style="margin-bottom:12px; background:linear-gradient(135deg, var(--accent), #F97316)">🗺️ Optimizar Secuencia de Entrega</button>
+  <div id="delivery-list"></div>
+  <div id="empty-state" class="empty" style="display:none">
+    <div style="font-size:2.5rem;margin-bottom:10px">📦</div>
+    <p>Sin despachos registrados.</p>
+    <p style="font-size:.8rem;margin-top:4px">Presiona el botón + para agregar</p>
+  </div>
+</div>
+
+<!-- FAB: Add despacho - full width sticky bar -->
+<div class="fab-bar">
+  <button class="fab-btn" onclick="openModal('add')">＋ Agregar Despacho</button>
+</div>
+
+<!-- MODAL: Add Despacho -->
+<div class="modal-overlay" id="modal-add">
+  <div class="modal">
+    <div class="modal-title">📦 Nuevo Despacho <button class="modal-close" onclick="closeModal('add')">✕</button></div>
+    <div class="form-group">
+      <label>Distribuidor (Empresa que envía)</label>
+      <input class="field" type="text" id="add-distribuidor" placeholder="Ej: Falabella, Mercado Libre…"/>
+    </div>
+    <div class="form-group">
+      <label>N° Correlativo</label>
+      <input class="field" type="text" id="add-correlativo" readonly/>
+    </div>
+    <div class="form-group">
+      <label>Cliente</label>
+      <select class="field" id="add-cliente" onchange="onClienteChange()">
+        <option value="" disabled selected>Seleccionar cliente…</option>
+        <option value="__new__">➕ Agregar nuevo cliente</option>
+      </select>
+    </div>
+    <!-- New client inline fields (hidden by default) -->
+    <div id="new-client-fields" style="display:none">
+      <div class="form-group"><label>Nombre del Cliente</label><input class="field" type="text" id="new-cli-nombre" placeholder="Empresa o Persona"/></div>
+      <div class="form-group"><label>Teléfono (Opcional)</label><input class="field" type="tel" id="new-cli-tel" placeholder="+56 9 1234 5678"/></div>
+      <div class="form-group"><label>Dirección (Opcional)</label><input class="field" type="text" id="new-cli-dir" placeholder="Calle, número, comuna"/></div>
+      <div class="form-group">
+        <button type="button" style="background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:10px 14px;border-radius:8px;font-size:.82rem;cursor:pointer;font-family:'Inter',sans-serif;width:100%" onclick="usarMiUbicacion()">📍 Usar mi ubicación actual</button>
+        <button type="button" id="btn-clear-gps" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--danger);padding:10px 14px;border-radius:8px;font-size:.82rem;cursor:pointer;font-family:'Inter',sans-serif;width:100%;margin-top:8px" onclick="quitarUbicacionGPS()">❌ Quitar ubicación GPS</button>
+      </div>
+      <div id="map-pick-container" style="display:none;margin-bottom:12px">
+        <div id="map-pick" style="height:200px;border-radius:12px;border:1px solid var(--border);overflow:hidden"></div>
+        <p style="font-size:.7rem;color:var(--text2);margin-top:4px;text-align:center">📌 Arrastra el pin para ajustar ubicación</p>
+        <div style="display:flex;gap:6px;margin-top:6px;font-size:.75rem;color:var(--text2);justify-content:center">
+          <span id="map-coords"></span>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>N° Guía de Despacho / Factura</label>
+      <input class="field" type="text" id="add-guia" placeholder="Ej: GD-00123"/>
+    </div>
+    <div class="form-group">
+      <label>Comuna</label>
+      <input class="field" type="text" id="add-comuna" placeholder="Ej: Santiago, Las Condes…"/>
+    </div>
+    <div class="form-group">
+      <label>Descripción de carga</label>
+      <textarea class="field" id="add-desc" placeholder="Ej: 5 cajas producto X"></textarea>
+    </div>
+    <button class="btn-save" onclick="guardarDespacho()">💾 Agregar Despacho</button>
+  </div>
+</div>
+
+<!-- MODAL: POD / Devolucion -->
+<div class="modal-overlay" id="modal-pod">
+  <div class="modal">
+    <div class="modal-title" id="pod-title">📷 Prueba de Entrega <button class="modal-close" onclick="closeModal('pod')">✕</button></div>
+    <div id="pod-info" style="margin-bottom:14px"></div>
+
+    <!-- POD Section -->
+    <div id="pod-deliver-section">
+      <p style="font-size:.82rem;color:var(--text2);margin-bottom:10px">Captura la foto de la factura firmada (obligatorio)</p>
+      <input type="file" id="pod-photo-input" accept="image/*" capture="environment" style="display:none" onchange="onPodPhotoChange(event)"/>
+      <button class="pod-photo-btn" onclick="document.getElementById('pod-photo-input').click()">📸 Tomar Foto Factura Firmada</button>
+      <img id="pod-preview" class="pod-preview"/>
+      
+      <div class="toggle-row" style="margin-top:12px;margin-bottom:12px">
+        <label style="font-size:.78rem;color:var(--text2);text-transform:none;letter-spacing:0">📍 Actualizar ubicación GPS del cliente</label>
+        <label class="toggle"><input type="checkbox" id="update-delivery-gps"/><span class="slider"></span></label>
+      </div>
+
+      <button class="btn-save" style="background:linear-gradient(135deg,var(--success),#059669)" onclick="confirmarEntrega()">✅ Confirmar Entrega</button>
+    </div>
+
+    <div style="text-align:center;color:var(--text2);margin:14px 0;font-size:.78rem">— o —</div>
+
+    <!-- Devolucion Section -->
+    <div id="pod-dev-section">
+      <h4 style="color:var(--danger);font-size:.85rem;font-weight:700;margin-bottom:10px">🔴 Registrar Devolución</h4>
+      <div class="form-group">
+        <label>Motivo</label>
+        <select class="field" id="dev-motivo" onchange="onDevMotivoChange()">
+          <option value="" disabled selected>Seleccionar motivo…</option>
+          <option>Cliente no se encuentra en domicilio</option>
+          <option>Dirección incorrecta / Inubicable</option>
+          <option>Pedido rechazado por daños/merma</option>
+          <option>Pedido incompleto o erróneo</option>
+          <option>Rechazado por el cliente (sin especificar)</option>
+          <option value="__otro__">Otro</option>
+        </select>
+      </div>
+      <div class="form-group" id="dev-otro-group" style="display:none">
+        <label>Especificar motivo</label>
+        <textarea class="field" id="dev-otro-text" placeholder="Detalle del motivo…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Observaciones (opcional)</label>
+        <textarea class="field" id="dev-obs" placeholder="Detalles adicionales…"></textarea>
+      </div>
+      <input type="file" id="dev-photo-input" accept="image/*" capture="environment" style="display:none" onchange="onDevPhotoChange(event)"/>
+      <button class="pod-photo-btn" onclick="document.getElementById('dev-photo-input').click()" style="border-color:rgba(239,68,68,.3);color:var(--danger)">📸 Foto Estado de Carga (opcional)</button>
+      <img id="dev-preview" class="pod-preview"/>
+      <button class="btn-save" style="background:linear-gradient(135deg,var(--danger),#DC2626);margin-top:8px" onclick="confirmarDevolucion()">🔴 Confirmar Devolución</button>
+    </div>
+
+    <!-- Extra Actions Section -->
+    <div id="pod-extra-section" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;display:none">
+      <button class="btn-save" id="btn-eliminar-despacho" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#FCA5A5" onclick="eliminarDespacho()">🗑️ Eliminar Despacho por Error</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let _uid='',_email='',_name='',_turnoId='',_turnoData=null,_despachos=[],_clientes=[];
+let _currentPodDespacho=null, _podFile=null, _devFile=null;
+let _distribuidoresInversa = ['DISTRIBUIDOR TOTAL'];
+
+requireAuth(async(user,data)=>{
+  _uid=user.uid;
+  _email=data.correo_electronico||data.email||user.email;
+  _name=data.name||data.nombre||'';
+
+  // Find active turno
+  const tSnap=await db.collection('turnos').where('conductor_uid','==',_uid).where('estado','==','abierto').get();
+  if(tSnap.empty){showToast('No hay turno activo. Inicia uno primero.','error');setTimeout(()=>location.href='turno.html',1500);return;}
+  _turnoId=tSnap.docs[0].id; _turnoData=tSnap.docs[0].data();
+
+  await loadClientes();
+  await loadDespachos();
+  await loadDistribuidoresInversa();
+});
+
+async function loadDistribuidoresInversa() {
+  try {
+    const snap = await db.collection('config_inversa').where('activo', '==', true).get();
+    snap.forEach(doc => {
+      const name = (doc.data().nombre || '').trim().toUpperCase();
+      if (name && !_distribuidoresInversa.includes(name)) {
+        _distribuidoresInversa.push(name);
+      }
+    });
+  } catch (e) {
+    console.warn("Error loading reverse logistics distributors:", e);
+  }
+}
+
+async function loadClientes(){
+  try{
+    const s=await db.collection('clientes').get();
+    _clientes=[];
+    s.forEach(d=>{_clientes.push({id:d.id,...d.data()});});
+    const sel=document.getElementById('add-cliente');
+    // Keep first two options, clear rest
+    while(sel.options.length>2) sel.remove(2);
+    _clientes.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+    _clientes.forEach(c=>{
+      const o=document.createElement('option');
+      o.value=c.id; o.textContent=c.nombre;
+      sel.insertBefore(o, sel.options[1]); // before "agregar nuevo"
+    });
+  }catch(e){console.warn(e);}
+}
+
+async function loadDespachos(){
+  try{
+    const s=await db.collection('despachos').where('turno_id','==',_turnoId).get();
+    _despachos=[];
+    s.forEach(d=>{_despachos.push({id:d.id,...d.data()});});
+    _despachos.sort((a,b)=>(a.correlativo||0)-(b.correlativo||0));
+    renderCards();
+  }catch(e){console.warn(e);}
+}
+
+function renderCards(){
+  const list=document.getElementById('delivery-list');
+  const empty=document.getElementById('empty-state');
+  const q=(document.getElementById('search-input').value||'').toLowerCase();
+  
+  let filtered=_despachos;
+  if(q) filtered=_despachos.filter(d=>
+    (d.cliente_nombre||'').toLowerCase().includes(q)||
+    (d.guia_numero||'').toLowerCase().includes(q)||
+    (d.factura_numero||'').toLowerCase().includes(q)
+  );
+
+  // Counts
+  const pending=_despachos.filter(d=>d.estado==='pendiente').length;
+  const done=_despachos.filter(d=>d.estado==='entregado').length;
+  const fail=_despachos.filter(d=>d.estado==='devuelto').length;
+  document.getElementById('cnt-pending').textContent=pending;
+  document.getElementById('cnt-done').textContent=done;
+  document.getElementById('cnt-fail').textContent=fail;
+
+  if(!filtered.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  
+  list.innerHTML=filtered.map(d=>{
+    const st=d.estado||'pendiente';
+    const badgeCls={'pendiente':'badge-pendiente','entregado':'badge-entregado','devuelto':'badge-devuelto'}[st]||'badge-pendiente';
+    const badgeTxt={'pendiente':'🟡 Pendiente','entregado':'🟢 Entregado','devuelto':'🔴 Devuelto'}[st]||'Pendiente';
+    const addr=sanitize(d.cliente_direccion||'Sin dirección');
+    const name=sanitize(d.cliente_nombre||'Sin nombre');
+    const tel=d.cliente_contacto||'';
+    const guia=d.guia_numero||d.factura_numero||'';
+
+    let actions='';
+    if(st==='pendiente'){
+      actions=`
+        ${tel?`<button class="cd-btn cd-btn-call" onclick="event.stopPropagation();window.open('tel:${tel}')">📞</button>`:''}
+        <button class="cd-btn cd-btn-map" onclick="event.stopPropagation();openMap('${d.id}')">🗺️</button>
+        <button class="cd-btn cd-btn-pod" onclick="event.stopPropagation();openPod('${d.id}')">✅ Entregar</button>
+      `;
+    }
+    return `
+    <div class="card-delivery" onclick="openPod('${d.id}')">
+      <div class="cd-top">
+        <div class="cd-name">${name}</div>
+        <div class="cd-badge ${badgeCls}">${badgeTxt}</div>
+      </div>
+      <div class="cd-addr">📍 ${addr}</div>
+      <div class="cd-meta">
+        <span>#${d.correlativo||'—'}</span>
+        ${guia?`<span>📄 ${sanitize(guia)}</span>`:''}
+      </div>
+      ${st==='pendiente'?`<div class="cd-actions">${actions}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function filterCards(){renderCards();}
+
+function openModal(id){document.getElementById('modal-'+id).classList.add('open');
+  if(id==='add'){document.getElementById('add-correlativo').value=_despachos.length+1;}
+}
+function closeModal(id){
+  document.getElementById('modal-'+id).classList.remove('open');
+  _podFile=null;_devFile=null;
+  if(id==='add'){
+    quitarUbicacionGPS();
+  }
+}
+
+function onClienteChange(){
+  const v=document.getElementById('add-cliente').value;
+  document.getElementById('new-client-fields').style.display=v==='__new__'?'block':'none';
+}
+
+function onDevMotivoChange(){
+  document.getElementById('dev-otro-group').style.display=
+    document.getElementById('dev-motivo').value==='__otro__'?'block':'none';
+}
+
+async function usarMiUbicacion(){
+  if(!navigator.geolocation){showToast('Geolocalización no disponible','error');return;}
+  showToast('📍 Obteniendo ubicación…','info');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude;
+    const lng=pos.coords.longitude;
+    showToast(`📍 Ubicación capturada`,'success');
+    document.getElementById('new-cli-dir').dataset.lat=lat;
+    document.getElementById('new-cli-dir').dataset.lng=lng;
+    document.getElementById('map-coords').textContent=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    // Show map
+    const mapContainer=document.getElementById('map-pick-container');
+    mapContainer.style.display='block';
+    document.getElementById('btn-clear-gps').style.display='block';
+    if(_pickMap){_pickMap.remove();_pickMap=null;}
+    setTimeout(()=>{
+      _pickMap=L.map('map-pick').setView([lat,lng],16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        attribution:'© OpenStreetMap',maxZoom:19
+      }).addTo(_pickMap);
+      _pickMarker=L.marker([lat,lng],{draggable:true}).addTo(_pickMap);
+      _pickMarker.on('dragend',function(e){
+        const p=e.target.getLatLng();
+        document.getElementById('new-cli-dir').dataset.lat=p.lat;
+        document.getElementById('new-cli-dir').dataset.lng=p.lng;
+        document.getElementById('map-coords').textContent=`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
+      });
+    },100);
+  },err=>showToast('Error GPS: '+err.message,'error'),{enableHighAccuracy:true,timeout:10000});
+}
+
+function quitarUbicacionGPS(){
+  const inputDir = document.getElementById('new-cli-dir');
+  if(inputDir){
+    delete inputDir.dataset.lat;
+    delete inputDir.dataset.lng;
+  }
+  const mapCoords = document.getElementById('map-coords');
+  if(mapCoords) mapCoords.textContent = '';
+  const mapContainer = document.getElementById('map-pick-container');
+  if(mapContainer) mapContainer.style.display = 'none';
+  const clearBtn = document.getElementById('btn-clear-gps');
+  if(clearBtn) clearBtn.style.display = 'none';
+  if(_pickMap){
+    try{
+      _pickMap.remove();
+    }catch(err){
+      console.warn("Error removing leaflet map:", err);
+    }
+    _pickMap = null;
+  }
+  _pickMarker = null;
+}
+
+async function guardarDespacho(){
+  const btn = document.querySelector('#modal-add .btn-save');
+  let clienteId=document.getElementById('add-cliente').value;
+  let clienteNombre='',clienteDir='',clienteTel='',clienteCoords=null,mapsUrl='';
+
+  if(clienteId==='__new__'){
+    clienteNombre=document.getElementById('new-cli-nombre').value.trim();
+    clienteDir=document.getElementById('new-cli-dir').value.trim();
+    clienteTel=document.getElementById('new-cli-tel').value.trim();
+    if(!clienteNombre){showToast('Ingresa nombre del cliente','error');return;}
+    if(btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…'; }
+    try {
+      const lat=document.getElementById('new-cli-dir').dataset.lat;
+      const lng=document.getElementById('new-cli-dir').dataset.lng;
+      if(lat&&lng){
+        clienteCoords=new firebase.firestore.GeoPoint(parseFloat(lat),parseFloat(lng));
+        mapsUrl=`https://www.google.com/maps?q=${lat},${lng}`;
+      }
+      // Save new client
+      const ref=await db.collection('clientes').add({
+        nombre:clienteNombre,contacto:clienteTel,direccion:clienteDir,
+        coords:clienteCoords,maps_url:mapsUrl,
+        created_at:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      clienteId=ref.id;
+      await loadClientes();
+    } catch(e) {
+      showToast('Error al guardar nuevo cliente: '+e.message,'error');
+      if(btn) { btn.disabled = false; btn.innerHTML = '💾 Agregar Despacho'; }
+      return;
+    }
+  }else{
+    const cli=_clientes.find(c=>c.id===clienteId);
+    if(cli){clienteNombre=cli.nombre;clienteDir=cli.direccion||'';clienteTel=cli.contacto||'';clienteCoords=cli.coords||null;mapsUrl=cli.maps_url||'';}
+  }
+
+  const guia=document.getElementById('add-guia').value.trim();
+  const desc=document.getElementById('add-desc').value.trim();
+  const comuna=document.getElementById('add-comuna').value.trim();
+  const distribuidor=document.getElementById('add-distribuidor').value.trim();
+  const corr=parseInt(document.getElementById('add-correlativo').value)||(_despachos.length+1);
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…'; }
+  try {
+    await db.collection('despachos').add({
+      turno_id:_turnoId,correlativo:corr,
+      distribuidor:distribuidor,
+      cliente_id:clienteId,
+      cliente_nombre:clienteNombre,cliente_contacto:clienteTel,
+      cliente_direccion:clienteDir,cliente_comuna:comuna,
+      cliente_coords:clienteCoords,maps_url:mapsUrl,
+      guia_numero:guia,descripcion:desc,
+      estado:'pendiente',
+      pod_foto_url:'',pod_timestamp:null,
+      devolucion_motivo:'',devolucion_detalle:'',devolucion_foto_url:'',
+      conductor_uid:_uid,conductor_email:_email,
+      fecha:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ Despacho agregado','success');
+    closeModal('add');
+    document.getElementById('add-cliente').value='';
+    document.getElementById('add-guia').value='';
+    document.getElementById('add-desc').value='';
+    document.getElementById('add-comuna').value='';
+    document.getElementById('new-client-fields').style.display='none';
+    await loadDespachos();
+  } catch(e) {
+    showToast('Error: '+e.message,'error');
+  } finally {
+    if(btn) { btn.disabled = false; btn.innerHTML = '💾 Agregar Despacho'; }
+  }
+}
+
+let _pickMap=null, _pickMarker=null;
+
+function openMap(dId){
+  const d=_despachos.find(x=>x.id===dId);
+  if(!d)return;
+  let lat=null,lng=null,addr=d.cliente_direccion||'';
+  if(d.cliente_coords){lat=d.cliente_coords.latitude;lng=d.cliente_coords.longitude;}
+  else if(d.maps_url){
+    const m=d.maps_url.match(/q=([\-0-9.]+),([\-0-9.]+)/);
+    if(m){lat=parseFloat(m[1]);lng=parseFloat(m[2]);}
+  }
+  
+  // Detect platform for native navigation
+  const ua=navigator.userAgent||'';
+  const isIOS=/iPad|iPhone|iPod/.test(ua);
+  const isAndroid=/Android/.test(ua);
+  
+  if(lat&&lng){
+    if(isIOS){
+      // Apple Maps with directions
+      window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`,'_blank');
+    }else if(isAndroid){
+      // Google Maps intent with navigation
+      window.open(`google.navigation:q=${lat},${lng}`,'_blank');
+      // Fallback to web
+      setTimeout(()=>window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`,'_blank'),500);
+    }else{
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`,'_blank');
+    }
+  }else if(addr){
+    if(isIOS){
+      window.open(`maps://maps.apple.com/?daddr=${encodeURIComponent(addr)}&dirflg=d`,'_blank');
+    }else{
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}&travelmode=driving`,'_blank');
+    }
+  }else{
+    showToast('Sin ubicación registrada. Edita el cliente para agregar dirección.','error');
+  }
+}
+
+function openPod(dId){
+  const d=_despachos.find(x=>x.id===dId);
+  if(!d)return;
+  _currentPodDespacho=d;
+  document.getElementById('pod-info').innerHTML=`
+    <div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:4px">
+      <div style="font-weight:700;font-size:.95rem">${sanitize(d.cliente_nombre)}</div>
+      <div style="font-size:.82rem;color:var(--text2)">📍 ${sanitize(d.cliente_direccion||'—')}</div>
+      <div style="font-size:.78rem;color:var(--text2)">📄 ${sanitize(d.guia_numero||'Sin guía')}</div>
+    </div>`;
+  // Reset
+  document.getElementById('pod-preview').style.display='none';
+  document.getElementById('dev-preview').style.display='none';
+  document.getElementById('dev-motivo').value='';
+  document.getElementById('dev-obs').value='';
+  document.getElementById('dev-otro-group').style.display='none';
+  const gpsChk = document.getElementById('update-delivery-gps');
+  if(gpsChk) gpsChk.checked = false;
+  _podFile=null;_devFile=null;
+  // Show/hide sections based on estado
+  const canAct=d.estado==='pendiente';
+  document.getElementById('pod-deliver-section').style.display=canAct?'block':'none';
+  document.getElementById('pod-dev-section').style.display=canAct?'block':'none';
+  document.getElementById('pod-extra-section').style.display=canAct?'block':'none';
+  document.getElementById('pod-title').firstChild.textContent=canAct?'📷 Gestionar Entrega ':'📋 Detalle ';
+  openModal('pod');
+}
+
+async function eliminarDespacho(){
+  if(!_currentPodDespacho)return;
+  if(!confirm('¿Estás seguro de que deseas eliminar este despacho de tu hoja de ruta? Esta acción no se puede deshacer.')) return;
+  const btn = document.getElementById('btn-eliminar-despacho');
+  if(btn){
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Eliminando…';
+  }
+  try{
+    await db.collection('despachos').doc(_currentPodDespacho.id).delete();
+    showToast('✅ Despacho eliminado correctamente', 'success');
+    closeModal('pod');
+    await loadDespachos();
+  }catch(e){
+    if(btn){
+      btn.disabled = false;
+      btn.innerHTML = '🗑️ Eliminar Despacho por Error';
+    }
+    showToast('Error al eliminar despacho: ' + e.message, 'error');
+  }
+}
+
+function onPodPhotoChange(e){
+  _podFile=e.target.files[0];
+  if(_podFile){
+    const r=new FileReader();r.onload=ev=>{
+      const img=document.getElementById('pod-preview');img.src=ev.target.result;img.style.display='block';
+    };r.readAsDataURL(_podFile);
+  }
+}
+function onDevPhotoChange(e){
+  _devFile=e.target.files[0];
+  if(_devFile){
+    const r=new FileReader();r.onload=ev=>{
+      const img=document.getElementById('dev-preview');img.src=ev.target.result;img.style.display='block';
+    };r.readAsDataURL(_devFile);
+  }
+}
+
+async function uploadFile(file,path){
+  const ref=storage.ref(path);
+  await ref.put(file);
+  return await ref.getDownloadURL();
+}
+
+async function confirmarEntrega(){
+  if(!_currentPodDespacho)return;
+  if(!_podFile){showToast('📸 Debes tomar la foto de la factura firmada','error');return;}
+  const btn=document.querySelector('#pod-deliver-section .btn-save');
+  if(btn){
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Procesando…';
+  }
+  try{
+    let lat = null, lng = null;
+    const updateGps = document.getElementById('update-delivery-gps').checked;
+    if(updateGps){
+      showToast('📍 Obteniendo ubicación GPS actual…', 'info');
+      try {
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {enableHighAccuracy:true, timeout:8000});
+        });
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      } catch(err) {
+        console.warn("Could not get current position:", err);
+        showToast("⚠️ No se pudo obtener ubicación GPS, procediendo sin actualizarla.", "warning");
+      }
+    }
+
+    const url=await uploadFile(_podFile,`pod/${_turnoId}/${_currentPodDespacho.id}_${Date.now()}.jpg`);
+    
+    let updateData = {
+      estado:'entregado',
+      pod_foto_url:url,
+      pod_timestamp:firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if(lat !== null && lng !== null){
+      const geoPoint = new firebase.firestore.GeoPoint(lat, lng);
+      const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+      updateData.cliente_coords = geoPoint;
+      updateData.maps_url = mapsUrl;
+
+      // Update client document in clientes collection
+      if(_currentPodDespacho.cliente_id){
+        await db.collection('clientes').doc(_currentPodDespacho.cliente_id).update({
+          coords: geoPoint,
+          maps_url: mapsUrl
+        });
+      } else {
+        const cSnap = await db.collection('clientes').where('nombre', '==', _currentPodDespacho.cliente_nombre).limit(1).get();
+        if(!cSnap.empty){
+          await db.collection('clientes').doc(cSnap.docs[0].id).update({
+            coords: geoPoint,
+            maps_url: mapsUrl
+          });
+        }
+      }
+    }
+
+    await db.collection('despachos').doc(_currentPodDespacho.id).update(updateData);
+    
+    if(lat !== null && lng !== null){
+      showToast('✅ Entrega confirmada y ubicación actualizada','success');
+    } else {
+      showToast('✅ Entrega confirmada','success');
+    }
+    
+    closeModal('pod');
+    await loadDespachos();
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+  }finally{
+    if(btn){
+      btn.disabled=false; btn.innerHTML='✅ Confirmar Entrega';
+    }
+  }
+}
+
+async function confirmarDevolucion(){
+  if(!_currentPodDespacho)return;
+  let motivo=document.getElementById('dev-motivo').value;
+  if(!motivo){showToast('Selecciona el motivo de devolución','error');return;}
+  if(motivo==='__otro__') motivo=document.getElementById('dev-otro-text').value.trim()||'Otro';
+  const obs=document.getElementById('dev-obs').value.trim();
+
+  const btn=document.querySelector('#pod-dev-section .btn-save');
+  if(btn){
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Procesando…';
+  }
+  try{
+    let fotoUrl='';
+    if(_devFile) fotoUrl=await uploadFile(_devFile,`devoluciones/${_turnoId}/${_currentPodDespacho.id}_${Date.now()}.jpg`);
+    
+    await db.collection('despachos').doc(_currentPodDespacho.id).update({
+      estado:'devuelto',devolucion_motivo:motivo,devolucion_detalle:obs,devolucion_foto_url:fotoUrl
+    });
+
+    // Check if reverse logistics applies
+    const distName = (_currentPodDespacho.distribuidor || '').trim().toUpperCase();
+    const aplicaInversa = _distribuidoresInversa.includes(distName);
+
+    if (aplicaInversa) {
+      // Create logistica_inversa record
+      await db.collection('logistica_inversa').add({
+        despacho_id:_currentPodDespacho.id,
+        turno_id:_turnoId,
+        distribuidor:_currentPodDespacho.distribuidor||'',
+        cliente:_currentPodDespacho.cliente_nombre,
+        motivo:motivo,detalle:obs,foto_url:fotoUrl,
+        items:_currentPodDespacho.descripcion||'',
+        estado:'recepcion_pendiente',clasificacion:'',
+        operario_uid:'',
+        fecha_devolucion:firebase.firestore.FieldValue.serverTimestamp(),
+        fecha_recepcion:null,conductor_uid:_uid,conductor_email:_email
+      });
+      showToast('🔴 Devolución registrada (Ingresa a Logística Inversa)','success');
+    } else {
+      showToast('🔴 Devolución registrada (No aplica Logística Inversa)','success');
+    }
+
+    closeModal('pod');await loadDespachos();
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+  }finally{
+    if(btn){
+      btn.disabled=false; btn.innerHTML='🔴 Confirmar Devolución';
+    }
+  }
+}
+
+async function optimizeDeliveryRoute(btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Optimizando…';
+  }
+  
+  const pending = _despachos.filter(d => d.estado === 'pendiente');
+  const finished = _despachos.filter(d => d.estado !== 'pendiente');
+  
+  if (pending.length <= 1) {
+    showToast('Necesitas al menos 2 despachos pendientes para optimizar.', 'warning');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '🗺️ Optimizar Secuencia de Entrega';
+    }
+    return;
+  }
+
+  showToast('Obteniendo ubicación GPS actual…', 'info');
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    try {
+      const startLat = pos.coords.latitude;
+      const startLng = pos.coords.longitude;
+      await runTSP(startLat, startLng, pending, finished, btn);
+    } catch(err) {
+      showToast('Error al optimizar: ' + err.message, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '🗺️ Optimizar Secuencia de Entrega';
+      }
+    }
+  }, async (err) => {
+    console.warn("GPS failed, falling back to using first pending delivery coords:", err);
+    showToast('⚠️ No se obtuvo GPS. Usando primer despacho como inicio.', 'warning');
+    try {
+      let startLat = -33.4489; // Default center of Santiago
+      let startLng = -70.6693;
+      const firstWithCoords = pending.find(d => {
+        if (d.cliente_coords) return true;
+        if (d.maps_url && d.maps_url.includes('q=')) return true;
+        return false;
+      });
+      if (firstWithCoords) {
+        if (firstWithCoords.cliente_coords) {
+          startLat = firstWithCoords.cliente_coords.latitude;
+          startLng = firstWithCoords.cliente_coords.longitude;
+        } else {
+          const m = firstWithCoords.maps_url.match(/q=([\-0-9.]+),([\-0-9.]+)/);
+          if (m) {
+            startLat = parseFloat(m[1]);
+            startLng = parseFloat(m[2]);
+          }
+        }
+      }
+      await runTSP(startLat, startLng, pending, finished, btn);
+    } catch(e) {
+      showToast('Error al optimizar: ' + e.message, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '🗺️ Optimizar Secuencia de Entrega';
+      }
+    }
+  }, {enableHighAccuracy: true, timeout: 8000});
+}
+
+async function runTSP(startLat, startLng, pending, finished, btn) {
+  const withCoords = [];
+  const withoutCoords = [];
+  
+  pending.forEach(d => {
+    let lat = null, lng = null;
+    if (d.cliente_coords) {
+      lat = d.cliente_coords.latitude;
+      lng = d.cliente_coords.longitude;
+    } else if (d.maps_url) {
+      const m = d.maps_url.match(/q=([\-0-9.]+),([\-0-9.]+)/);
+      if (m) {
+        lat = parseFloat(m[1]);
+        lng = parseFloat(m[2]);
+      }
+    }
+    
+    if (lat !== null && lng !== null) {
+      withCoords.push({ d, lat, lng });
+    } else {
+      withoutCoords.push(d);
+    }
+  });
+
+  const orderedPending = [];
+  let currLat = startLat;
+  let currLng = startLng;
+  const remaining = [...withCoords];
+
+  while (remaining.length > 0) {
+    let bestIdx = 0;
+    let minDist = Infinity;
+    
+    for (let i = 0; i < remaining.length; i++) {
+      const dist = Math.sqrt(Math.pow(currLat - remaining[i].lat, 2) + Math.pow(currLng - remaining[i].lng, 2));
+      if (dist < minDist) {
+        minDist = dist;
+        bestIdx = i;
+      }
+    }
+    
+    const nextItem = remaining.splice(bestIdx, 1)[0];
+    orderedPending.push(nextItem.d);
+    currLat = nextItem.lat;
+    currLng = nextItem.lng;
+  }
+
+  const optimizedPending = [...orderedPending, ...withoutCoords];
+  const fullList = [...finished, ...optimizedPending];
+
+  const batch = db.batch();
+  fullList.forEach((d, index) => {
+    const newCorr = index + 1;
+    if (d.correlativo !== newCorr) {
+      const ref = db.collection('despachos').doc(d.id);
+      batch.update(ref, { correlativo: newCorr });
+    }
+  });
+
+  await batch.commit();
+  showToast('🗺️ Ruta optimizada secuencialmente', 'success');
+  await loadDespachos();
+
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '🗺️ Optimizar Secuencia de Entrega';
+  }
+}
+</script>
+</body>
+</html>

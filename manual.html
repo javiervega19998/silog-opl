@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SILOG SpA — Manual de Usuario v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET & BASE ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060D1F;
+  --surface:#0D1B35;
+  --surface-alt:#111f3d;
+  --primary:#1B4B9B;
+  --accent:#F47920;
+  --text:#E8EEF8;
+  --text-muted:#8a9bbf;
+  --border:rgba(232,238,248,.08);
+  --radius:10px;
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-decoration:none;transition:color .2s}
+a:hover{color:#ffae6b}
+
+/* ===== LAYOUT ===== */
+.page-wrap{max-width:960px;margin:0 auto;padding:24px 32px 80px}
+
+/* ===== PRINT BUTTON ===== */
+.print-btn{
+  position:fixed;bottom:32px;right:32px;z-index:999;
+  background:var(--accent);color:#fff;border:none;
+  padding:14px 28px;border-radius:50px;cursor:pointer;
+  font-family:inherit;font-size:.95rem;font-weight:600;
+  box-shadow:0 6px 24px rgba(244,121,32,.35);
+  display:flex;align-items:center;gap:8px;
+  transition:transform .2s,box-shadow .2s;
+}
+.print-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(244,121,32,.5)}
+.print-btn svg{width:20px;height:20px;fill:currentColor}
+
+/* ===== PORTADA ===== */
+.cover{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;
+  padding:60px 20px;position:relative;
+}
+.cover::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 30%,rgba(27,75,155,.25) 0%,transparent 70%);
+  pointer-events:none;
+}
+.cover-logo{
+  width:140px;height:140px;border-radius:28px;
+  background:linear-gradient(135deg,var(--primary),var(--accent));
+  display:flex;align-items:center;justify-content:center;
+  font-size:2.8rem;font-weight:900;color:#fff;
+  letter-spacing:2px;margin-bottom:40px;
+  box-shadow:0 12px 48px rgba(244,121,32,.25);
+}
+.cover h1{font-size:3rem;font-weight:800;letter-spacing:-1px;margin-bottom:8px}
+.cover .subtitle{font-size:1.35rem;color:var(--accent);font-weight:600;margin-bottom:48px}
+.cover-meta{
+  display:flex;gap:32px;color:var(--text-muted);font-size:.9rem;
+  border-top:1px solid var(--border);padding-top:24px;
+}
+.cover-meta span{display:flex;align-items:center;gap:6px}
+
+/* ===== SECTION HEADERS ===== */
+.section{margin-top:72px}
+.section-number{
+  display:inline-block;background:var(--accent);color:#fff;
+  font-size:.75rem;font-weight:700;padding:4px 12px;
+  border-radius:20px;margin-bottom:12px;letter-spacing:1px;
+}
+.section h2{
+  font-size:2rem;font-weight:800;letter-spacing:-.5px;
+  margin-bottom:24px;padding-bottom:16px;
+  border-bottom:2px solid var(--border);
+}
+.section h3{
+  font-size:1.35rem;font-weight:700;margin:36px 0 16px;
+  color:var(--accent);display:flex;align-items:center;gap:10px;
+}
+.section h3 .h3-icon{
+  width:28px;height:28px;border-radius:8px;
+  background:rgba(244,121,32,.12);display:flex;
+  align-items:center;justify-content:center;flex-shrink:0;
+  font-size:.85rem;
+}
+.section h4{
+  font-size:1.1rem;font-weight:600;margin:24px 0 10px;
+  color:var(--text);padding-left:4px;
+  border-left:3px solid var(--accent);padding-left:14px;
+}
+
+/* ===== TABLE OF CONTENTS ===== */
+.toc{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:36px 40px;
+}
+.toc-list{list-style:none;counter-reset:toc}
+.toc-list>li{counter-increment:toc}
+.toc-list>li>a{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 0;border-bottom:1px solid var(--border);
+  font-weight:500;font-size:1.05rem;transition:padding-left .2s;
+}
+.toc-list>li>a:hover{padding-left:8px;color:#ffae6b}
+.toc-list>li>a::before{
+  content:counter(toc,decimal-leading-zero);
+  font-size:.8rem;font-weight:700;color:var(--accent);
+  background:rgba(244,121,32,.1);padding:4px 10px;
+  border-radius:6px;min-width:36px;text-align:center;
+}
+.toc-sub{list-style:none;padding-left:56px;margin-bottom:4px}
+.toc-sub li a{
+  display:block;padding:5px 0;color:var(--text-muted);
+  font-size:.92rem;transition:color .2s;
+}
+.toc-sub li a:hover{color:var(--accent)}
+
+/* ===== CARDS ===== */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:28px 32px;margin:20px 0;
+}
+.card-accent{border-left:4px solid var(--accent)}
+.card-primary{border-left:4px solid var(--primary)}
+
+/* ===== INFO BOX ===== */
+.info-box{
+  background:rgba(27,75,155,.12);border:1px solid rgba(27,75,155,.25);
+  border-radius:var(--radius);padding:20px 24px;margin:20px 0;
+  display:flex;gap:14px;align-items:flex-start;
+}
+.info-box .icon{
+  width:24px;height:24px;flex-shrink:0;margin-top:2px;
+  background:var(--primary);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:.75rem;font-weight:700;
+}
+.warning-box{
+  background:rgba(244,121,32,.08);border:1px solid rgba(244,121,32,.2);
+  border-radius:var(--radius);padding:20px 24px;margin:20px 0;
+  display:flex;gap:14px;align-items:flex-start;
+}
+.warning-box .icon{
+  width:24px;height:24px;flex-shrink:0;margin-top:2px;
+  background:var(--accent);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:.75rem;font-weight:700;
+}
+
+/* ===== STEPS ===== */
+.steps{list-style:none;counter-reset:step;margin:16px 0}
+.steps li{
+  counter-increment:step;display:flex;gap:16px;
+  padding:14px 0;border-bottom:1px solid var(--border);
+  align-items:flex-start;
+}
+.steps li::before{
+  content:counter(step);
+  width:32px;height:32px;border-radius:50%;flex-shrink:0;
+  background:var(--primary);color:#fff;font-weight:700;
+  font-size:.85rem;display:flex;align-items:center;
+  justify-content:center;margin-top:2px;
+}
+.steps li:last-child{border-bottom:none}
+
+/* ===== MODULE GRID ===== */
+.mod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin:20px 0}
+.mod-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:24px;
+  transition:border-color .2s;
+}
+.mod-card:hover{border-color:rgba(244,121,32,.3)}
+.mod-card .mod-icon{
+  width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;margin-bottom:14px;font-weight:700;
+}
+.mod-card h5{font-size:1rem;font-weight:700;margin-bottom:6px}
+.mod-card p{font-size:.88rem;color:var(--text-muted);line-height:1.55}
+
+/* ===== ROLE BADGE ===== */
+.role-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:.78rem;font-weight:600;padding:4px 14px;
+  border-radius:20px;margin:0 4px 6px 0;
+}
+.role-conductor{background:rgba(76,175,80,.15);color:#66bb6a}
+.role-bodeguero{background:rgba(33,150,243,.15);color:#42a5f5}
+.role-admin{background:rgba(244,121,32,.15);color:var(--accent)}
+.role-administrativo{background:rgba(156,39,176,.15);color:#ce93d8}
+
+/* ===== TABLES ===== */
+.data-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.92rem}
+.data-table th{
+  background:var(--surface-alt);text-align:left;
+  padding:12px 16px;font-weight:600;font-size:.82rem;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);
+  border-bottom:2px solid var(--border);
+}
+.data-table td{
+  padding:12px 16px;border-bottom:1px solid var(--border);
+  vertical-align:top;
+}
+.data-table tr:last-child td{border-bottom:none}
+
+/* ===== BULLET LISTS ===== */
+.feature-list{list-style:none;margin:12px 0}
+.feature-list li{
+  padding:8px 0 8px 28px;position:relative;
+  border-bottom:1px solid rgba(232,238,248,.04);
+}
+.feature-list li::before{
+  content:'›';position:absolute;left:4px;top:8px;
+  color:var(--accent);font-weight:700;font-size:1.1rem;
+}
+.feature-list li:last-child{border-bottom:none}
+
+/* ===== FAQ ===== */
+.faq-item{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);margin:12px 0;overflow:hidden;
+}
+.faq-q{
+  padding:18px 24px;font-weight:600;cursor:pointer;
+  display:flex;justify-content:space-between;align-items:center;
+  transition:background .2s;
+}
+.faq-q:hover{background:var(--surface-alt)}
+.faq-q::after{content:'+';font-size:1.3rem;color:var(--accent);font-weight:300}
+.faq-item.open .faq-q::after{content:'−'}
+.faq-a{
+  padding:0 24px 18px;color:var(--text-muted);
+  font-size:.93rem;display:none;
+}
+.faq-item.open .faq-a{display:block}
+
+/* ===== FOOTER ===== */
+.manual-footer{
+  margin-top:80px;padding:32px 0;
+  border-top:1px solid var(--border);
+  text-align:center;color:var(--text-muted);
+  font-size:.85rem;
+}
+
+/* ===== DIVIDER ===== */
+.divider{
+  height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);
+  margin:48px 0;
+}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:640px){
+  .page-wrap{padding:16px 18px 60px}
+  .cover h1{font-size:2rem}
+  .cover .subtitle{font-size:1.05rem}
+  .cover-meta{flex-direction:column;gap:8px}
+  .section h2{font-size:1.5rem}
+  .toc{padding:24px}
+  .mod-grid{grid-template-columns:1fr}
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+@media print{
+  *{color:#111!important;background:transparent!important;
+    box-shadow:none!important;text-shadow:none!important;
+    border-color:#ccc!important}
+  body{font-size:11pt;line-height:1.55;background:#fff!important}
+  .page-wrap{max-width:100%;padding:0;margin:0}
+
+  .print-btn{display:none!important}
+
+  /* Cover */
+  .cover{min-height:auto;padding:60px 0 40px;page-break-after:always}
+  .cover-logo{
+    background:#1B4B9B!important;color:#fff!important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .cover h1{font-size:28pt}
+  .cover .subtitle{color:#F47920!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* TOC */
+  .toc{border:1px solid #ccc;padding:20px;page-break-after:always}
+  .toc-list>li>a::before{
+    background:#eee!important;color:#333!important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+
+  /* Sections */
+  .section{margin-top:32px}
+  .section h2{page-break-after:avoid;font-size:18pt}
+  .section h3{page-break-after:avoid;color:#F47920!important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .section-number{
+    background:#F47920!important;color:#fff!important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+
+  /* Page breaks */
+  .page-break{page-break-before:always}
+  .section{page-break-before:always}
+  .cover+.section{page-break-before:auto}
+
+  /* Cards */
+  .card,.mod-card,.info-box,.warning-box,.faq-item{
+    border:1px solid #ddd;page-break-inside:avoid;
+  }
+  .card-accent{border-left:4px solid #F47920!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .card-primary{border-left:4px solid #1B4B9B!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* Steps */
+  .steps li::before{
+    background:#1B4B9B!important;color:#fff!important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .steps li{page-break-inside:avoid}
+
+  /* Role badges */
+  .role-badge{border:1px solid #999;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* Tables */
+  .data-table th{background:#f0f0f0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .data-table{page-break-inside:avoid}
+
+  /* Links */
+  a{text-decoration:underline}
+  a[href^="#"]{text-decoration:none}
+
+  /* FAQ open all */
+  .faq-a{display:block!important}
+  .faq-q::after{display:none!important}
+
+  /* Footer */
+  .manual-footer{page-break-before:avoid}
+
+  /* Mod grid */
+  .mod-grid{display:block}
+  .mod-card{margin-bottom:12px;page-break-inside:avoid}
+  .mod-card .mod-icon{
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- Print Button -->
+<button class="print-btn" onclick="downloadPDF()" title="Descargar PDF" style="bottom:92px;background:linear-gradient(135deg,#1B4B9B,#2563EB)">
+  <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+  Descargar PDF
+</button>
+<button class="print-btn" onclick="window.print()" title="Imprimir">
+  <svg viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+  Imprimir
+</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+
+<div class="page-wrap">
+
+  <!-- ========================================
+       1. PORTADA
+       ======================================== -->
+  <section class="cover" id="portada">
+    <div class="cover-logo">S</div>
+    <h1>Manual de Usuario</h1>
+    <p class="subtitle">SILOG SpA &mdash; Plataforma ERP + WMS + TMS</p>
+    <p style="color:var(--text-muted);max-width:540px;margin-bottom:48px;font-size:.97rem">
+      Gestión integral de operaciones logísticas de última milla para Chile.
+    </p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong>&nbsp; 1.0</span>
+      <span><strong>Fecha</strong>&nbsp; 20 de mayo de 2026</span>
+      <span><strong>Clasificación</strong>&nbsp; Uso Interno</span>
+    </div>
+  </section>
+
+  <!-- ========================================
+       2. ÍNDICE
+       ======================================== -->
+  <section class="section" id="indice">
+    <span class="section-number">ÍNDICE</span>
+    <h2>Tabla de Contenidos</h2>
+    <div class="toc">
+      <ol class="toc-list">
+        <li>
+          <a href="#introduccion">Introducción</a>
+          <ul class="toc-sub">
+            <li><a href="#intro-objetivo">Objetivo de la plataforma</a></li>
+            <li><a href="#intro-modulos">Módulos del sistema</a></li>
+            <li><a href="#intro-dispositivos">Dispositivos compatibles</a></li>
+          </ul>
+        </li>
+        <li>
+          <a href="#acceso">Acceso al Sistema</a>
+          <ul class="toc-sub">
+            <li><a href="#acceso-url">URL de acceso</a></li>
+            <li><a href="#acceso-login">Inicio de sesión</a></li>
+            <li><a href="#acceso-registro">Registro de nuevo usuario</a></li>
+            <li><a href="#acceso-recuperar">Recuperación de contraseña</a></li>
+            <li><a href="#acceso-cambiar">Cambio de contraseña</a></li>
+          </ul>
+        </li>
+        <li>
+          <a href="#dashboard">Dashboard Principal</a>
+          <ul class="toc-sub">
+            <li><a href="#dash-tarjetas">Tarjetas de módulos</a></li>
+            <li><a href="#dash-perfil">Perfil de usuario</a></li>
+            <li><a href="#dash-roles">Módulos según rol</a></li>
+          </ul>
+        </li>
+        <li>
+          <a href="#modulos-rol">Módulos por Rol</a>
+          <ul class="toc-sub">
+            <li><a href="#rol-conductor">Conductor</a></li>
+            <li><a href="#rol-bodeguero">Bodeguero</a></li>
+            <li><a href="#rol-admin">Administrativo / Admin</a></li>
+          </ul>
+        </li>
+        <li>
+          <a href="#soporte">Soporte y Preguntas Frecuentes</a>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ========================================
+       3. INTRODUCCIÓN
+       ======================================== -->
+  <section class="section" id="introduccion">
+    <span class="section-number">SECCIÓN 01</span>
+    <h2>Introducción</h2>
+
+    <h3 id="intro-objetivo"><span class="h3-icon">🎯</span> Objetivo de la Plataforma</h3>
+    <div class="card card-accent">
+      <p>
+        <strong>SILOG SpA</strong> es una plataforma integral diseñada para la <strong>gestión de operaciones logísticas de última milla</strong> en Chile. Integra funcionalidades de transporte (TMS), bodega (WMS), finanzas (ERP), gestión de clientes (CRM) y analítica avanzada (Analytics) en un solo ecosistema digital.
+      </p>
+      <p style="margin-top:12px;color:var(--text-muted)">
+        El sistema permite a empresas de distribución y courier optimizar sus procesos de despacho, controlar inventarios en tiempo real, gestionar costos operacionales y tomar decisiones basadas en datos, todo desde una interfaz unificada y accesible desde cualquier dispositivo.
+      </p>
+    </div>
+
+    <h3 id="intro-modulos"><span class="h3-icon">📦</span> Módulos del Sistema</h3>
+    <div class="mod-grid">
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(76,175,80,.12);color:#66bb6a">TMS</div>
+        <h5>Transporte</h5>
+        <p>Gestión de rutas, turnos de conductores, despachos, pruebas de entrega (POD) y devoluciones. Control de kilometraje y gastos en ruta.</p>
+      </div>
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(33,150,243,.12);color:#42a5f5">WMS</div>
+        <h5>Bodega</h5>
+        <p>Control de inventario, escaneo de códigos de barra, logística inversa, movimientos de stock, ingresos y salidas de mercadería.</p>
+      </div>
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(244,121,32,.12);color:var(--accent)">ERP</div>
+        <h5>Finanzas</h5>
+        <p>Centro de costos, pre-facturas compatibles con SII, exportación de reportes consolidados a Excel.</p>
+      </div>
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(156,39,176,.12);color:#ce93d8">CRM</div>
+        <h5>Clientes</h5>
+        <p>Directorio de clientes y proveedores, gestión de contactos, tarifas personalizadas y navegación GPS a direcciones.</p>
+      </div>
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(255,193,7,.12);color:#ffd54f">📊</div>
+        <h5>Analytics</h5>
+        <p>KPIs de rendimiento (OTIF), gráficos de entregas, devoluciones y gastos, rankings de desempeño por conductor y ruta.</p>
+      </div>
+    </div>
+
+    <h3 id="intro-dispositivos"><span class="h3-icon">📱</span> Dispositivos Compatibles</h3>
+    <div class="card card-primary">
+      <p>
+        SILOG está <strong>optimizado para dispositivos móviles</strong> con sistemas operativos Android e iOS. La aplicación es una <em>Progressive Web App</em> (PWA), lo que permite instalarla directamente desde el navegador sin necesidad de tiendas de aplicaciones.
+      </p>
+      <ul class="feature-list" style="margin-top:12px">
+        <li><strong>Android:</strong> Chrome 80+ (recomendado)</li>
+        <li><strong>iOS:</strong> Safari 14+ / Chrome para iOS</li>
+        <li><strong>Desktop:</strong> Chrome, Edge, Firefox (últimas versiones)</li>
+        <li><strong>Resolución mínima:</strong> 360 × 640 px</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ========================================
+       4. ACCESO AL SISTEMA
+       ======================================== -->
+  <section class="section" id="acceso">
+    <span class="section-number">SECCIÓN 02</span>
+    <h2>Acceso al Sistema</h2>
+
+    <h3 id="acceso-url"><span class="h3-icon">🌐</span> URL de Acceso</h3>
+    <div class="card card-accent">
+      <p>Acceda a la plataforma desde cualquier navegador ingresando la siguiente dirección:</p>
+      <p style="margin-top:12px;font-size:1.15rem;font-weight:700;font-family:monospace;letter-spacing:.5px;color:var(--accent)">
+        https://silog-opl-681dc.web.app
+      </p>
+    </div>
+
+    <div class="info-box">
+      <span class="icon">i</span>
+      <div>
+        <strong>Consejo:</strong> En dispositivos móviles, utilice la opción <em>"Agregar a pantalla de inicio"</em> del navegador para instalar SILOG como aplicación y acceder rápidamente sin necesidad de escribir la URL.
+      </div>
+    </div>
+
+    <h3 id="acceso-login"><span class="h3-icon">🔑</span> Inicio de Sesión</h3>
+    <p>Para ingresar al sistema siga estos pasos:</p>
+    <ol class="steps">
+      <li>Abra la URL de SILOG en su navegador.</li>
+      <li>En la pantalla de inicio de sesión, ingrese su <strong>correo electrónico</strong> registrado.</li>
+      <li>Ingrese su <strong>contraseña</strong>.</li>
+      <li>Presione el botón <strong>"Iniciar Sesión"</strong>.</li>
+      <li>Será redirigido al <strong>Dashboard Principal</strong> con los módulos disponibles para su rol.</li>
+    </ol>
+
+    <h3 id="acceso-registro"><span class="h3-icon">📝</span> Registro de Nuevo Usuario</h3>
+    <p>Si no posee una cuenta, puede registrarse directamente desde la pantalla de login:</p>
+    <ol class="steps">
+      <li>En la pantalla de login, presione el enlace <strong>"Registrarse"</strong> o <strong>"Crear cuenta"</strong>.</li>
+      <li>Complete el formulario con su nombre, correo electrónico y contraseña.</li>
+      <li>
+        <strong>Seleccione su rol</strong> de acuerdo a su función en la empresa:
+        <div style="margin-top:10px">
+          <span class="role-badge role-conductor">🚛 Conductor</span>
+          <span class="role-badge role-bodeguero">📦 Bodeguero</span>
+          <span class="role-badge role-administrativo">💼 Administrativo</span>
+          <span class="role-badge role-admin">⚙️ Admin</span>
+        </div>
+      </li>
+      <li>Presione <strong>"Registrarse"</strong> para crear su cuenta.</li>
+      <li>Recibirá una confirmación y podrá acceder al sistema inmediatamente.</li>
+    </ol>
+
+    <div class="warning-box">
+      <span class="icon">!</span>
+      <div>
+        <strong>Importante:</strong> El rol seleccionado determina qué módulos y funcionalidades estarán visibles. Si necesita cambiar de rol después del registro, contacte a un usuario con rol <em>Admin</em>.
+      </div>
+    </div>
+
+    <h3 id="acceso-recuperar"><span class="h3-icon">🔓</span> Recuperación de Contraseña</h3>
+    <ol class="steps">
+      <li>En la pantalla de inicio de sesión, presione el enlace <strong>"¿Olvidaste tu contraseña?"</strong>.</li>
+      <li>Ingrese el <strong>correo electrónico</strong> asociado a su cuenta.</li>
+      <li>Presione <strong>"Enviar"</strong>. Recibirá un correo con instrucciones para restablecer su contraseña.</li>
+      <li>Abra el correo y siga el enlace para crear una nueva contraseña.</li>
+      <li>Ingrese su nueva contraseña (mínimo 6 caracteres) y confirme.</li>
+    </ol>
+
+    <h3 id="acceso-cambiar"><span class="h3-icon">🔄</span> Cambio de Contraseña</h3>
+    <p>Si ya tiene acceso al sistema y desea cambiar su contraseña:</p>
+    <ol class="steps">
+      <li>Acceda a su <strong>Perfil de Usuario</strong> desde el Dashboard.</li>
+      <li>Seleccione la opción <strong>"Cambiar contraseña"</strong>.</li>
+      <li>Ingrese su contraseña actual y la nueva contraseña.</li>
+      <li>Confirme el cambio presionando <strong>"Guardar"</strong>.</li>
+    </ol>
+  </section>
+
+  <!-- ========================================
+       5. DASHBOARD PRINCIPAL
+       ======================================== -->
+  <section class="section" id="dashboard">
+    <span class="section-number">SECCIÓN 03</span>
+    <h2>Dashboard Principal</h2>
+
+    <p>
+      El Dashboard es la pantalla central de SILOG. Desde aquí se accede a todos los módulos del sistema organizados en tarjetas visuales agrupadas por sección funcional.
+    </p>
+
+    <h3 id="dash-tarjetas"><span class="h3-icon">🗂️</span> Tarjetas de Módulos</h3>
+    <div class="card card-primary">
+      <p>
+        Cada módulo del sistema se presenta como una <strong>tarjeta interactiva</strong> en el Dashboard. Las tarjetas están organizadas por áreas funcionales (Transporte, Bodega, Finanzas, etc.) y muestran un ícono representativo, el nombre del módulo y una breve descripción.
+      </p>
+      <ul class="feature-list" style="margin-top:12px">
+        <li>Presione cualquier tarjeta para acceder al módulo correspondiente.</li>
+        <li>Las tarjetas visibles dependen del <strong>rol asignado</strong> a su cuenta.</li>
+        <li>La organización por secciones facilita la navegación rápida.</li>
+      </ul>
+    </div>
+
+    <h3 id="dash-perfil"><span class="h3-icon">👤</span> Perfil de Usuario</h3>
+    <div class="card card-accent">
+      <p>Desde el Dashboard puede acceder a su perfil de usuario, donde encontrará:</p>
+      <ul class="feature-list">
+        <li>Nombre y correo electrónico de la cuenta.</li>
+        <li>Rol asignado en el sistema.</li>
+        <li>Opción para cambiar contraseña.</li>
+        <li>Botón para cerrar sesión.</li>
+      </ul>
+    </div>
+
+    <h3 id="dash-roles"><span class="h3-icon">🛡️</span> Módulos Visibles según Rol</h3>
+    <p>La visibilidad de módulos está determinada por el rol del usuario:</p>
+    <table class="data-table" id="roles-table">
+      <thead>
+        <tr>
+          <th>Módulo</th>
+          <th><span class="role-badge role-conductor">Conductor</span></th>
+          <th><span class="role-badge role-bodeguero">Bodeguero</span></th>
+          <th><span class="role-badge role-administrativo">Administrativo</span></th>
+          <th><span class="role-badge role-admin">Admin</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Turno</td><td>✔</td><td>—</td><td>—</td><td>✔</td></tr>
+        <tr><td>Mi Ruta</td><td>✔</td><td>—</td><td>—</td><td>✔</td></tr>
+        <tr><td>Gastos en Ruta</td><td>✔</td><td>—</td><td>—</td><td>✔</td></tr>
+        <tr><td>WMS Bodega</td><td>—</td><td>✔</td><td>—</td><td>✔</td></tr>
+        <tr><td>Inventario</td><td>—</td><td>✔</td><td>✔</td><td>✔</td></tr>
+        <tr><td>Finanzas</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
+        <tr><td>CRM</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
+        <tr><td>Analytics</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
+        <tr><td>Panel Admin</td><td>—</td><td>—</td><td>—</td><td>✔</td></tr>
+      </tbody>
+    </table>
+    <!-- Plain text version for PDF -->
+    <div id="roles-text" style="display:none">
+      <div class="card" style="margin-bottom:10px">
+        <h5 style="margin-bottom:8px;font-weight:700">🚛 Conductor</h5>
+        <p>Acceso a: Turno, Mi Ruta, Gastos en Ruta.</p>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <h5 style="margin-bottom:8px;font-weight:700">🏭 Bodeguero</h5>
+        <p>Acceso a: WMS Bodega, Inventario.</p>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <h5 style="margin-bottom:8px;font-weight:700">💼 Administrativo</h5>
+        <p>Acceso a: Inventario, Finanzas, CRM, Analytics.</p>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <h5 style="margin-bottom:8px;font-weight:700">⚙️ Admin</h5>
+        <p>Acceso completo a todos los módulos, incluyendo Panel de Administración.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================
+       6. MÓDULOS POR ROL
+       ======================================== -->
+  <section class="section" id="modulos-rol">
+    <span class="section-number">SECCIÓN 04</span>
+    <h2>Módulos por Rol</h2>
+
+    <!-- ---- CONDUCTOR ---- -->
+    <h3 id="rol-conductor"><span class="h3-icon">🚛</span> Conductor</h3>
+    <p>
+      Los módulos del conductor cubren todo el flujo operativo diario: desde la apertura de turno hasta el cierre, incluyendo entregas, devoluciones y registro de gastos.
+    </p>
+
+    <h4 id="conductor-turno">Turno</h4>
+    <p>El módulo de Turno controla el inicio y fin de la jornada laboral de cada conductor.</p>
+
+    <div class="card card-accent">
+      <h5 style="margin-bottom:12px;font-weight:700">Apertura de Turno</h5>
+      <ol class="steps">
+        <li>Seleccione el <strong>vehículo asignado</strong> de la lista disponible.</li>
+        <li>Ingrese el <strong>kilometraje de inicio</strong> (KM inicio) del vehículo.</li>
+        <li>Confirme la apertura presionando <strong>"Abrir Turno"</strong>.</li>
+      </ol>
+    </div>
+
+    <div class="card card-primary" style="margin-top:16px">
+      <h5 style="margin-bottom:12px;font-weight:700">Checklist Obligatorio (Lunes)</h5>
+      <p>
+        Cada <strong>lunes</strong>, el sistema solicita completar un <strong>checklist de inspección</strong> del vehículo antes de iniciar el turno. Este checklist incluye verificaciones de seguridad, documentación y estado general del vehículo.
+      </p>
+      <div class="warning-box" style="margin-top:12px">
+        <span class="icon">!</span>
+        <div><strong>Obligatorio:</strong> No es posible abrir el turno los lunes sin completar el checklist.</div>
+      </div>
+    </div>
+
+    <div class="card card-accent" style="margin-top:16px">
+      <h5 style="margin-bottom:12px;font-weight:700">Cierre de Turno</h5>
+      <ol class="steps">
+        <li>Ingrese el <strong>kilometraje final</strong> (KM final) del vehículo.</li>
+        <li>Revise el resumen del turno (entregas, devoluciones, gastos).</li>
+        <li>Confirme el cierre presionando <strong>"Cerrar Turno"</strong>.</li>
+      </ol>
+    </div>
+
+    <h4 id="conductor-ruta">Mi Ruta</h4>
+    <p>Módulo central para la gestión de entregas y despachos asignados al conductor.</p>
+
+    <div class="card card-accent">
+      <h5 style="margin-bottom:12px;font-weight:700">Tarjetas de Despacho</h5>
+      <p>
+        Cada despacho se muestra como una <strong>tarjeta individual</strong> con la información del cliente, dirección de entrega y estado actual. Los despachos se organizan en orden de ruta optimizada.
+      </p>
+    </div>
+
+    <div class="card card-primary" style="margin-top:16px">
+      <h5 style="margin-bottom:12px;font-weight:700">Prueba de Entrega (POD)</h5>
+      <p>Al entregar un pedido exitosamente:</p>
+      <ol class="steps">
+        <li>Presione el botón <strong>"Entregar"</strong> en la tarjeta de despacho.</li>
+        <li>Tome una <strong>foto obligatoria</strong> como prueba de entrega (POD).</li>
+        <li>Confirme la entrega. El estado cambiará a <strong>"Entregado"</strong>.</li>
+      </ol>
+      <div class="warning-box" style="margin-top:12px">
+        <span class="icon">!</span>
+        <div><strong>La foto es obligatoria.</strong> No se puede confirmar una entrega sin adjuntar la fotografía de respaldo.</div>
+      </div>
+    </div>
+
+    <div class="card card-accent" style="margin-top:16px">
+      <h5 style="margin-bottom:12px;font-weight:700">Devolución</h5>
+      <p>Si no es posible realizar la entrega, registre una devolución seleccionando uno de los 6 motivos predefinidos:</p>
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Motivo de Devolución</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Cliente ausente / No responde</td></tr>
+          <tr><td>2</td><td>Dirección no encontrada / Incorrecta</td></tr>
+          <tr><td>3</td><td>Rechazado por el cliente</td></tr>
+          <tr><td>4</td><td>Producto dañado</td></tr>
+          <tr><td>5</td><td>Fuera de horario de recepción</td></tr>
+          <tr><td>6</td><td>Zona inaccesible / Problema de acceso</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card card-primary" style="margin-top:16px">
+      <h5 style="margin-bottom:12px;font-weight:700">Navegación GPS</h5>
+      <p>
+        Cada tarjeta de despacho incluye un botón <strong>"Navegar"</strong> que abre la dirección del cliente directamente en <strong>Google Maps</strong> (Android) o <strong>Apple Maps</strong> (iOS) para guiar al conductor hasta el punto de entrega.
+      </p>
+    </div>
+
+    <div class="card card-accent" style="margin-top:16px">
+      <h5 style="margin-bottom:12px;font-weight:700">Agregar Clientes con GPS</h5>
+      <p>
+        Los conductores pueden agregar nuevos clientes directamente desde la ruta. El sistema captura automáticamente las <strong>coordenadas GPS</strong> del dispositivo para registrar la ubicación exacta del nuevo cliente.
+      </p>
+    </div>
+
+    <h4 id="conductor-gastos">Gastos en Ruta</h4>
+    <p>Módulo para registrar los gastos operativos incurridos durante el turno.</p>
+
+    <div class="card card-accent">
+      <h5 style="margin-bottom:12px;font-weight:700">Tipos de Gasto</h5>
+      <table class="data-table">
+        <thead><tr><th>Tipo</th><th>Descripción</th><th>Requisito</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Combustible</strong></td>
+            <td>Registro de cargas de combustible con monto.</td>
+            <td>Foto de boleta obligatoria</td>
+          </tr>
+          <tr>
+            <td><strong>Peaje</strong></td>
+            <td>Registro de pagos de peaje en ruta.</td>
+            <td>Foto de boleta obligatoria</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="info-box" style="margin-top:16px">
+      <span class="icon">i</span>
+      <div>
+        <strong>Historial por turno:</strong> Todos los gastos registrados quedan asociados al turno activo y pueden consultarse en el historial de gastos del turno correspondiente.
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ---- BODEGUERO ---- -->
+    <h3 id="rol-bodeguero"><span class="h3-icon">📦</span> Bodeguero</h3>
+    <p>
+      Los módulos del bodeguero están orientados al control total del inventario y las operaciones de bodega.
+    </p>
+
+    <h4 id="bodeguero-wms">WMS Bodega</h4>
+    <p>
+      El módulo WMS presenta <strong>5 pestañas</strong> funcionales para gestionar todas las operaciones de bodega:
+    </p>
+
+    <div class="mod-grid">
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(244,67,54,.12);color:#ef5350">↩</div>
+        <h5>1. Logística Inversa</h5>
+        <p>Gestión de productos devueltos. Recepción, inspección y reingreso al inventario o descarte de mercadería retornada por conductores.</p>
+      </div>
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(0,150,136,.12);color:#26a69a">▦</div>
+        <h5>2. Escaneo Barcode</h5>
+        <p>Escáner de códigos de barras integrado usando la cámara del dispositivo. Permite identificar productos rápidamente para cualquier operación.</p>
+      </div>
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(33,150,243,.12);color:#42a5f5">⇄</div>
+        <h5>3. Movimientos</h5>
+        <p>Registro y consulta de todos los movimientos de stock: transferencias entre ubicaciones, ajustes y reclasificaciones.</p>
+      </div>
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(76,175,80,.12);color:#66bb6a">↓</div>
+        <h5>4. Ingreso</h5>
+        <p>Registro de mercadería entrante. Recepción de productos con verificación de cantidades y estado.</p>
+      </div>
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(255,152,0,.12);color:#ffa726">↑</div>
+        <h5>5. Salida</h5>
+        <p>Registro de mercadería saliente. Preparación y despacho de pedidos con control de cantidades.</p>
+      </div>
+    </div>
+
+    <h4 id="bodeguero-inventario">Inventario</h4>
+    <div class="card card-accent">
+      <p>Gestión completa del catálogo de productos y control de existencias:</p>
+      <ul class="feature-list">
+        <li><strong>Gestión de productos:</strong> Alta, edición y baja de productos con detalles como SKU, nombre, categoría, unidad y stock mínimo.</li>
+        <li><strong>Importar desde Excel:</strong> Cargue masiva de productos mediante archivos Excel (.xlsx), ideal para migraciones y actualizaciones de catálogo.</li>
+        <li><strong>Exportar a Excel:</strong> Descargue el inventario completo en formato Excel para análisis externo o respaldo.</li>
+        <li><strong>Alertas de bajo stock:</strong> El sistema genera notificaciones automáticas cuando un producto alcanza o baja del <em>stock mínimo</em> configurado.</li>
+      </ul>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ---- ADMINISTRATIVO / ADMIN ---- -->
+    <h3 id="rol-admin"><span class="h3-icon">⚙️</span> Administrativo / Admin</h3>
+    <p>
+      Los roles Administrativo y Admin tienen acceso a los módulos de gestión estratégica, finanzas, relaciones comerciales y analítica. El rol Admin posee funcionalidades adicionales de administración del sistema.
+    </p>
+
+    <h4 id="admin-finanzas">Finanzas</h4>
+    <div class="card card-accent">
+      <h5 style="margin-bottom:12px;font-weight:700">Centro de Costos</h5>
+      <p>Visualización y gestión de los centros de costo de la operación. Permite categorizar y controlar los gastos por área, proyecto o cliente.</p>
+    </div>
+
+    <div class="card card-primary" style="margin-top:16px">
+      <h5 style="margin-bottom:12px;font-weight:700">Pre-Facturas SII</h5>
+      <p>
+        Generación de pre-facturas compatibles con el <strong>Servicio de Impuestos Internos (SII)</strong> de Chile. El sistema estructura los documentos según la normativa vigente para facilitar la emisión de Documentos Tributarios Electrónicos (DTE).
+      </p>
+    </div>
+
+    <div class="card card-accent" style="margin-top:16px">
+      <h5 style="margin-bottom:12px;font-weight:700">Exportar a Excel</h5>
+      <p>Descargue reportes detallados en formato Excel desde el módulo de Finanzas:</p>
+      <table class="data-table">
+        <thead><tr><th>Reporte</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Consolidado</strong></td><td>Resumen integral de la operación financiera del período seleccionado.</td></tr>
+          <tr><td><strong>Gastos</strong></td><td>Detalle de todos los gastos registrados (combustible, peajes, etc.) con respaldo fotográfico.</td></tr>
+          <tr><td><strong>Bodega</strong></td><td>Reporte de movimientos y valorización de inventario.</td></tr>
+          <tr><td><strong>Facturas</strong></td><td>Listado de pre-facturas generadas con detalle tributario.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4 id="admin-crm">CRM — Gestión de Clientes</h4>
+    <div class="card card-accent">
+      <ul class="feature-list">
+        <li><strong>Directorio de clientes y proveedores:</strong> Base de datos centralizada con información de contacto, dirección, RUT y categoría.</li>
+        <li><strong>Gestión de contactos:</strong> Múltiples contactos por empresa con cargo, teléfono y correo electrónico.</li>
+        <li><strong>Tarifas personalizadas:</strong> Configuración de tarifas por cliente para distintos servicios logísticos.</li>
+        <li><strong>Navegación GPS:</strong> Botón de navegación directa a la ubicación del cliente/proveedor desde la ficha de contacto.</li>
+      </ul>
+    </div>
+
+    <h4 id="admin-analytics">Analytics — Analítica y KPIs</h4>
+    <div class="card card-primary">
+      <h5 style="margin-bottom:12px;font-weight:700">KPIs OTIF</h5>
+      <p>
+        Indicador clave <strong>On-Time In-Full (OTIF)</strong>: mide el porcentaje de entregas realizadas a tiempo y completas. El dashboard de Analytics muestra este KPI de forma prominente con tendencia histórica.
+      </p>
+    </div>
+
+    <div class="card card-accent" style="margin-top:16px">
+      <h5 style="margin-bottom:12px;font-weight:700">Gráficos y Reportes Visuales</h5>
+      <ul class="feature-list">
+        <li><strong>Entregas:</strong> Gráfico de entregas realizadas por período (día, semana, mes).</li>
+        <li><strong>Devoluciones:</strong> Análisis de devoluciones por motivo, conductor y zona.</li>
+        <li><strong>Gastos:</strong> Desglose de gastos operativos por categoría y tendencia temporal.</li>
+        <li><strong>Rankings:</strong> Clasificación de desempeño por conductor, ruta y cliente basada en métricas de eficiencia.</li>
+      </ul>
+    </div>
+
+    <h4 id="admin-panel">Panel de Administración <span class="role-badge role-admin" style="font-size:.7rem;vertical-align:middle">Solo Admin</span></h4>
+    <div class="card card-accent">
+      <p>El panel de administración está disponible exclusivamente para usuarios con rol <strong>Admin</strong> y proporciona control total del sistema:</p>
+      <ul class="feature-list">
+        <li><strong>Dashboard Ejecutivo:</strong> Vista consolidada de métricas clave del negocio, indicadores operacionales y alertas del sistema en tiempo real.</li>
+        <li><strong>Gestión de Usuarios:</strong> Crear, editar, desactivar cuentas de usuario. Asignar y modificar roles. Consultar historial de actividad.</li>
+        <li><strong>Gestión de Checklists:</strong> Crear y editar los formularios de checklist de inspección vehicular. Definir ítems obligatorios y opcionales.</li>
+        <li><strong>Gestión de Viajes:</strong> Crear, asignar y monitorear viajes y rutas. Asignar despachos a conductores y definir secuencias de entrega.</li>
+        <li><strong>Notificaciones:</strong> Configurar y enviar notificaciones a usuarios del sistema. Gestionar alertas automáticas (bajo stock, turno sin cerrar, etc.).</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ========================================
+       7. SOPORTE
+       ======================================== -->
+  <section class="section" id="soporte">
+    <span class="section-number">SECCIÓN 05</span>
+    <h2>Soporte y Preguntas Frecuentes</h2>
+
+    <h3><span class="h3-icon">📞</span> Contacto de Soporte</h3>
+    <div class="card card-accent">
+      <p>Para soporte técnico o consultas sobre el sistema, contacte al administrador de su organización o al equipo SILOG:</p>
+      <table class="data-table" style="margin-top:12px">
+        <tbody>
+          <tr><td style="width:140px;font-weight:600">Canal</td><td>Contacte al usuario con rol <strong>Admin</strong> de su empresa.</td></tr>
+          <tr><td style="font-weight:600">Plataforma</td><td><a href="https://silog-opl-681dc.web.app" target="_blank">https://silog-opl-681dc.web.app</a></td></tr>
+          <tr><td style="font-weight:600">Horario</td><td>Lunes a viernes, 08:00 – 18:00 hrs (Chile Continental)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:48px"><span class="h3-icon">❓</span> Preguntas Frecuentes</h3>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        ¿Cómo instalo SILOG en mi celular?
+      </div>
+      <div class="faq-a">
+        Abra la URL <strong>https://silog-opl-681dc.web.app</strong> en el navegador de su dispositivo. En <strong>Android</strong> (Chrome), toque el menú de tres puntos y seleccione <em>"Agregar a pantalla de inicio"</em>. En <strong>iOS</strong> (Safari), toque el ícono de compartir y seleccione <em>"Agregar a pantalla de inicio"</em>. La aplicación se instalará como un ícono en su pantalla.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        ¿Qué hago si olvidé mi contraseña?
+      </div>
+      <div class="faq-a">
+        En la pantalla de inicio de sesión, presione el enlace <strong>"¿Olvidaste tu contraseña?"</strong>. Ingrese su correo electrónico y recibirá instrucciones para restablecerla. Si no recibe el correo, revise su carpeta de spam o contacte al administrador.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        ¿Por qué no veo todos los módulos en el Dashboard?
+      </div>
+      <div class="faq-a">
+        La visibilidad de módulos depende de su <strong>rol asignado</strong>. Cada rol tiene acceso solo a los módulos relevantes para su función. Consulte la tabla de permisos en la sección <a href="#dash-roles">Dashboard → Módulos según rol</a>. Si necesita acceso adicional, contacte al administrador.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        ¿Es obligatorio tomar foto en cada entrega?
+      </div>
+      <div class="faq-a">
+        <strong>Sí.</strong> La foto de prueba de entrega (POD) es obligatoria para confirmar cada despacho. Esto garantiza la trazabilidad y respaldo documental de la operación. El sistema no permitirá confirmar una entrega sin foto adjunta.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        ¿Puedo usar SILOG sin conexión a internet?
+      </div>
+      <div class="faq-a">
+        SILOG requiere conexión a internet para funcionar correctamente, ya que sincroniza datos en tiempo real con el servidor. Se recomienda mantener una conexión estable (WiFi o datos móviles) durante el uso de la plataforma.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        ¿Cómo exporto reportes a Excel?
+      </div>
+      <div class="faq-a">
+        Acceda al módulo de <strong>Finanzas</strong> (disponible para roles Administrativo y Admin). Encontrará botones de exportación para cada tipo de reporte: Consolidado, Gastos, Bodega y Facturas. Seleccione el período deseado y presione el botón de descarga Excel.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        ¿Qué es el checklist de los lunes?
+      </div>
+      <div class="faq-a">
+        Cada lunes, antes de abrir el turno, los conductores deben completar un <strong>checklist de inspección vehicular</strong>. Este formulario verifica el estado del vehículo (luces, neumáticos, documentos, etc.) y es un requisito obligatorio para garantizar la seguridad operacional.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        ¿Cómo cambio mi rol en el sistema?
+      </div>
+      <div class="faq-a">
+        Los usuarios no pueden cambiar su propio rol. Solo un usuario con rol <strong>Admin</strong> puede modificar los roles desde el <em>Panel de Administración → Gestión de Usuarios</em>. Contacte a su administrador para solicitar un cambio de rol.
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================
+       FOOTER
+       ======================================== -->
+  <footer class="manual-footer">
+    <p><strong>SILOG SpA</strong> — Manual de Usuario v1.0</p>
+    <p style="margin-top:4px">© 2026 SILOG SpA. Todos los derechos reservados.</p>
+    <p style="margin-top:4px;font-size:.8rem;color:var(--text-muted)">
+      Documento generado el 20 de mayo de 2026. Uso exclusivo interno.
+    </p>
+  </footer>
+
+</div><!-- /.page-wrap -->
+
+<script>
+function downloadPDF(){
+  const el=document.querySelector('.page-wrap');
+  const btns=document.querySelectorAll('.print-btn');
+  btns.forEach(b=>b.style.display='none');
+
+  // Apply light theme for PDF
+  document.body.classList.add('pdf-mode');
+  // Open all FAQs
+  document.querySelectorAll('.faq-item').forEach(f=>f.classList.add('open'));
+  // Swap table for text
+  const tbl=document.getElementById('roles-table');
+  const txt=document.getElementById('roles-text');
+  if(tbl)tbl.style.display='none';
+  if(txt)txt.style.display='block';
+
+  const opt={
+    margin:[14,14,14,14],
+    filename:'SILOG_SpA_Manual_Usuario_v1.0.pdf',
+    image:{type:'jpeg',quality:0.98},
+    html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},
+    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+    pagebreak:{mode:['avoid-all','css'],avoid:['h3','h4','h5','.card','.mod-card','.info-box','.warning-box','.faq-item']}
+  };
+  html2pdf().set(opt).from(el).save().then(()=>{
+    document.body.classList.remove('pdf-mode');
+    if(tbl)tbl.style.display='';
+    if(txt)txt.style.display='none';
+    btns.forEach(b=>b.style.display='flex');
+  });
+}
+// FAQ toggle
+document.querySelectorAll('.faq-q').forEach(q=>{
+  q.addEventListener('click',()=>q.parentElement.classList.toggle('open'));
+});
+</script>
+
+<style>
+/* ========================================
+   PDF MODE — Executive Report Style
+   ======================================== */
+body.pdf-mode{background:#fff!important}
+body.pdf-mode .page-wrap{background:#fff!important}
+body.pdf-mode, body.pdf-mode p, body.pdf-mode li, body.pdf-mode td, body.pdf-mode span, body.pdf-mode div{color:#222!important}
+body.pdf-mode strong{color:#111!important}
+
+/* Cover */
+body.pdf-mode .cover{background:#fff!important;min-height:auto!important;padding:80px 20px 60px!important}
+body.pdf-mode .cover::before{display:none!important}
+body.pdf-mode .cover h1{color:#111!important;font-size:2.4rem!important}
+body.pdf-mode .cover .subtitle{color:#E65100!important}
+body.pdf-mode .cover-meta{border-color:#ccc!important}
+body.pdf-mode .cover-meta span, body.pdf-mode .cover-meta strong{color:#555!important}
+body.pdf-mode .cover-logo{background:#E65100!important;color:#fff!important}
+
+/* Section headers */
+body.pdf-mode .section h2{color:#111!important;border-bottom:2px solid #333!important;font-size:1.6rem!important}
+body.pdf-mode .section h3{color:#E65100!important}
+body.pdf-mode .section h3 .h3-icon{background:rgba(230,81,0,.08)!important}
+body.pdf-mode .section h4{color:#111!important;border-left:3px solid #E65100!important}
+body.pdf-mode .section-number{background:#E65100!important;color:#fff!important}
+
+/* Cards */
+body.pdf-mode .card, body.pdf-mode .mod-card, body.pdf-mode .toc{background:#fafafa!important;border:1px solid #ccc!important}
+body.pdf-mode .card-accent{border-left:4px solid #E65100!important}
+body.pdf-mode .card-primary{border-left:4px solid #1B4B9B!important}
+body.pdf-mode .card h5{color:#111!important}
+
+/* Info/Warning boxes */
+body.pdf-mode .info-box{background:#f0f5fa!important;border:1px solid #b0c4de!important}
+body.pdf-mode .info-box .icon{background:#1B4B9B!important;color:#fff!important}
+body.pdf-mode .warning-box{background:#fff8f0!important;border:1px solid #e0a060!important}
+body.pdf-mode .warning-box .icon{background:#E65100!important;color:#fff!important}
+
+/* Steps — NO circle, plain bold number */
+body.pdf-mode .steps li::before{
+  background:transparent!important;
+  color:#E65100!important;
+  font-size:1rem!important;
+  font-weight:800!important;
+  width:auto!important;
+  height:auto!important;
+  border-radius:0!important;
+  min-width:20px!important;
+}
+body.pdf-mode .steps li{
+  border-bottom:1px solid #333!important;
+  padding:10px 0!important;
+}
+body.pdf-mode .steps li:last-child{border-bottom:none!important}
+
+/* Feature lists */
+body.pdf-mode .feature-list li::before{color:#E65100!important}
+body.pdf-mode .feature-list li{border-bottom:1px solid #ddd!important}
+
+/* Tables */
+body.pdf-mode .data-table th{background:#eee!important;color:#333!important;border-bottom:2px solid #999!important}
+body.pdf-mode .data-table td{border-bottom:1px solid #ccc!important;color:#222!important}
+
+/* TOC */
+body.pdf-mode .toc-list>li>a{color:#111!important;border-bottom:1px solid #ddd!important}
+body.pdf-mode .toc-list>li>a::before{background:#fff0e0!important;color:#E65100!important}
+body.pdf-mode .toc-sub li a{color:#555!important}
+
+/* Role badges */
+body.pdf-mode .role-badge{border:1px solid #aaa!important}
+body.pdf-mode .role-conductor{background:#e8f5e9!important;color:#1b5e20!important}
+body.pdf-mode .role-bodeguero{background:#e3f2fd!important;color:#0d47a1!important}
+body.pdf-mode .role-admin{background:#fff3e0!important;color:#bf360c!important}
+body.pdf-mode .role-administrativo{background:#f3e5f5!important;color:#4a148c!important}
+
+/* Module cards */
+body.pdf-mode .mod-card .mod-icon{border:1px solid #ccc!important}
+body.pdf-mode .mod-card h5{color:#111!important}
+body.pdf-mode .mod-card p{color:#444!important}
+
+/* FAQ */
+body.pdf-mode .faq-item{background:#fafafa!important;border:1px solid #ccc!important}
+body.pdf-mode .faq-q{color:#111!important}
+body.pdf-mode .faq-q::after{display:none!important}
+body.pdf-mode .faq-a{color:#444!important;display:block!important}
+
+/* Footer & Divider */
+body.pdf-mode .manual-footer{border-top:1px solid #ccc!important}
+body.pdf-mode .manual-footer p{color:#777!important}
+body.pdf-mode .divider{background:#ccc!important;height:1px!important}
+
+/* Links */
+body.pdf-mode a{color:#E65100!important}
+
+/* ===== PAGE BREAK CONTROL ===== */
+/* Keep titles glued to their content */
+body.pdf-mode h2, body.pdf-mode h3, body.pdf-mode h4, body.pdf-mode h5{
+  page-break-after:avoid!important;
+  break-after:avoid!important;
+  margin-top:20px!important;
+}
+/* Never break inside these */
+body.pdf-mode .card,
+body.pdf-mode .mod-card,
+body.pdf-mode .info-box,
+body.pdf-mode .warning-box,
+body.pdf-mode .faq-item,
+body.pdf-mode .steps,
+body.pdf-mode .data-table{
+  page-break-inside:avoid!important;
+  break-inside:avoid!important;
+}
+body.pdf-mode .steps li{
+  page-break-inside:avoid!important;
+  break-inside:avoid!important;
+}
+/* Major section breaks */
+body.pdf-mode .cover{page-break-after:always!important}
+body.pdf-mode .section{page-break-before:always!important}
+/* Module grid to single column */
+body.pdf-mode .mod-grid{display:block!important}
+body.pdf-mode .mod-card{margin-bottom:10px!important;display:block!important}
+/* Keep recuperar contraseña together */
+body.pdf-mode #acceso-recuperar,
+body.pdf-mode #acceso-cambiar{
+  page-break-before:avoid!important;
+  break-before:avoid!important;
+}
+</style>
+</body>
+</html>

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · CRM</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:6px}.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif}
+.main{max-width:900px;margin:0 auto;padding:16px 16px 100px}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;text-align:center;position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat-blue::before{background:linear-gradient(90deg,var(--primary),#60A5FA)}
+.stat-orange::before{background:linear-gradient(90deg,var(--accent),#f97316)}
+.stat-green::before{background:linear-gradient(90deg,var(--success),#34D399)}
+.stat .s-val{font-size:1.5rem;font-weight:800}.stat .s-lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:600;margin-top:2px}
+
+/* Search bar */
+.toolbar{display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+.search-wrap{flex:1;min-width:200px;position:relative}
+.search-wrap input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px 10px 36px;color:var(--text);font-size:.88rem;font-family:'Inter',sans-serif;outline:none}
+.search-wrap input:focus{border-color:var(--primary)}
+.search-wrap::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:.8rem}
+.filter-btn{padding:8px 14px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:600;font-family:'Inter',sans-serif}
+.filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-add{padding:8px 16px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap}
+
+/* Client cards */
+.client-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;transition:.2s;cursor:pointer}
+.client-card:hover{border-color:var(--primary);transform:translateY(-1px)}
+.cc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.cc-name{font-weight:700;font-size:.95rem}
+.cc-type{font-size:.65rem;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+.type-cliente{background:rgba(16,185,129,.15);color:var(--success)}
+.type-proveedor{background:rgba(37,99,235,.15);color:#60A5FA}
+.cc-rut{font-size:.78rem;color:var(--text2)}
+.cc-info{display:flex;gap:12px;font-size:.78rem;color:var(--text2);margin-top:6px;flex-wrap:wrap}
+.cc-info span{display:flex;align-items:center;gap:3px}
+.cc-tags{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+.cc-tag{background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:6px;font-size:.68rem;color:var(--text2)}
+.cc-actions{display:flex;gap:6px;margin-top:10px}
+.cc-btn{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.75rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:.2s;display:flex;align-items:center;gap:4px}
+.cc-btn:hover{border-color:var(--primary)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(6,13,31,.88);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:95%;max-width:560px;max-height:90vh;overflow-y:auto;padding:24px 20px 28px}
+.modal-title{font-size:1rem;font-weight:800;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;color:var(--text2);font-size:1.2rem;cursor:pointer;padding:4px 8px}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:.72rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600}
+.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-size:.9rem;font-family:'Inter',sans-serif;outline:none}
+.field:focus{border-color:var(--primary)}
+select.field{appearance:auto;cursor:pointer}
+textarea.field{resize:vertical;min-height:60px}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-save{width:100%;padding:13px;background:linear-gradient(135deg,var(--primary),#2563EB);border:none;border-radius:12px;color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif}
+
+/* Contactos inline */
+.contacto-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.contacto-row input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:.82rem;font-family:'Inter',sans-serif;outline:none}
+.btn-add-contact{background:none;border:1px dashed var(--border);color:var(--accent);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif;width:100%}
+
+/* Tarifas */
+.tarifa-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.tarifa-row input,.tarifa-row select{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:.82rem;font-family:'Inter',sans-serif;outline:none}
+
+.empty{text-align:center;padding:40px;color:var(--text2);font-size:.85rem}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> CRM</div>
+  <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+</nav>
+
+<div class="main">
+  <div class="stats-row">
+    <div class="stat stat-green"><div class="s-val" id="cnt-clients">0</div><div class="s-lbl">Clientes</div></div>
+    <div class="stat stat-blue"><div class="s-val" id="cnt-providers">0</div><div class="s-lbl">Proveedores</div></div>
+    <div class="stat stat-orange"><div class="s-val" id="cnt-total">0</div><div class="s-lbl">Total Contactos</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-wrap"><input type="text" id="search" placeholder="Buscar por nombre, RUT, contacto…" oninput="filterList()"/></div>
+    <button class="filter-btn active" data-f="all" onclick="setFilter('all',this)">Todos</button>
+    <button class="filter-btn" data-f="cliente" onclick="setFilter('cliente',this)">Clientes</button>
+    <button class="filter-btn" data-f="proveedor" onclick="setFilter('proveedor',this)">Proveedores</button>
+    <button class="btn-add" onclick="openModal()">+ Nuevo</button>
+  </div>
+
+  <div id="client-list"></div>
+  <div id="client-empty" class="empty" style="display:none"><div style="font-size:2.5rem;margin-bottom:8px">👥</div>Sin registros</div>
+</div>
+
+<!-- MODAL: Add/Edit -->
+<div class="modal-overlay" id="modal-crm">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">👥 Nuevo Registro <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <input type="hidden" id="edit-id"/>
+    <div class="row-2">
+      <div class="form-group"><label>Tipo</label>
+        <select class="field" id="f-tipo"><option value="cliente">Cliente</option><option value="proveedor">Proveedor</option></select>
+      </div>
+      <div class="form-group"><label>RUT</label><input class="field" type="text" id="f-rut" placeholder="76.XXX.XXX-X"/></div>
+    </div>
+    <div class="form-group"><label>Empresa / Nombre</label><input class="field" type="text" id="f-empresa" placeholder="Nombre de la empresa"/></div>
+    <div class="form-group"><label>Razón Social</label><input class="field" type="text" id="f-razon" placeholder="Razón social según SII"/></div>
+    <div class="form-group"><label>Giro</label><input class="field" type="text" id="f-giro" placeholder="Ej: Comercio al por mayor"/></div>
+    <div class="form-group"><label>Dirección</label><input class="field" type="text" id="f-dir" placeholder="Calle, número, comuna"/></div>
+
+    <div class="form-group">
+      <label>Ubicación GPS</label>
+      <button type="button" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:10px 14px;border-radius:8px;font-size:.82rem;cursor:pointer;font-family:'Inter',sans-serif" onclick="capturarUbicacion()">📍 Capturar mi ubicación actual</button>
+    </div>
+    <div id="crm-map-container" style="display:none;margin-bottom:12px">
+      <div id="crm-map" style="height:200px;border-radius:12px;border:1px solid var(--border);overflow:hidden"></div>
+      <p style="font-size:.7rem;color:var(--text2);margin-top:4px;text-align:center">📌 Arrastra el pin para ajustar la ubicación exacta</p>
+      <div style="font-size:.72rem;color:var(--text2);text-align:center;margin-top:2px" id="crm-coords"></div>
+    </div>
+
+    <div class="row-2">
+      <div class="form-group"><label>Teléfono</label><input class="field" type="tel" id="f-tel" placeholder="+56 2 XXXX XXXX"/></div>
+      <div class="form-group"><label>Email</label><input class="field" type="email" id="f-email" placeholder="contacto@empresa.cl"/></div>
+    </div>
+
+    <p style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px">Contactos</p>
+    <div id="f-contactos"></div>
+    <button class="btn-add-contact" onclick="addContactRow()">+ Agregar contacto</button>
+
+    <p style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px">Tarifas Vigentes</p>
+    <div id="f-tarifas"></div>
+    <button class="btn-add-contact" onclick="addTarifaRow()">+ Agregar tarifa</button>
+
+    <div class="form-group" style="margin-top:14px"><label>SLA / Condiciones</label><input class="field" type="text" id="f-sla" placeholder="Ej: Pago a 30 días"/></div>
+    <div class="form-group"><label>Notas</label><textarea class="field" id="f-notas" placeholder="Observaciones…"></textarea></div>
+
+    <button class="btn-save" onclick="guardar()" style="margin-top:8px">💾 Guardar</button>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let _uid='',_all=[],_filter='all',_editingId=null;
+let _crmMap=null,_crmMarker=null,_crmLat=null,_crmLng=null;
+
+requireAdmin(async(user,data)=>{
+  _uid=user.uid;
+  await loadAll();
+});
+
+function setFilter(f,el){
+  _filter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  filterList();
+}
+
+async function loadAll(){
+  try{
+    const s=await db.collection('clientes').get();
+    _all=[];s.forEach(d=>{_all.push({id:d.id,...d.data()});});
+    _all.sort((a,b)=>(a.nombre||a.empresa||'').localeCompare(b.nombre||b.empresa||''));
+    filterList();
+    // Stats
+    const clients=_all.filter(c=>(c.tipo||'cliente')==='cliente').length;
+    const provs=_all.filter(c=>c.tipo==='proveedor').length;
+    document.getElementById('cnt-clients').textContent=clients;
+    document.getElementById('cnt-providers').textContent=provs;
+    document.getElementById('cnt-total').textContent=_all.length;
+  }catch(e){console.warn(e);}
+}
+
+function filterList(){
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  let filtered=_all;
+  if(_filter!=='all')filtered=filtered.filter(c=>(c.tipo||'cliente')===_filter);
+  if(q)filtered=filtered.filter(c=>
+    (c.nombre||'').toLowerCase().includes(q)||
+    (c.empresa||'').toLowerCase().includes(q)||
+    (c.razon_social||'').toLowerCase().includes(q)||
+    (c.rut||'').toLowerCase().includes(q)||
+    (c.contacto||'').includes(q)||
+    (c.email||'').toLowerCase().includes(q)
+  );
+  renderList(filtered);
+}
+
+function renderList(items){
+  const list=document.getElementById('client-list');
+  const empty=document.getElementById('client-empty');
+  if(!items.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  list.innerHTML=items.map(c=>{
+    const tipo=c.tipo||'cliente';
+    const name=sanitize(c.nombre||c.empresa||'—');
+    const rut=sanitize(c.rut||'');
+    const dir=sanitize(c.direccion||'');
+    const tel=c.contacto||c.telefono||'';
+    const email=c.email||'';
+    const contactos=c.contactos||[];
+    const tarifas=c.tarifas_vigentes||[];
+
+    return`<div class="client-card">
+      <div class="cc-top">
+        <div class="cc-name">${name}</div>
+        <div class="cc-type ${tipo==='proveedor'?'type-proveedor':'type-cliente'}">${tipo}</div>
+      </div>
+      ${rut?`<div class="cc-rut">RUT: ${rut}</div>`:''}
+      <div class="cc-info">
+        ${dir?`<span>📍 ${dir}</span>`:''}
+        ${tel?`<span>📞 ${tel}</span>`:''}
+        ${email?`<span>📧 ${email}</span>`:''}
+      </div>
+      ${contactos.length?`<div class="cc-tags">${contactos.map(ct=>`<span class="cc-tag">👤 ${sanitize(ct.nombre||'')} ${ct.cargo?'· '+sanitize(ct.cargo):''}</span>`).join('')}</div>`:''}
+      ${tarifas.length?`<div class="cc-tags">${tarifas.map(t=>`<span class="cc-tag">💲 ${sanitize(t.servicio||'')}: $${(t.monto||0).toLocaleString('es-CL')}</span>`).join('')}</div>`:''}
+      ${c.sla?`<div style="font-size:.72rem;color:var(--text2);margin-top:4px">📋 ${sanitize(c.sla)}</div>`:''}
+      <div class="cc-actions">
+        <button class="cc-btn" onclick="event.stopPropagation();editItem('${c.id}')">✏️ Editar</button>
+        <button class="cc-btn cd-btn-map" style="border-color:rgba(37,99,235,.3);color:#60A5FA" onclick="event.stopPropagation();navegarCliente('${c.id}')">🗺️ Navegar</button>
+        ${tel?`<button class="cc-btn" onclick="event.stopPropagation();window.open('tel:${tel}')">📞 Llamar</button>`:''}
+        ${email?`<button class="cc-btn" onclick="event.stopPropagation();window.open('mailto:${email}')">📧 Email</button>`:''}
+        <button class="cc-btn" style="border-color:rgba(239,68,68,.3);color:var(--danger)" onclick="event.stopPropagation();eliminar('${c.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openModal(){
+  _editingId=null;
+  document.getElementById('modal-title').firstChild.textContent='👥 Nuevo Registro ';
+  document.getElementById('edit-id').value='';
+  ['f-tipo','f-rut','f-empresa','f-razon','f-giro','f-dir','f-tel','f-email','f-sla','f-notas'].forEach(id=>{
+    const el=document.getElementById(id);if(el.tagName==='SELECT')el.selectedIndex=0;else el.value='';
+  });
+  document.getElementById('f-contactos').innerHTML='';
+  document.getElementById('f-tarifas').innerHTML='';
+  _crmLat=null;_crmLng=null;
+  document.getElementById('crm-map-container').style.display='none';
+  document.getElementById('crm-coords').textContent='';
+  document.getElementById('modal-crm').classList.add('open');
+}
+
+function editItem(id){
+  const c=_all.find(x=>x.id===id);if(!c)return;
+  _editingId=id;
+  document.getElementById('modal-title').firstChild.textContent='✏️ Editar Registro ';
+  document.getElementById('f-tipo').value=c.tipo||'cliente';
+  document.getElementById('f-rut').value=c.rut||'';
+  document.getElementById('f-empresa').value=c.nombre||c.empresa||'';
+  document.getElementById('f-razon').value=c.razon_social||'';
+  document.getElementById('f-giro').value=c.giro||'';
+  document.getElementById('f-dir').value=c.direccion||'';
+  document.getElementById('f-tel').value=c.contacto||c.telefono||'';
+  document.getElementById('f-email').value=c.email||'';
+  document.getElementById('f-sla').value=c.sla||'';
+  document.getElementById('f-notas').value=c.notas||'';
+  // Contactos
+  document.getElementById('f-contactos').innerHTML='';
+  (c.contactos||[]).forEach(ct=>addContactRow(ct.nombre,ct.cargo,ct.telefono,ct.email));
+  // Tarifas
+  document.getElementById('f-tarifas').innerHTML='';
+  (c.tarifas_vigentes||[]).forEach(t=>addTarifaRow(t.servicio,t.monto));
+  // Map
+  _crmLat=null;_crmLng=null;
+  if(c.coords){_crmLat=c.coords.latitude||c.coords._latitude;_crmLng=c.coords.longitude||c.coords._longitude;}
+  else if(c.maps_url){const m=c.maps_url.match(/q=([\-0-9.]+),([\-0-9.]+)/);if(m){_crmLat=parseFloat(m[1]);_crmLng=parseFloat(m[2]);}}
+  if(_crmLat&&_crmLng){
+    showMapAt(_crmLat,_crmLng);
+  }else{
+    document.getElementById('crm-map-container').style.display='none';
+  }
+  document.getElementById('modal-crm').classList.add('open');
+}
+
+function closeModal(){document.getElementById('modal-crm').classList.remove('open');_editingId=null;if(_crmMap){_crmMap.remove();_crmMap=null;}}
+
+function capturarUbicacion(){
+  if(!navigator.geolocation){showToast('Geolocalización no disponible','error');return;}
+  showToast('📍 Obteniendo ubicación…','info');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    _crmLat=pos.coords.latitude;_crmLng=pos.coords.longitude;
+    showToast('📍 Ubicación capturada','success');
+    showMapAt(_crmLat,_crmLng);
+  },err=>showToast('Error GPS: '+err.message,'error'),{enableHighAccuracy:true,timeout:10000});
+}
+
+function showMapAt(lat,lng){
+  const container=document.getElementById('crm-map-container');
+  container.style.display='block';
+  document.getElementById('crm-coords').textContent=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  if(_crmMap){_crmMap.remove();_crmMap=null;}
+  setTimeout(()=>{
+    _crmMap=L.map('crm-map').setView([lat,lng],16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(_crmMap);
+    _crmMarker=L.marker([lat,lng],{draggable:true}).addTo(_crmMap);
+    _crmMarker.on('dragend',function(e){
+      const p=e.target.getLatLng();
+      _crmLat=p.lat;_crmLng=p.lng;
+      document.getElementById('crm-coords').textContent=`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
+    });
+  },150);
+}
+
+function navegarCliente(id){
+  const c=_all.find(x=>x.id===id);if(!c)return;
+  let lat=null,lng=null;
+  if(c.coords){lat=c.coords.latitude||c.coords._latitude;lng=c.coords.longitude||c.coords._longitude;}
+  else if(c.maps_url){const m=c.maps_url.match(/q=([\-0-9.]+),([\-0-9.]+)/);if(m){lat=parseFloat(m[1]);lng=parseFloat(m[2]);}}
+  const ua=navigator.userAgent||'';
+  const isIOS=/iPad|iPhone|iPod/.test(ua);
+  const isAndroid=/Android/.test(ua);
+  if(lat&&lng){
+    if(isIOS) window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`,'_blank');
+    else if(isAndroid){window.open(`google.navigation:q=${lat},${lng}`,'_blank');setTimeout(()=>window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`,'_blank'),500);}
+    else window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`,'_blank');
+  }else if(c.direccion){
+    if(isIOS) window.open(`maps://maps.apple.com/?daddr=${encodeURIComponent(c.direccion)}&dirflg=d`,'_blank');
+    else window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(c.direccion)}&travelmode=driving`,'_blank');
+  }else{
+    showToast('Sin ubicación. Edita el cliente para agregar GPS.','error');
+  }
+}
+
+function addContactRow(nom='',cargo='',tel='',email=''){
+  const div=document.getElementById('f-contactos');
+  const row=document.createElement('div');row.className='contacto-row';
+  row.innerHTML=`<input class="ct-nom" placeholder="Nombre" value="${nom}"/><input class="ct-cargo" placeholder="Cargo" value="${cargo}"/><input class="ct-tel" placeholder="Teléfono" value="${tel}"/><button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem" onclick="this.parentElement.remove()">✕</button>`;
+  div.appendChild(row);
+}
+
+function addTarifaRow(serv='',monto=0){
+  const div=document.getElementById('f-tarifas');
+  const row=document.createElement('div');row.className='tarifa-row';
+  row.innerHTML=`<input class="tf-serv" placeholder="Servicio" value="${serv}"/><input class="tf-monto" type="number" placeholder="Monto CLP" value="${monto||''}"/><button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem" onclick="this.parentElement.remove()">✕</button>`;
+  div.appendChild(row);
+}
+
+async function guardar(){
+  const nombre=document.getElementById('f-empresa').value.trim();
+  if(!nombre){showToast('Ingresa el nombre','error');return;}
+
+  const contactos=[];
+  document.querySelectorAll('#f-contactos .contacto-row').forEach(r=>{
+    const n=r.querySelector('.ct-nom')?.value||'';
+    if(n)contactos.push({nombre:n,cargo:r.querySelector('.ct-cargo')?.value||'',telefono:r.querySelector('.ct-tel')?.value||''});
+  });
+
+  const tarifas=[];
+  document.querySelectorAll('#f-tarifas .tarifa-row').forEach(r=>{
+    const s=r.querySelector('.tf-serv')?.value||'';
+    if(s)tarifas.push({servicio:s,monto:parseInt(r.querySelector('.tf-monto')?.value)||0,fecha_desde:new Date().toISOString().split('T')[0]});
+  });
+
+  const data={
+    tipo:document.getElementById('f-tipo').value,
+    nombre,
+    rut:document.getElementById('f-rut').value.trim(),
+    razon_social:document.getElementById('f-razon').value.trim(),
+    giro:document.getElementById('f-giro').value.trim(),
+    direccion:document.getElementById('f-dir').value.trim(),
+    contacto:document.getElementById('f-tel').value.trim(),
+    email:document.getElementById('f-email').value.trim(),
+    contactos,tarifas_vigentes:tarifas,
+    sla:document.getElementById('f-sla').value.trim(),
+    notas:document.getElementById('f-notas').value.trim(),
+  };
+  // GPS coords
+  if(_crmLat&&_crmLng){
+    data.coords=new firebase.firestore.GeoPoint(_crmLat,_crmLng);
+    data.maps_url=`https://www.google.com/maps?q=${_crmLat},${_crmLng}`;
+  }
+
+  try{
+    if(_editingId){
+      await db.collection('clientes').doc(_editingId).update(data);
+      showToast('✅ Registro actualizado','success');
+    }else{
+      data.created_at=firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('clientes').add(data);
+      showToast('✅ Registro creado','success');
+    }
+    closeModal();await loadAll();
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+async function eliminar(id){
+  if(!confirm('¿Eliminar este registro?'))return;
+  await db.collection('clientes').doc(id).delete();
+  showToast('🗑️ Eliminado','success');
+  await loadAll();
+}
+</script>
+</body>
+</html>

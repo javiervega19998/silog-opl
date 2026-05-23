@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SILOG SpA · Presentación</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--primary:#1B4B9B;--accent:#F47920;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);overflow:hidden;height:100vh;width:100vw;user-select:none}
+
+/* Slides */
+.slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 60px;opacity:0;transform:translateX(60px);transition:opacity .5s,transform .5s;pointer-events:none}
+.slide.active{opacity:1;transform:translateX(0);pointer-events:all}
+.slide.prev{opacity:0;transform:translateX(-60px)}
+
+.slide-icon{font-size:4rem;margin-bottom:16px;animation:bounce 2s ease-in-out infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.slide-title{font-size:2.2rem;font-weight:800;color:var(--accent);margin-bottom:20px;text-align:center;line-height:1.2}
+.slide-subtitle{font-size:1.1rem;color:var(--text2);text-align:center;margin-bottom:24px;max-width:700px}
+.slide-content{max-width:900px;width:100%;text-align:left}
+
+/* Cards grid */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.card h4{font-size:.85rem;font-weight:700;color:var(--accent);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.card p,.card li{font-size:.78rem;color:var(--text2);line-height:1.5}
+.card ul{padding-left:16px;margin:0}
+
+/* Bullet list */
+.bullets{list-style:none;padding:0}
+.bullets li{padding:8px 14px;margin-bottom:6px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:.9rem;display:flex;align-items:center;gap:10px}
+.bullets li span{font-size:1.2rem}
+
+/* Flow diagram */
+.flow{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:16px 0}
+.flow-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:.82rem;font-weight:600;text-align:center}
+.flow-box.accent{background:var(--accent);border-color:var(--accent);color:#fff}
+.flow-arr{color:var(--accent);font-size:1.2rem;font-weight:800}
+
+/* Navigation */
+.nav-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(13,27,53,.95);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:100}
+.nav-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-size:.82rem;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;transition:.2s}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent)}
+.nav-btn:disabled{opacity:.3;cursor:default}
+.slide-counter{font-size:.85rem;color:var(--text2);font-weight:600}
+.progress{position:fixed;bottom:52px;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--primary));transition:width .4s;z-index:100}
+
+/* Title slide */
+.title-slide .slide-title{font-size:3rem}
+.title-slide .slide-subtitle{font-size:1.3rem}
+
+@media(max-width:600px){
+  .slide{padding:24px 20px}
+  .slide-title{font-size:1.5rem}
+  .slide-icon{font-size:2.8rem}
+  .cards{grid-template-columns:1fr}
+  .title-slide .slide-title{font-size:2rem}
+}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<!-- SLIDE 1: Title -->
+<div class="slide title-slide active" data-i="0">
+  <div class="slide-icon">🚛</div>
+  <div class="slide-title">SILOG <span style="color:var(--text)">SpA</span></div>
+  <div class="slide-subtitle">Plataforma de Gestión Operacional<br>ERP + WMS + TMS Integrado · Última Milla Chile</div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+    <div class="flow-box">📦 TMS</div><div class="flow-box">🏭 WMS</div><div class="flow-box">💰 ERP</div><div class="flow-box">👥 CRM</div><div class="flow-box">📊 Analytics</div>
+  </div>
+</div>
+
+<!-- SLIDE 2 -->
+<div class="slide" data-i="1">
+  <div class="slide-icon">🎯</div>
+  <div class="slide-title">¿Qué es SILOG?</div>
+  <div class="slide-subtitle">Plataforma web integral para gestión de operaciones logísticas de última milla</div>
+  <ul class="bullets">
+    <li><span>🚛</span> <strong>TMS</strong> — Gestión de transporte: Turnos, rutas, despachos, POD, devoluciones</li>
+    <li><span>🏭</span> <strong>WMS</strong> — Gestión de bodega: Inventario, escaneo, ingresos/salidas, logística inversa</li>
+    <li><span>💰</span> <strong>ERP</strong> — Finanzas: Centro de costos, pre-facturas SII, exportación Excel</li>
+    <li><span>👥</span> <strong>CRM</strong> — Clientes y proveedores con GPS y tarifas</li>
+    <li><span>📊</span> <strong>Analytics</strong> — KPIs OTIF, rankings, gráficos operacionales</li>
+  </ul>
+</div>
+
+<!-- SLIDE 3 -->
+<div class="slide" data-i="2">
+  <div class="slide-icon">🏗️</div>
+  <div class="slide-title">Arquitectura</div>
+  <div class="flow">
+    <div class="flow-box accent">Login</div><div class="flow-arr">→</div>
+    <div class="flow-box accent">Dashboard</div><div class="flow-arr">→</div>
+    <div class="flow-box">Módulos por Rol</div>
+  </div>
+  <div class="cards" style="margin-top:20px">
+    <div class="card"><h4>☁️ Firebase</h4><ul><li>Auth (autenticación)</li><li>Firestore (base de datos)</li><li>Storage (fotos POD)</li><li>Hosting (web app)</li></ul></div>
+    <div class="card"><h4>🗺️ OpenStreetMap</h4><ul><li>Mapas gratuitos (Leaflet)</li><li>GPS del dispositivo</li><li>Deep links nativos</li></ul></div>
+    <div class="card"><h4>📱 PWA</h4><ul><li>Instalable en celular</li><li>Funciona offline</li><li>Android + iOS</li></ul></div>
+  </div>
+</div>
+
+<!-- SLIDE 4 -->
+<div class="slide" data-i="3">
+  <div class="slide-icon">🔐</div>
+  <div class="slide-title">Acceso al Sistema</div>
+  <div class="cards">
+    <div class="card"><h4>📧 Login</h4><p>Correo electrónico + contraseña. Redirección automática al dashboard.</p></div>
+    <div class="card"><h4>📝 Registro Multi-Rol</h4><p>Selecciona múltiples roles: Conductor, Bodeguero, Administrativo, Admin.</p></div>
+    <div class="card"><h4>🔑 Recuperación</h4><p>"¿Olvidaste tu contraseña?" — Enlace de reset por email vía Firebase.</p></div>
+    <div class="card"><h4>📱 PWA</h4><p>Instala como app en Android/iOS. Sin necesidad de App Store.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 5 -->
+<div class="slide" data-i="4">
+  <div class="slide-icon">🚛</div>
+  <div class="slide-title">Conductor — Turno</div>
+  <div class="cards">
+    <div class="card"><h4>🟢 Apertura</h4><p>Seleccionar vehículo + KM inicio. Solo un turno activo por conductor.</p></div>
+    <div class="card"><h4>📋 Checklist</h4><p>Obligatorio los lunes. Gate de seguridad antes de iniciar ruta.</p></div>
+    <div class="card"><h4>🔴 Cierre</h4><p>Ingresar KM final. Actualiza automáticamente el kilometraje del vehículo.</p></div>
+    <div class="card"><h4>📊 Resumen</h4><p>Entregas, devoluciones, gastos del turno en una vista consolidada.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 6 -->
+<div class="slide" data-i="5">
+  <div class="slide-icon">📦</div>
+  <div class="slide-title">Conductor — Mi Ruta</div>
+  <div class="cards">
+    <div class="card"><h4>📋 Despachos</h4><p>Tarjetas con cliente, dirección, guía. Búsqueda y filtros.</p></div>
+    <div class="card"><h4>📸 POD</h4><p>Foto de factura firmada obligatoria para confirmar entrega.</p></div>
+    <div class="card"><h4>🔴 Devolución</h4><p>6 motivos predefinidos + "Otro". Auto-crea registro de logística inversa.</p></div>
+    <div class="card"><h4>🗺️ Navegación</h4><p>Detecta Android (Google Maps) o iOS (Apple Maps). Mapa con pin arrastrable.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 7 -->
+<div class="slide" data-i="6">
+  <div class="slide-icon">⛽</div>
+  <div class="slide-title">Conductor — Gastos en Ruta</div>
+  <div class="cards">
+    <div class="card"><h4>⛽ Combustible</h4><p>Monto CLP + litros + foto boleta obligatoria.</p></div>
+    <div class="card"><h4>🛣️ Peaje</h4><p>Monto + autopista/ruta + foto boleta obligatoria.</p></div>
+    <div class="card"><h4>📊 Historial</h4><p>Total acumulado por turno. Visible en centro de costos.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 8 -->
+<div class="slide" data-i="7">
+  <div class="slide-icon">🏭</div>
+  <div class="slide-title">Bodeguero — WMS</div>
+  <div class="cards">
+    <div class="card"><h4>📥 Logística Inversa</h4><p>Recepción de devoluciones. Reclasificación: Stock o Merma.</p></div>
+    <div class="card"><h4>📷 Escaneo</h4><p>Cámara barcode/QR nativa + ingreso manual.</p></div>
+    <div class="card"><h4>➕ Ingreso</h4><p>Stock in con tipo, ubicación y referencia.</p></div>
+    <div class="card"><h4>➖ Salida</h4><p>Stock out con validación de disponibilidad.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 9 -->
+<div class="slide" data-i="8">
+  <div class="slide-icon">📦</div>
+  <div class="slide-title">Inventario</div>
+  <div class="cards">
+    <div class="card"><h4>📋 Gestión</h4><p>SKU, código barras, stock mínimo, ubicación, estado.</p></div>
+    <div class="card"><h4>📤 Importar Excel</h4><p>Carga masiva desde .xlsx/.csv con mapeo inteligente de columnas.</p></div>
+    <div class="card"><h4>📥 Exportar</h4><p>3 reportes: Resumen, Ingresos/Salidas, Consolidado (4 hojas).</p></div>
+    <div class="card"><h4>⚠️ Alertas</h4><p>Notificación automática de productos bajo stock mínimo.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 10 -->
+<div class="slide" data-i="9">
+  <div class="slide-icon">💰</div>
+  <div class="slide-title">Finanzas (ERP)</div>
+  <div class="cards">
+    <div class="card"><h4>💵 Centro de Costos</h4><p>Agregación por turno: entregas, devoluciones, combustible, peajes.</p></div>
+    <div class="card"><h4>📄 Pre-Facturas SII</h4><p>Neto + IVA 19% + Total. Emisor/Receptor. Estados: Borrador → Enviada → Pagada.</p></div>
+    <div class="card"><h4>📥 Excel Export</h4><p>Consolidado, Gastos Operacionales, Movimientos Bodega, Pre-Facturas. Multi-hoja.</p></div>
+    <div class="card"><h4>🖨️ Impresión</h4><p>Documento profesional con formato SII para imprimir o guardar PDF.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 11 -->
+<div class="slide" data-i="10">
+  <div class="slide-icon">👥</div>
+  <div class="slide-title">CRM</div>
+  <div class="cards">
+    <div class="card"><h4>📇 Directorio</h4><p>Clientes + Proveedores. RUT, Razón Social, Giro, Dirección.</p></div>
+    <div class="card"><h4>👤 Contactos</h4><p>Múltiples contactos por empresa con nombre, cargo, teléfono.</p></div>
+    <div class="card"><h4>💲 Tarifas</h4><p>Tarifas vigentes por servicio. SLA y condiciones de pago.</p></div>
+    <div class="card"><h4>🗺️ GPS</h4><p>Ubicación con mapa Leaflet + pin arrastrable. Navegación cross-platform.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 12 -->
+<div class="slide" data-i="11">
+  <div class="slide-icon">📊</div>
+  <div class="slide-title">Analytics</div>
+  <div class="cards">
+    <div class="card"><h4>📊 KPIs</h4><p>OTIF %, Entregas, Devoluciones, Gastos. Deltas vs periodo anterior.</p></div>
+    <div class="card"><h4>📈 Gráficos</h4><p>Bar charts + donut charts 100% CSS puro. Sin dependencias externas.</p></div>
+    <div class="card"><h4>🏆 Rankings</h4><p>Top conductores y vehículos por entregas, gastos, rendimiento.</p></div>
+    <div class="card"><h4>📅 Filtros</h4><p>7 días, 30 días, 90 días, 12 meses.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 13 -->
+<div class="slide" data-i="12">
+  <div class="slide-icon">⚙️</div>
+  <div class="slide-title">Dashboard Admin</div>
+  <div class="cards">
+    <div class="card"><h4>📊 Ejecutivo</h4><p>KPIs globales, gráficos de todas las áreas, rankings en una sola vista.</p></div>
+    <div class="card"><h4>👥 Usuarios</h4><p>Gestión de roles multi-rol, estados activo/inactivo, edición de perfiles.</p></div>
+    <div class="card"><h4>📥 Exportación</h4><p>Excel completo: Finanzas, Inventario, Bodega, Pre-Facturas.</p></div>
+    <div class="card"><h4>🔔 Notificaciones</h4><p>Sistema de alertas y comunicación interna.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 14 -->
+<div class="slide" data-i="13">
+  <div class="slide-icon">⚡</div>
+  <div class="slide-title">Tecnología</div>
+  <ul class="bullets">
+    <li><span>☁️</span> <strong>Firebase</strong> — Sin servidor, escalable, tiempo real</li>
+    <li><span>🗺️</span> <strong>OpenStreetMap + Leaflet</strong> — Mapas 100% gratuitos</li>
+    <li><span>📊</span> <strong>SheetJS</strong> — Excel nativo (.xlsx) sin dependencias de servidor</li>
+    <li><span>📱</span> <strong>PWA</strong> — Instalable, funciona offline, responsive</li>
+    <li><span>🔒</span> <strong>Sin API keys de pago</strong> — Cero costo por servicios de terceros</li>
+    <li><span>🇨🇱</span> <strong>Alineado SII Chile</strong> — Pre-facturas con formato normativo</li>
+  </ul>
+</div>
+
+<!-- SLIDE 15 -->
+<div class="slide" data-i="14">
+  <div class="slide-icon">🚀</div>
+  <div class="slide-title">¡Comienza Ahora!</div>
+  <div class="slide-subtitle">Accede a la plataforma y transforma tus operaciones logísticas</div>
+  <div style="text-align:center;margin-top:20px">
+    <a href="https://silog-opl-681dc.web.app" target="_blank" style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,var(--accent),#E86B10);border-radius:14px;color:#fff;text-decoration:none;font-size:1.1rem;font-weight:700;box-shadow:0 8px 30px rgba(244,121,32,.4)">🌐 silog-opl-681dc.web.app</a>
+  </div>
+  <div style="margin-top:30px;text-align:center;color:var(--text2);font-size:.9rem">
+    <strong style="color:var(--text)">SILOG SpA</strong><br>
+    Transporte y Logística · Chile<br>
+    <span style="font-size:.75rem">Manual: <a href="manual.html" style="color:var(--accent)">manual.html</a></span>
+  </div>
+</div>
+
+<!-- NAV BAR -->
+<div class="nav-bar">
+  <button class="nav-btn" id="btn-prev" onclick="go(-1)" disabled>← Anterior</button>
+  <button class="nav-btn" onclick="downloadPresentationPDF()" style="background:linear-gradient(135deg,#1B4B9B,#2563EB);border-color:#2563EB;color:#fff;font-size:.75rem">📥 PDF</button>
+  <span class="slide-counter" id="counter">1 / 15</span>
+  <button class="nav-btn" id="btn-next" onclick="go(1)">Siguiente →</button>
+</div>
+
+<script>
+let cur=0;
+const slides=document.querySelectorAll('.slide');
+const total=slides.length;
+
+function go(dir){
+  const next=cur+dir;
+  if(next<0||next>=total)return;
+  slides[cur].classList.remove('active');
+  slides[cur].classList.add(dir>0?'prev':'');
+  cur=next;
+  slides.forEach((s,i)=>{s.classList.remove('active','prev');if(i<cur)s.classList.add('prev');});
+  slides[cur].classList.add('active');
+  update();
+}
+function update(){
+  document.getElementById('counter').textContent=`${cur+1} / ${total}`;
+  document.getElementById('btn-prev').disabled=cur===0;
+  document.getElementById('btn-next').disabled=cur===total-1;
+  document.getElementById('progress').style.width=((cur+1)/total*100)+'%';
+}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')go(1);if(e.key==='ArrowLeft')go(-1);});
+let tx=0;
+document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;});
+document.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50){go(dx<0?1:-1);}});
+update();
+
+function downloadPresentationPDF(){
+  // Show all slides for PDF
+  const allS=document.querySelectorAll('.slide');
+  const savedCur=cur;
+  const container=document.createElement('div');
+  container.style.cssText='width:960px;background:#060D1F;padding:0;';
+  allS.forEach((s,i)=>{
+    const clone=s.cloneNode(true);
+    clone.style.cssText='position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 60px;opacity:1;transform:none;pointer-events:all;min-height:540px;page-break-after:always;background:#060D1F;color:#E8EEF8;';
+    container.appendChild(clone);
+  });
+  document.body.appendChild(container);
+  const opt={
+    margin:0,
+    filename:'SILOG_SpA_Presentacion.pdf',
+    image:{type:'jpeg',quality:0.95},
+    html2canvas:{scale:2,useCORS:true,backgroundColor:'#060D1F',width:960},
+    jsPDF:{unit:'px',format:[960,540],orientation:'landscape'},
+    pagebreak:{mode:['css']}
+  };
+  html2pdf().set(opt).from(container).save().then(()=>{
+    document.body.removeChild(container);
+  });
+}
+</script>
+</body>
+</html>

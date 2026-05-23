@@ -82,8 +82,9 @@ function hideLoading() {
 
 // ── Normaliza campos Firestore → formato interno ──────────────
 function normalizeUserData(raw) {
+  const nombre_completo = raw.nombre_completo || ((raw.nombre || '') + ' ' + (raw.apellido || '')).trim() || raw.nombre || raw.name || '';
   return {
-    name:   raw.nombre              || raw.name  || '',
+    name:   nombre_completo,
     email:  raw.correo_electronico  || raw.email || '',
     role:   (raw.rol || raw.role    || 'conductor').toLowerCase().trim(),
     area:   raw.area                || 'Operaciones',
@@ -97,34 +98,44 @@ function normalizeUserData(raw) {
 // ── Obtiene datos del usuario desde Firestore ─────────────────
 async function getUserData(user) {
   try {
+    const cacheKey = 'silog_user_' + user.uid;
+    let cached = sessionStorage.getItem(cacheKey);
+    if (!cached) {
+      cached = localStorage.getItem('silog_last_user');
+    }
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed._ts && (Date.now() - parsed._ts) < 300000) { // 5 min cache
+          return normalizeUserData(parsed);
+        }
+      } catch(e) {}
+    }
     // 1) Por UID (principal — más rápido)
     let snap = await db.collection('users').doc(user.uid).get();
-    if (snap.exists) return normalizeUserData(snap.data());
-
+    if (snap.exists) {
+      const data = snap.data();
+      data._ts = Date.now();
+      const normalized = normalizeUserData(data);
+      sessionStorage.setItem(cacheKey, JSON.stringify(normalized));
+      localStorage.setItem('silog_last_user', JSON.stringify(normalized));
+      return normalized;
+    }
     // 2) Por correo_electronico
     const q1 = await db.collection('users')
       .where('correo_electronico', '==', user.email).limit(1).get();
-    if (!q1.empty) return normalizeUserData(q1.docs[0].data());
-
-    // 3) Por email (campo inglés)
-    const q2 = await db.collection('users')
-      .where('email', '==', user.email).limit(1).get();
-    if (!q2.empty) return normalizeUserData(q2.docs[0].data());
-
-    // 4) Revisar custom claim del token (si ya fue asignado vía Cloud Function)
-    const token = await user.getIdTokenResult();
-    if (token.claims.rol) {
-      return normalizeUserData({
-        nombre: user.displayName || user.email,
-        rol: token.claims.rol,
-        area: token.claims.area || 'Operaciones',
-      });
+    if (!q1.empty) {
+      const data = q1.docs[0].data();
+      data._ts = Date.now();
+      const normalized = normalizeUserData(data);
+      sessionStorage.setItem(cacheKey, JSON.stringify(normalized));
+      localStorage.setItem('silog_last_user', JSON.stringify(normalized));
+      return normalized;
     }
   } catch (e) {
     console.warn('[auth] getUserData error:', e.message);
   }
-  // 5) Perfil mínimo si no existe documento
-  return normalizeUserData({ nombre: user.displayName || user.email, rol: 'conductor', area: 'Operaciones' });
+  return normalizeUserData({ nombre: user.displayName || 'Usuario', rol: 'conductor', area: 'Operaciones' });
 }
 
 // ── Requiere sesión activa ────────────────────────────────────
@@ -147,6 +158,9 @@ function isViewerRole(role) {
 function isConductorRole(role) {
   return ['conductor','administrativo.conductor'].includes((role||'').toLowerCase());
 }
+function isBodegueroRole(role) {
+  return ['bodeguero','admin'].includes((role||'').toLowerCase());
+}
 
 // ── Panel admin/administrativo ────────────────────────────────
 function requireAdmin(callback) {
@@ -160,13 +174,17 @@ function requireAdmin(callback) {
 async function registerUser(email, password, userData) {
   const cred = await auth.createUserWithEmailAndPassword(email, password);
   const uid  = cred.user.uid;
+  const nombre_completo = ((userData.nombre || '') + ' ' + (userData.apellido || '')).trim();
   await db.collection('users').doc(uid).set({
     correo_electronico: email,
     nombre:    userData.nombre    || '',
+    apellido:  userData.apellido  || '',
+    nombre_completo: nombre_completo,
     rut:       userData.rut       || '',
     telefono:  userData.telefono  || '',
     area:      userData.area      || 'Operaciones',
-    rol:       'conductor',
+    rol:       (userData.rol      || 'conductor').toLowerCase(),
+    roles:     userData.roles     || [userData.rol || 'conductor'],
     estado:    'Activo',
     Fecha_registro: firebase.firestore.FieldValue.serverTimestamp(),
   });
@@ -191,7 +209,15 @@ function renderNavbar(userData) {
   if (!userData) return;
   const displayName = userData.name || userData.email || 'Usuario';
   const initials    = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  if (avatarEl) avatarEl.textContent = initials;
+  if (avatarEl) {
+    if (userData.foto_perfil) {
+      avatarEl.innerHTML = `<img src="${userData.foto_perfil}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;
+      avatarEl.style.overflow = 'hidden';
+    } else {
+      avatarEl.textContent = initials;
+      avatarEl.style.overflow = '';
+    }
+  }
   if (nameEl)   nameEl.textContent   = displayName;
   if (roleEl)   roleEl.textContent   = isViewerRole(userData.role)
     ? `Administrador · ${userData.area}`
@@ -201,6 +227,10 @@ function renderNavbar(userData) {
 // ── Cerrar sesión (con confirmación) ─────────────────────────
 function logout() {
   if (!confirm('¿Cerrar sesión? Asegúrate de haber guardado tu trabajo.')) return;
+  // Clear cache
+  if (currentUser) sessionStorage.removeItem('silog_user_' + currentUser.uid);
+  localStorage.removeItem('silog_last_user');
+  localStorage.removeItem('silog_dashboard_cache');
   auth.signOut().then(() => { window.location.href = '/index.html'; });
 }
 
@@ -293,3 +323,99 @@ function priorityBadge(p) {
   const map = { alta: 'badge-danger', media: 'badge-pending', baja: 'badge-active' };
   return `<span class="badge ${map[p] || 'badge-active'}">${p || 'media'}</span>`;
 }
+
+// ── SISTEMA DE NAVEGACIÓN DINÁMICO (BACK BUTTONS) ─────────────
+(function initNavigationHistory() {
+  const currentPath = window.location.pathname;
+  const cleanUrl = (url) => {
+    return url.split('?')[0].split('#')[0];
+  };
+  const pageFilename = cleanUrl(currentPath.split('/').pop() || 'dashboard.html');
+
+  if (pageFilename === 'index.html' || currentPath === '/' || currentPath === '') return;
+
+  const getPageName = (path) => {
+    const filename = cleanUrl(path.split('/').pop() || 'dashboard.html');
+    const mapping = {
+      'dashboard.html': 'Dashboard',
+      'inventario.html': 'Inventario',
+      'bodega.html': 'WMS Bodega',
+      'planillas.html': 'Planillas',
+      'formularios.html': 'Seguridad',
+      'correos.html': 'Correos',
+      'admin.html': 'Usuarios',
+      'analytics.html': 'Analytics',
+      'charlas.html': 'Charlas',
+      'checklist.html': 'Checklist',
+      'crm.html': 'CRM',
+      'finanzas.html': 'Finanzas',
+      'gastos.html': 'Gastos',
+      'ruta.html': 'Ruta',
+      'tareas.html': 'Tareas',
+      'turno.html': 'Jornada',
+      'vehiculos.html': 'Flota',
+      'viajes.html': 'Viajes'
+    };
+    return mapping[filename] || 'Dashboard';
+  };
+
+  let stack = [];
+  try {
+    stack = JSON.parse(sessionStorage.getItem('silog_nav_stack')) || [];
+  } catch (e) {}
+
+  if (pageFilename === 'dashboard.html') {
+    stack = [{ url: 'dashboard.html', name: 'Dashboard' }];
+    sessionStorage.setItem('silog_nav_stack', JSON.stringify(stack));
+    return;
+  }
+
+  const index = stack.findIndex(p => cleanUrl(p.url) === pageFilename);
+  if (index !== -1) {
+    stack = stack.slice(0, index + 1);
+  } else {
+    if (stack.length === 0) {
+      stack.push({ url: 'dashboard.html', name: 'Dashboard' });
+    }
+    stack.push({ url: pageFilename, name: getPageName(pageFilename) });
+  }
+  sessionStorage.setItem('silog_nav_stack', JSON.stringify(stack));
+
+  let prevPage = { url: 'dashboard.html', name: 'Dashboard' };
+  if (stack.length > 1) {
+    prevPage = stack[stack.length - 2];
+  }
+
+  const configureBackButton = () => {
+    let backBtn = document.querySelector('.btn-back');
+
+    if (!backBtn) {
+      const navbar = document.querySelector('.navbar');
+      if (navbar) {
+        backBtn = document.createElement('button');
+        backBtn.className = 'btn-back';
+        const logo = navbar.querySelector('.navbar-logo');
+        if (logo) {
+          logo.after(backBtn);
+        } else {
+          navbar.prepend(backBtn);
+        }
+      }
+    }
+
+    if (backBtn) {
+      backBtn.removeAttribute('onclick');
+      backBtn.innerHTML = `← Volver a ${prevPage.name}`;
+      backBtn.onclick = (e) => {
+        e.preventDefault();
+        window.location.href = prevPage.url;
+      };
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', configureBackButton);
+  } else {
+    configureBackButton();
+  }
+})();
