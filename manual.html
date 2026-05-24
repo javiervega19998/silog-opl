@@ -429,7 +429,15 @@ a:hover{color:#ffae6b}
           <ul class="toc-sub">
             <li><a href="#rol-conductor">Conductor</a></li>
             <li><a href="#rol-bodeguero">Bodeguero</a></li>
-            <li><a href="#rol-admin">Administrativo / Admin</a></li>
+            <li><a href="#rol-admin">Administrativo / Admin</a>
+              <ul class="toc-sub">
+                <li><a href="#admin-finanzas">Finanzas</a></li>
+                <li><a href="#admin-crm">CRM</a></li>
+                <li><a href="#admin-analytics">Analytics</a></li>
+                <li><a href="#admin-recordatorios">Recordatorios (Kanban)</a></li>
+                <li><a href="#admin-panel">Panel de Administración</a></li>
+              </ul>
+            </li>
           </ul>
         </li>
         <li>
@@ -482,6 +490,11 @@ a:hover{color:#ffae6b}
         <div class="mod-icon" style="background:rgba(255,193,7,.12);color:#ffd54f">📊</div>
         <h5>Analytics</h5>
         <p>KPIs de rendimiento (OTIF), gráficos de entregas, devoluciones y gastos, rankings de desempeño por conductor y ruta.</p>
+      </div>
+      <div class="mod-card">
+        <div class="mod-icon" style="background:rgba(156,39,176,.12);color:#ce93d8">📌</div>
+        <h5>Recordatorios</h5>
+        <p>Gestión visual de tareas bajo metodología Kanban. Colaboración en tiempo real para el personal administrativo y limpieza automatizada de pendientes.</p>
       </div>
     </div>
 
@@ -630,6 +643,7 @@ a:hover{color:#ffae6b}
         <tr><td>Finanzas</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
         <tr><td>CRM</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
         <tr><td>Analytics</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
+        <tr><td>Recordatorios</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
         <tr><td>Panel Admin</td><td>—</td><td>—</td><td>—</td><td>✔</td></tr>
       </tbody>
     </table>
@@ -645,7 +659,7 @@ a:hover{color:#ffae6b}
       </div>
       <div class="card" style="margin-bottom:10px">
         <h5 style="margin-bottom:8px;font-weight:700">💼 Administrativo</h5>
-        <p>Acceso a: Inventario, Finanzas, CRM, Analytics.</p>
+        <p>Acceso a: Inventario, Finanzas, CRM, Analytics, Recordatorios.</p>
       </div>
       <div class="card" style="margin-bottom:10px">
         <h5 style="margin-bottom:8px;font-weight:700">⚙️ Admin</h5>
@@ -897,15 +911,25 @@ a:hover{color:#ffae6b}
       </ul>
     </div>
 
+    <h4 id="admin-recordatorios">Recordatorios (Gestión Kanban)</h4>
+    <div class="card card-primary">
+      <p>Módulo de colaboración diseñado para organizar y priorizar las tareas del equipo administrativo.</p>
+      <ul class="feature-list">
+        <li><strong>Tablero Kanban:</strong> Sistema visual dividido en columnas: <em>Pendientes</em>, <em>En Progreso</em>, <em>Revisión</em> y <em>Finalizado</em>.</li>
+        <li><strong>Arrastrar y Soltar (Drag & Drop):</strong> Las tareas se mueven intuitivamente entre estados usando el ratón o pantalla táctil.</li>
+        <li><strong>Colaboración en Vivo:</strong> Cualquier usuario administrativo puede tomar una tarea, asignársela, o enviarla a revisión dejando trazabilidad de su nombre.</li>
+        <li><strong>Limpieza Automática (GCO):</strong> Toda tarea movida a la columna "Finalizado" será automáticamente destruida de la base de datos tras 24 horas para mantener el entorno optimizado y libre de "datos basura".</li>
+      </ul>
+    </div>
+
     <h4 id="admin-panel">Panel de Administración <span class="role-badge role-admin" style="font-size:.7rem;vertical-align:middle">Solo Admin</span></h4>
     <div class="card card-accent">
       <p>El panel de administración está disponible exclusivamente para usuarios con rol <strong>Admin</strong> y proporciona control total del sistema:</p>
       <ul class="feature-list">
-        <li><strong>Dashboard Ejecutivo:</strong> Vista consolidada de métricas clave del negocio, indicadores operacionales y alertas del sistema en tiempo real.</li>
-        <li><strong>Gestión de Usuarios:</strong> Crear, editar, desactivar cuentas de usuario. Asignar y modificar roles. Consultar historial de actividad.</li>
-        <li><strong>Gestión de Checklists:</strong> Crear y editar los formularios de checklist de inspección vehicular. Definir ítems obligatorios y opcionales.</li>
-        <li><strong>Gestión de Viajes:</strong> Crear, asignar y monitorear viajes y rutas. Asignar despachos a conductores y definir secuencias de entrega.</li>
-        <li><strong>Notificaciones:</strong> Configurar y enviar notificaciones a usuarios del sistema. Gestionar alertas automáticas (bajo stock, turno sin cerrar, etc.).</li>
+        <li><strong>Dashboard Ejecutivo Optimizado:</strong> Vista consolidada de métricas y KPIs. Este panel extrae inteligentemente sólo los últimos 30 días de la Base de Datos para asegurar la máxima <em>rapidez y rendimiento</em>, apoyado por índices de Firestore.</li>
+        <li><strong>Gestión de Usuarios:</strong> Control estricto del personal. Al eliminar a un usuario, su sesión en <em>Firebase Auth</em> se desactiva permanentemente en cascada junto con su imagen de perfil (Integridad).</li>
+        <li><strong>Eliminación en Cascada:</strong> El sistema posee medidas anti-huérfanos. Al borrar un Viaje, el servidor destruye automáticamente todos sus Despachos y Fotos POD del Storage, ahorrando espacio en disco (Zero Trash Data).</li>
+        <li><strong>Integridad de Datos:</strong> El módulo de registro valida doblemente los RUTs para evitar falsificaciones o cuentas duplicadas para un mismo individuo.</li>
       </ul>
     </div>
   </section>
