@@ -204,6 +204,7 @@ select.field{appearance:auto;cursor:pointer}
       <div class="form-group">
         <label>Cantidad</label>
         <input class="field" type="number" id="ing-cant" placeholder="Ej: 10" inputmode="numeric"/>
+      </div>
       <div class="form-group">
         <label>Referencia (Guía/Factura)</label>
         <input class="field" type="text" id="ing-ref" placeholder="Ej: GD-0045"/>
@@ -1155,6 +1156,75 @@ function dlXLSX(sheets,filename){
   XLSX.writeFile(wb,`${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
   showToast('📥 Excel descargado','success');
 }
+
+// ═══ EVENTOS INVENTARIO ═══
+document.addEventListener('DOMContentLoaded', () => {
+  const invForm = document.getElementById('inv-form');
+  if (invForm) {
+    invForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn-save-inv');
+      if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+      const qty = parseInt(document.getElementById('item-qty').value) || 0;
+      let status = document.getElementById('item-status').value;
+      if (qty === 0) status = 'no_disponible';
+      
+      const litrosPorUnidad = parseFloat(document.getElementById('item-litros-por-unidad').value) || 0;
+      const kgPorUnidad = parseFloat(document.getElementById('item-kg-por-unidad').value) || 0;
+
+      const data = {
+        code:          document.getElementById('item-code').value.trim(),
+        sku:           document.getElementById('item-sku').value.trim(),
+        name:          document.getElementById('item-name').value.trim(),
+        codigo_barras: document.getElementById('item-barcode').value.trim(),
+        qty:           qty,
+        cantidad:      qty,
+        stock_minimo:  parseInt(document.getElementById('item-min').value) || 0,
+        unit:          document.getElementById('item-unit').value,
+        litros_por_unidad: litrosPorUnidad,
+        kg_por_unidad:     kgPorUnidad,
+        litros_actuales:   litrosPorUnidad * qty,
+        kg_actuales:       kgPorUnidad * qty,
+        nombre:        document.getElementById('item-name').value.trim(),
+        status:        status,
+        notes:         document.getElementById('item-notes').value.trim(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: _uid,
+      };
+      try {
+        if (window.editingId) {
+          await db.collection('inventory').doc(window.editingId).update(data);
+          showToast('Ítem actualizado ✅', 'success');
+        } else {
+          data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+          data.createdBy = _uid;
+          await db.collection('inventory').add(data);
+          showToast('Ítem agregado ✅', 'success');
+        }
+        closeModal();
+        await loadInventory();
+      } catch(err) {
+        showToast('Error al guardar: ' + err.message, 'error');
+      }
+      if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    });
+  }
+
+  // Filter tabs
+  document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      window.currentFilter = tab.dataset.filter;
+      applyFilter();
+    });
+  });
+
+  const searchInv = document.getElementById('search-inv');
+  if (searchInv) {
+    searchInv.addEventListener('input', applyFilter);
+  }
+});
 </script>
 <!-- Modal: Add/Edit Item -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
