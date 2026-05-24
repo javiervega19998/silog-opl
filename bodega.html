@@ -916,7 +916,6 @@ function editItem(id) {
   document.getElementById('item-unit').value     = item.unit || 'unidad';
   document.getElementById('item-litros-por-unidad').value = item.litros_por_unidad || 0;
   document.getElementById('item-kg-por-unidad').value = item.kg_por_unidad || 0;
-  document.getElementById('item-location').value = item.location || '';
   document.getElementById('item-status').value   = item.status || 'disponible';
   document.getElementById('item-notes').value    = item.notes || '';
   openModal(id);
@@ -977,7 +976,6 @@ document.addEventListener('DOMContentLoaded', () => {
         kg_por_unidad:     kgPorUnidad,
         litros_actuales:   litrosPorUnidad * qty,
         kg_actuales:       kgPorUnidad * qty,
-        location:      document.getElementById('item-location').value.trim(),
         nombre:        document.getElementById('item-name').value.trim(),
         status:        status,
         notes:         document.getElementById('item-notes').value.trim(),
@@ -1661,10 +1659,7 @@ function dlXLSX(sheets,filename){
           <input type="number" step="any" class="form-control" id="item-kg-por-unidad" min="0" value="0" placeholder="Ej: 25"/>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Ubicación / Bodega</label>
-        <input type="text" class="form-control" id="item-location" placeholder="Ej: Bodega Norte – Estante 3B"/>
-      </div>
+
       <div class="form-group">
         <label class="form-label">Estado</label>
         <select class="form-control" id="item-status">
