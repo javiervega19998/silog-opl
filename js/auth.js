@@ -138,12 +138,108 @@ async function getUserData(user) {
   return normalizeUserData({ nombre: user.displayName || 'Usuario', rol: 'conductor', area: 'Operaciones' });
 }
 
+async function checkAndAssignDailyChecklistTask(email) {
+  try {
+    const chileParts = new Intl.DateTimeFormat('es-CL', {
+      timeZone: 'America/Santiago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      weekday: 'short'
+    }).formatToParts(new Date());
+
+    const year = chileParts.find(p => p.type === 'year').value;
+    const month = chileParts.find(p => p.type === 'month').value;
+    const day = chileParts.find(p => p.type === 'day').value;
+    const weekday = chileParts.find(p => p.type === 'weekday').value.toLowerCase();
+    
+    // Si es fin de semana (sábado o domingo), no se asigna la tarea
+    const isWeekend = weekday.includes('sáb') || weekday.includes('sab') || weekday.includes('dom');
+    
+    const currentDateStr = `${day}-${month}-${year}`;
+    const feriadosChile = [
+      // 2025
+      "01-01-2025", "18-04-2025", "19-04-2025", "01-05-2025", "21-05-2025", "20-06-2025",
+      "29-06-2025", "16-07-2025", "15-08-2025", "18-09-2025", "19-09-2025", "12-10-2025",
+      "31-10-2025", "01-11-2025", "08-12-2025", "25-12-2025",
+      // 2026
+      "01-01-2026", "03-04-2026", "04-04-2026", "01-05-2026", "21-05-2026", "29-06-2026",
+      "16-07-2026", "15-08-2026", "18-09-2026", "19-09-2026", "12-10-2026", "31-10-2026",
+      "01-11-2026", "08-12-2026", "25-12-2026"
+    ];
+    
+    const isHoliday = feriadosChile.includes(currentDateStr);
+    
+    if (isWeekend || isHoliday) {
+      return;
+    }
+    
+    // Evitar llamadas redundantes a Firestore durante la misma sesión de navegación diaria
+    const cacheKey = `silog_checklist_task_checked_${email}_${currentDateStr}`;
+    if (sessionStorage.getItem(cacheKey)) {
+      return;
+    }
+    
+    // Consultar tareas asignadas al conductor de forma index-safe
+    const snap = await db.collection('tareas')
+      .where('asignado_a', '==', email)
+      .get();
+      
+    let yaAsignadaHoy = false;
+    snap.forEach(doc => {
+      const task = doc.data();
+      if (task.tipo === 'checklist' && task.titulo === 'Realizar todos los días un Checklist Operativo' && task.fecha_creacion) {
+        const taskDate = task.fecha_creacion.toDate ? task.fecha_creacion.toDate() : new Date(task.fecha_creacion);
+        const taskChileDate = new Intl.DateTimeFormat('es-CL', {
+          timeZone: 'America/Santiago',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).format(taskDate).replace(/\//g, '-');
+        
+        if (taskChileDate === currentDateStr) {
+          yaAsignadaHoy = true;
+        }
+      }
+    });
+    
+    if (!yaAsignadaHoy) {
+      // Crear la tarea en Firestore
+      await db.collection('tareas').add({
+        titulo: 'Realizar todos los días un Checklist Operativo',
+        descripcion: 'Realizar el chequeo diario del vehículo y reportar el estado operativo para iniciar tu jornada.',
+        tipo: 'checklist',
+        prioridad: 'alta',
+        asignado_a: email,
+        asignado_por: 'sistema',
+        estado: 'pendiente',
+        fecha_creacion: firebase.firestore.FieldValue.serverTimestamp(),
+        // Vencimiento al final del día de hoy en hora local (23:59:59)
+        fecha_vencimiento: firebase.firestore.Timestamp.fromDate(new Date(new Date().setHours(23, 59, 59, 999))),
+      });
+      
+      showToast('📋 Nueva tarea diaria: Realizar Checklist Operativo', 'info');
+    }
+    
+    // Guardar en el sessionStorage para no volver a consultar hoy
+    sessionStorage.setItem(cacheKey, 'true');
+  } catch (e) {
+    console.warn('[auth] Error en asignación de tarea diaria:', e.message);
+  }
+}
+
 // ── Requiere sesión activa ────────────────────────────────────
 function requireAuth(callback) {
   auth.onAuthStateChanged(async (user) => {
     if (!user) { window.location.href = '/index.html'; return; }
     currentUser     = user;
     currentUserData = await getUserData(user);
+    
+    // Asignar automáticamente tarea de checklist al conductor si corresponde
+    if (currentUserData && isConductorRole(currentUserData.role)) {
+      await checkAndAssignDailyChecklistTask(currentUserData.email);
+    }
+    
     if (callback) callback(user, currentUserData);
   });
 }
