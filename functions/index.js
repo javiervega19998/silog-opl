@@ -1,11 +1,12 @@
 // ══════════════════════════════════════════════
 // CLOUD FUNCTIONS v2 — SILOG SpA
 // ══════════════════════════════════════════════
-const { onDocumentWritten } = require('firebase-functions/v2/firestore');
+const { onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError }  = require('firebase-functions/v2/https');
 const { initializeApp }       = require('firebase-admin/app');
 const { getAuth }             = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getStorage }          = require('firebase-admin/storage');
 
 initializeApp();
 
@@ -190,5 +191,135 @@ exports.syncAllClaims = onCall(
 
     const ok = results.filter(r => r.ok).length;
     return { updated: ok, results };
+  }
+);
+
+// ═══════════════════════════════════════════════════════════════
+// 4. ELIMINACIÓN EN CASCADA Y LIMPIEZA DE "DATOS BASURA"
+// ═══════════════════════════════════════════════════════════════
+
+// ── 4a. Cuando se elimina un Usuario ──
+// Elimina al usuario de Firebase Auth y limpia su foto de perfil.
+exports.onUserDeleted = onDocumentDeleted(
+  { document: 'users/{docId}', region: 'us-central1' },
+  async (event) => {
+    const docId = event.params.docId;
+    const data = event.data.data();
+    
+    // Obtener UID
+    const auth = getAuth();
+    let uid = docId.includes('@') ? await getUidByEmail(auth, docId) : docId;
+    if (!uid) {
+      const email = getEmailFromDoc(event.data);
+      if (email) uid = await getUidByEmail(auth, email);
+    }
+    
+    // 1. Eliminar de Auth
+    if (uid) {
+      try {
+        await auth.deleteUser(uid);
+        console.log(`[cleanup] Usuario ${uid} eliminado de Auth exitosamente.`);
+      } catch (e) {
+        console.error(`[cleanup] Error eliminando ${uid} de Auth:`, e.message);
+      }
+    }
+    
+    // 2. Eliminar foto de perfil de Storage (ruta: users/{uid}/foto_perfil)
+    if (uid || data.auth_uid) {
+      const targetUid = uid || data.auth_uid;
+      try {
+        const bucket = getStorage().bucket();
+        const file = bucket.file(`users/${targetUid}/foto_perfil`);
+        const [exists] = await file.exists();
+        if (exists) {
+          await file.delete();
+          console.log(`[cleanup] Foto de perfil de ${targetUid} eliminada.`);
+        }
+      } catch (e) {
+        console.error(`[cleanup] Error eliminando foto de ${targetUid}:`, e.message);
+      }
+    }
+  }
+);
+
+// ── 4b. Cuando se elimina un Viaje ──
+// Elimina todos los despachos que dependían de este viaje (en cascada).
+exports.onViajeDeleted = onDocumentDeleted(
+  { document: 'viajes/{viajeId}', region: 'us-central1' },
+  async (event) => {
+    const viajeId = event.params.viajeId;
+    const db = getFirestore();
+    
+    try {
+      const snap = await db.collection('despachos').where('viaje_id', '==', viajeId).get();
+      if (snap.empty) return;
+      
+      const batch = db.batch();
+      snap.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      console.log(`[cleanup] ${snap.size} despachos eliminados en cascada del viaje ${viajeId}.`);
+    } catch (e) {
+      console.error(`[cleanup] Error eliminando despachos del viaje ${viajeId}:`, e.message);
+    }
+  }
+);
+
+// ── 4c. Cuando se elimina un Despacho ──
+// Elimina las fotos de entrega (POD) y firmas asociadas de Firebase Storage.
+exports.onDespachoDeleted = onDocumentDeleted(
+  { document: 'despachos/{despachoId}', region: 'us-central1' },
+  async (event) => {
+    const data = event.data.data();
+    const bucket = getStorage().bucket();
+    
+    const urlsToDelete = [data.foto_url, data.firma_url].filter(Boolean);
+    
+    for (const url of urlsToDelete) {
+      try {
+        // Extraer la ruta del archivo a partir de la URL de Firebase Storage
+        // Usualmente las URL son del tipo: https://firebasestorage.googleapis.com/v0/b/bucket-name/o/encoded%2Fpath?alt=media...
+        const match = url.match(/\/o\/(.+?)\?/);
+        if (match && match[1]) {
+          const filePath = decodeURIComponent(match[1]);
+          const file = bucket.file(filePath);
+          const [exists] = await file.exists();
+          if (exists) {
+            await file.delete();
+            console.log(`[cleanup] Archivo eliminado: ${filePath}`);
+          }
+        }
+      } catch (e) {
+        console.error(`[cleanup] Error eliminando archivo de Storage (${url}):`, e.message);
+      }
+    }
+  }
+);
+
+// ── 4d. Cuando se elimina un Gasto ──
+// Elimina la foto de la boleta asociada de Firebase Storage.
+exports.onGastoDeleted = onDocumentDeleted(
+  { document: 'gastos_ruta/{gastoId}', region: 'us-central1' },
+  async (event) => {
+    const data = event.data.data();
+    const bucket = getStorage().bucket();
+    
+    if (data.foto_boleta_url) {
+      try {
+        const match = data.foto_boleta_url.match(/\/o\/(.+?)\?/);
+        if (match && match[1]) {
+          const filePath = decodeURIComponent(match[1]);
+          const file = bucket.file(filePath);
+          const [exists] = await file.exists();
+          if (exists) {
+            await file.delete();
+            console.log(`[cleanup] Foto de boleta eliminada: ${filePath}`);
+          }
+        }
+      } catch (e) {
+        console.error(`[cleanup] Error eliminando foto boleta de gasto ${event.params.gastoId}:`, e.message);
+      }
+    }
   }
 );

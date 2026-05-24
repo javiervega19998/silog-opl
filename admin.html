@@ -625,12 +625,17 @@ async function eliminarDistribuidorInversa(id) {
 // ═══════════════════════════════════════════════════════════════
 async function loadExecDashboard(){
   try{
-    const [tS,dS,gS,iS,mS,fS]=await Promise.all([
-      db.collection('turnos').get(),
-      db.collection('despachos').get(),
-      db.collection('gastos_ruta').get(),
+    const now = new Date();
+    const cutoff = new Date();
+    cutoff.setDate(now.getDate() - 30);
+    const cutoffTS = firebase.firestore.Timestamp.fromDate(cutoff);
+
+    const [tS,dS,gS,iS,mS,fS] = await Promise.all([
+      db.collection('turnos').where('fecha', '>=', cutoffTS).get(),
+      db.collection('despachos').where('created_at', '>=', cutoffTS).get(),
+      db.collection('gastos_ruta').where('fecha', '>=', cutoffTS).get(),
       db.collection('inventory').get(),
-      db.collection('movimientos_bodega').get(),
+      db.collection('movimientos_bodega').where('fecha', '>=', cutoffTS).get(),
       db.collection('prefacturas').get()
     ]);
     const turnos=[],despachos=[],gastos=[],invItems=[],movBodega=[],facturas=[];

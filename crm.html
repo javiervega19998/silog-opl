@@ -397,6 +397,15 @@ async function guardar(){
       await db.collection('clientes').doc(_editingId).update(data);
       showToast('✅ Registro actualizado','success');
     }else{
+      // 1. Check duplicate RUT
+      const rutVal = data.rut;
+      if (rutVal) {
+        const check = await db.collection('clientes').where('rut', '==', rutVal).limit(1).get();
+        if (!check.empty) {
+          showToast('El RUT ya existe en la base de datos.', 'error');
+          return;
+        }
+      }
       data.created_at=firebase.firestore.FieldValue.serverTimestamp();
       await db.collection('clientes').add(data);
       showToast('✅ Registro creado','success');

@@ -273,7 +273,15 @@
     if (pass !== pass2)  { showErr(errEl, 'Las contraseñas no coinciden.'); return; }
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Registrando…';
     try {
-      await registerUser(email, pass, { nombre, apellido, rut, telefono: tel, area, rol, roles: [rol] });
+      // 1. Check if RUT already exists to avoid orphaned Auth accounts and duplicates
+      const rutQuery = await db.collection('users').where('rut', '==', rut).limit(1).get();
+      if (!rutQuery.empty) {
+        btn.disabled = false; btn.innerHTML = 'Crear Cuenta';
+        showErr(errEl, 'El RUT ingresado ya está registrado en la base de datos.');
+        return;
+      }
+
+      await registerUser(email, pass, { nombre, apellido, nombre_completo: (nombre + ' ' + apellido).trim(), rut, telefono: tel, area, rol, estado: 'Activo', roles: [rol] });
       btn.disabled = false; btn.innerHTML = 'Crear Cuenta';
       sucEl.textContent = '✅ Cuenta creada. Serás redirigido al dashboard.';
       sucEl.style.display = 'block';
