@@ -126,16 +126,16 @@ select.field{appearance:auto;cursor:pointer}
 <div class="main">
   <!-- Tabs -->
   <div class="tab-row">
-    <button class="tab-btn active" onclick="showTab('inversa')">📥 Logística Inversa</button>
-    <button class="tab-btn" onclick="showTab('scan')">📷 Escaneo</button>
-    <button class="tab-btn" onclick="showTab('movimientos')">📊 Movimientos</button>
+    <button class="tab-btn active" onclick="showTab('scan')">📷 Escaneo</button>
     <button class="tab-btn" onclick="showTab('ingreso')">➕ Ingreso</button>
     <button class="tab-btn" onclick="showTab('salida')">➖ Salida</button>
+    <button class="tab-btn" onclick="showTab('inversa')">📥 Logística Inversa</button>
+    <button class="tab-btn" onclick="showTab('movimientos')">📊 Movimientos</button>
     <button class="tab-btn" onclick="showTab('inventario')">📦 Inventario</button>
   </div>
 
   <!-- ═══ TAB: LOGÍSTICA INVERSA ═══ -->
-  <div id="tab-inversa">
+  <div id="tab-inversa" style="display:none">
     <div class="stats-row">
       <div class="mini-stat"><div class="ms-num" style="color:var(--warning)" id="inv-pend">0</div><div class="ms-lbl">Pendientes</div></div>
       <div class="mini-stat"><div class="ms-num" style="color:#60A5FA" id="inv-recv">0</div><div class="ms-lbl">Recibidos</div></div>
@@ -149,15 +149,15 @@ select.field{appearance:auto;cursor:pointer}
   </div>
 
   <!-- ═══ TAB: ESCANEO ═══ -->
-  <div id="tab-scan" style="display:none">
+  <div id="tab-scan">
     <div class="scan-card">
       <h3>📷 Escanear Código</h3>
       <p style="font-size:.82rem;color:var(--text2);margin-bottom:14px">Usa la cámara para escanear código de barras o QR del producto</p>
       <div id="scanner-container"><video id="scanner-video" playsinline></video></div>
       <button class="scan-btn" id="btn-scan" onclick="toggleScanner()">📸 Iniciar Escaneo</button>
       <div>
-        <p style="font-size:.72rem;color:var(--text2);margin:10px 0 4px">O ingresa manualmente:</p>
-        <input class="field" type="text" id="manual-code" placeholder="Código SKU / Barras" style="max-width:300px;margin:0 auto;text-align:center"/>
+        <p style="font-size:.72rem;color:var(--text2);margin:10px 0 4px">Código Producto:</p>
+        <input class="field" type="text" id="manual-code" placeholder="Código Producto" style="max-width:300px;margin:0 auto;text-align:center"/>
         <button style="margin-top:8px;padding:8px 20px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.82rem" onclick="buscarProducto(document.getElementById('manual-code').value)">🔍 Buscar</button>
       </div>
       <div class="scan-result" id="scan-result">
@@ -337,7 +337,7 @@ function showTab(t){
     if (el) el.style.display=id===t?'block':'none';
   });
   const tabButtons = document.querySelectorAll('.tab-btn');
-  const tabsList = ['inversa','scan','movimientos','ingreso','salida','inventario'];
+  const tabsList = ['scan','ingreso','salida','inversa','movimientos','inventario'];
   tabButtons.forEach((b,i)=>{
     if (tabsList[i]) {
       b.classList.toggle('active', tabsList[i]===t);
@@ -654,9 +654,34 @@ function buscarProducto(code){
   }else{
     document.getElementById('sr-code').textContent=code;
     document.getElementById('sr-name').textContent='❌ Producto no encontrado';
-    document.getElementById('sr-detail').textContent='Verifica el código o agrega el producto en Inventario';
+    const cleanCode = code.replace(/'/g, "\\'").replace(/"/g, '\\"');
+    document.getElementById('sr-detail').innerHTML=`
+      El código ingresado no coincide con ningún producto registrado.<br>
+      <button class="btn btn-accent btn-sm" onclick="openModalWithCode('${cleanCode}')" style="margin-top:10px; width:100%; padding:10px; font-weight:600; font-family:'Inter',sans-serif; border:none; border-radius:10px; cursor:pointer; background:var(--accent); color:#fff;">➕ Registrar Nuevo Producto</button>
+    `;
     showToast('Producto no encontrado','error');
   }
+}
+
+function openModalWithCode(code) {
+  // Cambiar a la pestaña de Inventario
+  showTab('inventario');
+  
+  // Limpiar el formulario
+  const form = document.getElementById('inv-form');
+  if (form) form.reset();
+  editingId = null;
+  
+  // Modificar título del modal
+  document.getElementById('modal-title').textContent = 'Registrar Nuevo Producto (Código Pre-cargado)';
+  
+  // Pre-cargar el código en los campos relevantes
+  document.getElementById('item-code').value = code;
+  document.getElementById('item-sku').value = code;
+  document.getElementById('item-barcode').value = code;
+  
+  // Mostrar modal
+  document.getElementById('modal-overlay').classList.add('open');
 }
 
 // ═══ MOVIMIENTOS ═══
