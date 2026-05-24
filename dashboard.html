@@ -364,6 +364,12 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
         <div class="module-name">WMS Bodega</div>
         <div class="module-desc">Escaneo, ingresos y logística inversa</div>
       </a>
+      <a href="recordatorios.html" class="module-card">
+        <div class="module-icon">📌</div>
+        <div class="module-name">Recordatorios</div>
+        <div class="module-desc">Kanban colaborativo administrativo</div>
+        <div class="badge-count" id="badge-recordatorios-ops" style="display:none">0</div>
+      </a>
     </div>
   </div>
 
@@ -390,6 +396,12 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
         <div class="module-icon">📦</div>
         <div class="module-name">Inventario</div>
         <div class="module-desc">Control de stock</div>
+      </a>
+      <a href="recordatorios.html" class="module-card">
+        <div class="module-icon">📌</div>
+        <div class="module-name">Recordatorios</div>
+        <div class="module-desc">Kanban colaborativo administrativo</div>
+        <div class="badge-count" id="badge-recordatorios-fin" style="display:none">0</div>
       </a>
     </div>
   </div>
@@ -425,6 +437,12 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
         <div class="module-icon">⚙️</div>
         <div class="module-name">Administración</div>
         <div class="module-desc">Panel de control general</div>
+      </a>
+      <a href="recordatorios.html" class="module-card">
+        <div class="module-icon">📌</div>
+        <div class="module-name">Recordatorios</div>
+        <div class="module-desc">Kanban colaborativo administrativo</div>
+        <div class="badge-count" id="badge-recordatorios-adm" style="display:none">0</div>
       </a>
     </div>
   </div>
@@ -1083,6 +1101,24 @@ requireAuth(async(user,data)=>{
     }catch(e){}
   })();
   promises.push(pBodega);
+
+  // P-RECORDATORIOS: Tareas pendientes Kanban
+  if (_isViewer) {
+    const pRecordatorios = (async () => {
+      try {
+        const recSnap = await db.collection('recordatorios').where('estado','==','pendientes').get();
+        if(recSnap.size > 0) {
+          const c = recSnap.size;
+          ['badge-recordatorios-ops', 'badge-recordatorios-fin', 'badge-recordatorios-adm'].forEach(id => {
+            const b = document.getElementById(id);
+            if(b) { b.style.display='block'; b.textContent=c; }
+          });
+          showToast(`📌 Tienes ${c} recordatorios pendientes en el tablero Kanban.`, 'info');
+        }
+      } catch(e) {}
+    })();
+    promises.push(pRecordatorios);
+  }
 
   // P9: Estadísticas de administración y Flota (Global para todos)
   promises.push(loadAdminStats());

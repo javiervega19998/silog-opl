@@ -297,25 +297,12 @@ select.field{appearance:auto;cursor:pointer}
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/inventory-helpers.js"></script>
 <script>
 let _uid='',_email='',_name='',_inversas=[],_productos=[],_movimientos=[];
 let _scannerStream=null, _scanning=false;
 
-// Variables de estado del Inventario
-let allItems = [];
-let currentFilter = 'all';
-let editingId = null;
-let userRole = 'operador';
-const statusColors = {
-  disponible:'badge-done', en_transito:'badge-active',
-  entregado:'badge-done', agotado:'badge-danger', dañado:'badge-danger',
-  no_disponible:'badge-danger'
-};
-const statusLabels = {
-  disponible:'Disponible', en_transito:'En Tránsito',
-  entregado:'Entregado', agotado:'Agotado', dañado:'Dañado',
-  no_disponible:'No Disponible'
-};
+// Variables de estado del Inventario (importadas vía inventory-helpers.js)
 
 requireAuth(async(user,data)=>{
   _uid=user.uid;
@@ -528,7 +515,7 @@ function validarCodigo(dir) {
       <strong>✅ Producto Validado:</strong> ${prod.nombre || prod.name || 'Sin Nombre'}<br>
       <span style="font-size:0.72rem;color:var(--text2)">
         SKU: ${prod.sku || '—'} | Barras: ${prod.codigo_barras || '—'}<br>
-        Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'} | Ubicación: ${prod.location || '—'}
+        Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'}
       </span>
     `;
     showToast(`✅ Código validado: ${prod.nombre || prod.name}`, 'success');
@@ -581,7 +568,7 @@ function seleccionarProductoDropdown(dir) {
       <strong>ℹ️ Producto Seleccionado:</strong> ${prod.nombre || prod.name || 'Sin Nombre'}<br>
       <span style="font-size:0.72rem;color:var(--text2)">
         SKU: ${prod.sku || '—'} | Barras: ${prod.codigo_barras || '—'}<br>
-        Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'} | Ubicación: ${prod.location || '—'}
+        Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'}
       </span>
     `;
   }
@@ -644,7 +631,7 @@ function buscarProducto(code){
   if(prod){
     document.getElementById('sr-code').textContent=prod.sku||prod.codigo_barras||prod.id;
     document.getElementById('sr-name').textContent=prod.name||prod.nombre||'—';
-    document.getElementById('sr-detail').textContent=`Stock: ${prod.qty??prod.cantidad??0} ${prod.unit||'un'} · Ubicación: ${prod.location||'—'} · Min: ${prod.stock_minimo||0}`;
+    document.getElementById('sr-detail').textContent=`Stock: ${prod.qty??prod.cantidad??0} ${prod.unit||'un'} · Min: ${prod.stock_minimo||0}`;
     showToast('✅ Producto encontrado','success');
   }else{
     document.getElementById('sr-code').textContent=code;
@@ -792,143 +779,7 @@ async function registrarMovimiento(dir){
   }
 }
 
-// ═══ TAB INVENTARIO LÓGICA COMPLETA ═══
-
-function renderItems(items) {
-  const container = document.getElementById('inv-container');
-  if (!items.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📦</div><h3>Sin ítems</h3><p>No hay registros en esta categoría.</p></div>`;
-    return;
-  }
-
-  // Override status dynamically for qty === 0 items to 'no_disponible'
-  items.forEach(item => {
-    if ((item.qty || item.cantidad || 0) === 0) {
-      item.status = 'no_disponible';
-    }
-  });
-
-  let slidedownBtn = '';
-  let tableStyle = '';
-  if (items.length > 10) {
-    tableStyle = 'style="max-height: 520px; overflow: hidden; transition: max-height 0.5s ease-in-out; position: relative;" id="inv-table-wrap"';
-    slidedownBtn = `
-      <div id="slidedown-btn-wrap" style="text-align:center; margin-top:12px;">
-        <button class="btn btn-outline btn-full" onclick="slideDownTable()" style="font-size:0.8rem; border-style:dashed; padding:10px; font-weight:600; color:var(--accent);">Mostrar todos los productos 👇</button>
-      </div>
-    `;
-  }
-
-  container.innerHTML = `
-    <div class="table-wrap" ${tableStyle}>
-      <table>
-        <thead><tr>
-          <th>Código</th><th>Nombre</th><th>Cantidad</th>
-          <th>Un. Medida</th><th>Estado</th><th>Acciones</th>
-        </tr></thead>
-        <tbody>${items.map(item => `
-          <tr>
-            <td><code style="color:#F47920;font-size:0.8rem">${item.code || '—'}</code>${item.sku?`<br><span style="font-size:.68rem;color:#8A9DC0">${item.sku}</span>`:''}</td>
-            <td><strong style="font-size:0.88rem">${item.name || '—'}</strong>${item.notes ? `<br><span style="font-size:0.72rem;color:#8899BB">${item.notes}</span>` : ''}</td>
-            <td><b>${item.qty || 0}</b>
-              ${(item.qty||0)>0 && (item.qty||0)<=3 ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#F59E0B;font-weight:600">⚠️ CRÍTICO</span>':''}
-              ${(item.qty||0)===0 ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#EF4444;font-weight:600">⚠️ SIN STOCK</span>':''}
-            </td>
-            <td style="font-size:0.85rem;color:#8899BB;font-weight:500">${item.unit || '—'}</td>
-            <td><span class="badge ${statusColors[item.status] || 'badge-pending'}">${statusLabels[item.status] || item.status}</span></td>
-            <td>
-              <button class="btn btn-outline btn-sm" onclick="editItem('${item.id}')" style="margin-right:4px">✏️</button>
-              ${userRole === 'admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}')">🗑️</button>` : ''}
-            </td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-    ${slidedownBtn}`;
-}
-
-window.slideDownTable = function() {
-  const wrap = document.getElementById('inv-table-wrap');
-  const btnWrap = document.getElementById('slidedown-btn-wrap');
-  if (wrap) {
-    wrap.style.maxHeight = '10000px';
-  }
-  if (btnWrap) {
-    btnWrap.style.display = 'none';
-  }
-};
-
-function applyFilter() {
-  const q = document.getElementById('search-inv').value.toLowerCase();
-  let filtered = allItems;
-  
-  // Override status dynamically for filtering
-  filtered.forEach(i => {
-    if ((i.qty || i.cantidad || 0) === 0) {
-      i.status = 'no_disponible';
-    }
-  });
-
-  if (currentFilter !== 'all') {
-    if (currentFilter === 'agotado') {
-      filtered = filtered.filter(i => i.status === 'agotado' || i.status === 'no_disponible');
-    } else {
-      filtered = filtered.filter(i => i.status === currentFilter);
-    }
-  }
-  if (q) filtered = filtered.filter(i =>
-    (i.code||'').toLowerCase().includes(q) ||
-    (i.name||'').toLowerCase().includes(q) ||
-    (i.location||'').toLowerCase().includes(q)
-  );
-  renderItems(filtered);
-}
-
-async function loadInventory() {
-  const snap = await db.collection('inventory').orderBy('updatedAt','desc').get();
-  allItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  applyFilter();
-}
-
-function openModal(id = null) {
-  editingId = id;
-  document.getElementById('modal-title').textContent = id ? 'Editar Ítem' : 'Nuevo Ítem';
-  if (!id) document.getElementById('inv-form').reset();
-  document.getElementById('modal-overlay').classList.add('open');
-}
-
-function editItem(id) {
-  const item = allItems.find(i => i.id === id);
-  if (!item) return;
-  document.getElementById('item-id').value       = id;
-  document.getElementById('item-code').value     = item.code || '';
-  document.getElementById('item-sku').value      = item.sku || '';
-  document.getElementById('item-name').value     = item.name || '';
-  document.getElementById('item-barcode').value  = item.codigo_barras || '';
-  document.getElementById('item-qty').value      = item.qty || 1;
-  document.getElementById('item-min').value      = item.stock_minimo || 0;
-  document.getElementById('item-unit').value     = item.unit || 'unidad';
-  document.getElementById('item-litros-por-unidad').value = item.litros_por_unidad || 0;
-  document.getElementById('item-kg-por-unidad').value = item.kg_por_unidad || 0;
-  document.getElementById('item-status').value   = item.status || 'disponible';
-  document.getElementById('item-notes').value    = item.notes || '';
-  openModal(id);
-}
-
-async function deleteItem(id) {
-  if (!confirm('¿Eliminar este ítem del inventario?')) return;
-  await db.collection('inventory').doc(id).delete();
-  showToast('Ítem eliminado', 'success');
-  await loadInventory();
-  await loadProductos();
-}
-
-function closeModal(e) {
-  if (!e || e.target === document.getElementById('modal-overlay')) {
-    document.getElementById('modal-overlay').classList.remove('open');
-    editingId = null;
-  }
-}
+// ═══ TAB INVENTARIO LÓGICA COMPLETA (vía inventory-helpers.js) ═══
 
 // Configurar listeners de la pestaña inventario al inicializar
 document.addEventListener('DOMContentLoaded', () => {
@@ -1016,7 +867,7 @@ function checkLowStock(){
   }catch(e){}
 }
 
-// ═══ IMPORT FROM EXCEL ═══
+// ═══ EXPORTACIÓN E IMPORTACIÓN EXCEL (vía inventory-helpers.js) ═══
 async function importExcel(e){
   const file=e.target.files[0];
   if(!file){return;}
@@ -1035,13 +886,11 @@ async function importExcel(e){
       const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
       if(!rows.length) continue;
 
-      // Detect sheet type from columns of the first row
       const firstRow=rows[0];
       const firstRowKeys=Object.keys(firstRow).map(k=>k.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim());
       const isMovements=firstRowKeys.includes('fecha de movimiento') || firstRowKeys.includes('cantidad de entrada') || firstRowKeys.includes('cantidad de salida');
 
       if(isMovements){
-        // Movements sheet mapping
         const movColMap={
           'fecha de movimiento':'fecha_movimiento',
           'n documento':'n_documento',
@@ -1134,7 +983,6 @@ async function importExcel(e){
             }
           }
 
-          // Create movement in movimientos_bodega
           const movRef=db.collection('movimientos_bodega').doc();
           batch.set(movRef,{
             producto_id:prodId,
@@ -1153,7 +1001,6 @@ async function importExcel(e){
           });
           totalMovs++;
 
-          // Update inventory stock and recalculated metric fields
           if(item.cantidad_stock!==undefined&&item.cantidad_stock!==''){
             const newStock=parseInt(item.cantidad_stock)||0;
             const prodRef=db.collection('inventory').doc(prodId);
@@ -1170,7 +1017,6 @@ async function importExcel(e){
           }
         }
       } else {
-        // Stock / Inventory sheet mapping
         const colMap={
           'codigo producto':'code','codigo':'code','código':'code','code':'code','tracking':'code',
           'nombre producto':'name','nombre':'name','name':'name','producto':'name','descripcion':'name',
@@ -1269,297 +1115,6 @@ async function importExcel(e){
   e.target.value='';
 }
 
-// ═══ DOWNLOAD PLANTILLA ═══
-function downloadPlantilla(){
-  const wb=XLSX.utils.book_new();
-  const getColLetter = (colIdx) => {
-    let temp, letter = '';
-    while (colIdx >= 0) {
-      temp = colIdx % 26;
-      letter = String.fromCharCode(temp + 65) + letter;
-      colIdx = Math.floor(colIdx / 26) - 1;
-    }
-    return letter;
-  };
-
-  // Sheet 1: Stock de Inventario
-  const stockRows=[
-    ['CÓDIGO PRODUCTO','NOMBRE PRODUCTO','Litros x Unidad','KG x UNIDAD','STOCK ACTUAL','LITROS ACTUALES','KG ACTUALES'],
-    ['PROD-001','Aceite Lubricante 1L',1.0,0.0,150,150.0,0.0],
-    ['PROD-002','Harina Industrial 25KG',0.0,25.0,40,0.0,1000.0]
-  ];
-  const wsStock=XLSX.utils.aoa_to_sheet(stockRows);
-  wsStock['!cols']=[{wch:18},{wch:30},{wch:16},{wch:16},{wch:16},{wch:18},{wch:18}];
-  
-  // Style Stock Inventario headers (Row 1)
-  for (let c = 0; c < stockRows[0].length; c++) {
-    const ref = getColLetter(c) + '1';
-    if (wsStock[ref]) {
-      wsStock[ref].s = {
-        font: { bold: true },
-        alignment: { horizontal: 'center', vertical: 'center' }
-      };
-    }
-  }
-
-  XLSX.utils.book_append_sheet(wb,wsStock,'Stock Inventario');
-
-  // Sheet 2: Movimientos
-  const movRows=[
-    ['FECHA DE MOVIMIENTO','N° DOCUMENTO','CODIGO DE PRODUCTO','NOMBRE DE PRODUCTO','CANTIDAD DE ENTRADA','CANTIDAD DE SALIDA','CANTIDAD EN STOCK','VALOR','OBSERVACIONES'],
-    [new Date().toISOString().slice(0,10),'GD-1001','PROD-001','Aceite Lubricante 1L',50,'',200,15000,'Abastecimiento inicial'],
-    [new Date().toISOString().slice(0,10),'GD-1002','PROD-002','Harina Industrial 25KG','',10,30,8000,'Despacho cliente']
-  ];
-  const wsMov=XLSX.utils.aoa_to_sheet(movRows);
-  wsMov['!cols']=[{wch:20},{wch:15},{wch:18},{wch:30},{wch:22},{wch:22},{wch:20},{wch:12},{wch:25}];
-  
-  // Style Movimientos headers (Row 1)
-  for (let c = 0; c < movRows[0].length; c++) {
-    const ref = getColLetter(c) + '1';
-    if (wsMov[ref]) {
-      wsMov[ref].s = {
-        font: { bold: true },
-        alignment: { horizontal: 'center', vertical: 'center' }
-      };
-    }
-  }
-
-  XLSX.utils.book_append_sheet(wb,wsMov,'Movimientos');
-
-  XLSX.writeFile(wb,'SILOG_Plantilla_WMS.xlsx');
-}
-
-// ═══ EXPORT: Resumen Inventario ═══
-function exportResumen(){
-  const rows=[['RESUMEN DE INVENTARIO - SILOG SpA','','','','',''],
-    ['Fecha de generación:',new Date().toLocaleString('es-CL'),'','','',''],
-    [],
-    ['Código','SKU','Producto','Cantidad','Unidad','Estado','Ubicación','Stock Mínimo','Alerta']];
-  const sorted=[...allItems].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  sorted.forEach(i=>{
-    const alerta=(i.stock_minimo||0)>0&&(i.qty||0)<=(i.stock_minimo||0)?'⚠️ BAJO STOCK':'';
-    rows.push([i.code||'',i.sku||'',i.name||'',i.qty||0,i.unit||'',statusLabels[i.status]||i.status||'',i.location||'',i.stock_minimo||0,alerta]);
-  });
-  // Totals
-  const totalQty=allItems.reduce((s,i)=>s+(i.qty||0),0);
-  const byStatus={};
-  allItems.forEach(i=>{const s=i.status||'disponible';byStatus[s]=(byStatus[s]||0)+(i.qty||0);});
-  rows.push([]);
-  rows.push(['','','TOTAL PRODUCTOS',allItems.length,'','','','','']);
-  rows.push(['','','TOTAL UNIDADES',totalQty,'','','','','']);
-  Object.entries(byStatus).forEach(([s,c])=>rows.push(['','',statusLabels[s]||s,c,'','','','','']));
-  dlXLSX([{name:'Resumen Inventario',data:rows}],'SILOG_Resumen_Inventario');
-}
-
-// ═══ EXPORT: Ingresos y Salidas ═══
-async function exportMovimientosReport(){
-  try{
-    showToast('📥 Generando reporte…','info');
-    const snap=await db.collection('movimientos_bodega').get();
-    const movs=[];
-    snap.forEach(d=>{const m=d.data();m._date=m.fecha?.toDate?m.fecha.toDate():null;movs.push(m);});
-    movs.sort((a,b)=>(a._date||0)-(b._date||0));
-    const rows=[
-      ['FECHA DE MOVIMIENTO','N° DOCUMENTO','CODIGO DE PRODUCTO','NOMBRE DE PRODUCTO','CANTIDAD DE ENTRADA','CANTIDAD DE SALIDA','CANTIDAD EN STOCK','VALOR','OBSERVACIONES']
-    ];
-    movs.forEach(m=>{
-      const prod=allItems.find(p=>p.id===m.producto_id) || {};
-      const isEntry=['ingreso','devolucion','abastecimiento','ajuste_pos'].includes(m.tipo);
-      const qtyEntrada=isEntry ? (m.cantidad || 0) : '';
-      const qtySalida=!isEntry ? (m.cantidad || 0) : '';
-      rows.push([
-        m._date ? m._date.toLocaleDateString('es-CL') : '',
-        m.numero_documento || m.referencia || '',
-        m.producto_codigo || prod.code || '',
-        m.producto_nombre || prod.name || '',
-        qtyEntrada,
-        qtySalida,
-        prod.qty !== undefined ? prod.qty : (prod.cantidad || 0),
-        m.valor_clp || m.valor || 0,
-        m.observaciones || ''
-      ]);
-    });
-    dlXLSX([{name:'Movimientos',data:rows}],'SILOG_Movimientos_Inventario');
-  }catch(e){showToast('Error: '+e.message,'error');}
-}
-
-// ═══ EXPORT: Consolidado General ═══
-async function exportConsolidado(){
-  try{
-    showToast('📥 Generando consolidado WMS…','info');
-    
-    // 1. Fetch Movements
-    const movSnap=await db.collection('movimientos_bodega').get();
-    const movs=[];
-    movSnap.forEach(d=>{const m=d.data();m._date=m.fecha?.toDate?m.fecha.toDate():null;movs.push(m);});
-    movs.sort((a,b)=>(a._date||0)-(b._date||0));
-    
-    // 2. Fetch Dispatches
-    const despSnap=await db.collection('despachos').get();
-    const desps=[];
-    despSnap.forEach(d=>{const dp=d.data();dp.id=d.id;dp._date=dp.fecha?.toDate?dp.fecha.toDate():null;desps.push(dp);});
-    
-    // 3. Fetch Hojas de Ruta (Trips)
-    const hrSnap=await db.collection('hojas_ruta').get();
-    const hrMap={};
-    hrSnap.forEach(d=>{hrMap[d.id]=d.data();});
-
-    const sheets=[];
-
-    // --- SHEET 1: Stock de Inventario ---
-    const h1=[
-      ['CÓDIGO PRODUCTO','NOMBRE PRODUCTO','Litros x Unidad','KG x UNIDAD','STOCK ACTUAL','LITROS ACTUALES','KG ACTUALES']
-    ];
-    const sorted=[...allItems].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-    sorted.forEach(i=>{
-      h1.push([
-        i.code||'',
-        i.name||'',
-        i.litros_por_unidad||0,
-        i.kg_por_unidad||0,
-        i.qty||0,
-        i.litros_actuales||0,
-        i.kg_actuales||0
-      ]);
-    });
-    sheets.push({name:'Stock Inventario',data:h1});
-
-    // --- SHEET 2: Movimientos ---
-    const h2=[
-      ['FECHA DE MOVIMIENTO','N° DOCUMENTO','CODIGO DE PRODUCTO','NOMBRE DE PRODUCTO','CANTIDAD DE ENTRADA','CANTIDAD DE SALIDA','CANTIDAD EN STOCK','VALOR','OBSERVACIONES']
-    ];
-    movs.forEach(m=>{
-      const prod=allItems.find(p=>p.id===m.producto_id) || {};
-      const isEntry=['ingreso','devolucion','abastecimiento','ajuste_pos'].includes(m.tipo);
-      const qtyEntrada=isEntry ? (m.cantidad || 0) : '';
-      const qtySalida=!isEntry ? (m.cantidad || 0) : '';
-      h2.push([
-        m._date ? m._date.toLocaleDateString('es-CL') : '',
-        m.numero_documento || m.referencia || '',
-        m.producto_codigo || prod.code || '',
-        m.producto_nombre || prod.name || '',
-        qtyEntrada,
-        qtySalida,
-        prod.qty !== undefined ? prod.qty : (prod.cantidad || 0),
-        m.valor_clp || m.valor || 0,
-        m.observaciones || ''
-      ]);
-    });
-    sheets.push({name:'Movimientos',data:h2});
-
-    // --- SHEET 3: Status ---
-    const docGroup={};
-    const getDocKey=(docNum)=>String(docNum || '').trim().toUpperCase();
-    
-    desps.forEach(d=>{
-      const docNum=d.guia_numero || d.n_documento || d.referencia;
-      if(!docNum)return;
-      const key=getDocKey(docNum);
-      if(!docGroup[key]){
-        docGroup[key]={
-          docNum,
-          fechaRecepcion:'',
-          cliente:d.cliente_nombre||'',
-          bultos:0,
-          litros:0,
-          kg:0,
-          fechaEntrega:'',
-          status:'',
-          movil:'',
-          conductor:'',
-          comuna:d.cliente_comuna||'',
-          region:d.cliente_region||d.region||'Metropolitana',
-          _desps:[],
-          _movs:[]
-        };
-      }
-      const g=docGroup[key];
-      g._desps.push(d);
-      
-      let b=parseInt(d.bultos)||parseInt(d.cantidad)||0;
-      if(!b&&d.descripcion){
-        const m=d.descripcion.match(/\d+/);
-        if(m)b=parseInt(m[0]);
-      }
-      if(!b)b=1;
-      g.bultos+=b;
-      g.litros+=parseFloat(d.litros)||parseFloat(d.litros_total)||0;
-      g.kg+=parseFloat(d.kg)||parseFloat(d.kg_total)||0;
-      
-      const trip=hrMap[d.turno_id]||{};
-      if(trip.fecha) g.fechaEntrega=trip.fecha;
-      if(trip.patente) g.movil=trip.patente;
-      if(trip.conductor_nombre) g.conductor=trip.conductor_nombre;
-    });
-
-    movs.forEach(m=>{
-      const docNum=m.numero_documento||m.referencia;
-      if(!docNum)return;
-      const key=getDocKey(docNum);
-      if(!docGroup[key]){
-        docGroup[key]={
-          docNum,
-          fechaRecepcion:'',
-          cliente:m.producto_nombre||'',
-          bultos:0,
-          litros:0,
-          kg:0,
-          fechaEntrega:m._date?m._date.toLocaleDateString('es-CL'):'',
-          status:'',
-          movil:'',
-          conductor:m.operario_nombre||'',
-          comuna:m.ubicacion||'',
-          region:'Metropolitana',
-          _desps:[],
-          _movs:[]
-        };
-      }
-      const g=docGroup[key];
-      g._movs.push(m);
-      
-      if(g._desps.length===0){
-        g.bultos+=m.cantidad||0;
-        const prod=allItems.find(p=>p.id===m.producto_id)||{};
-        if(prod.litros_por_unidad) g.litros+=(prod.litros_por_unidad*(m.cantidad||0));
-        if(prod.kg_por_unidad) g.kg+=(prod.kg_por_unidad*(m.cantidad||0));
-        if(!g.cliente&&m.producto_nombre) g.cliente=m.producto_nombre;
-      }
-    });
-
-    const h3=[
-      ['N°DOCUMENTO','FECHA DE RECEPCIÓN','CLIENTE','BULTOS','LITROS','KG','FECHA DE ENTREGA','STATUS','MOVIL','CONDUCTOR','COMUNA','REGIÓN']
-    ];
-
-    Object.values(docGroup).forEach(g=>{
-      let finalStatus='';
-      if(g._desps.length>0){
-        const hasDev=g._desps.some(d=>d.estado==='devuelto');
-        const allEnt=g._desps.every(d=>d.estado==='entregado');
-        if(allEnt){
-          finalStatus='ENTREGADO';
-        }else if(hasDev){
-          const hasRechazo=g._desps.some(d=>{
-            const mot=(d.devolucion_motivo||'').toLowerCase();
-            return mot.includes('rechazo')||mot.includes('rechazado');
-          });
-          finalStatus=hasRechazo?'RECHAZADO':'DEVOLUCION';
-        }else{
-          finalStatus='PENDIENTE';
-        }
-      }else{
-        const hasIng=g._movs.some(m=>['ingreso', 'devolucion', 'abastecimiento'].includes(m.tipo));
-        if(hasIng) finalStatus='';
-        else finalStatus='EGRESO';
-      }
-      h3.push([g.docNum,g.fechaRecepcion,g.cliente,g.bultos,g.litros,g.kg,g.fechaEntrega,finalStatus,g.movil,g.conductor,g.comuna,g.region]);
-    });
-    sheets.push({name:'Status',data:h3});
-
-    dlXLSX(sheets,'SILOG_Consolidado_WMS');
-  }catch(e){showToast('Error: '+e.message,'error');}
-}
-
-// ═══ XLSX HELPER ═══
 function dlXLSX(sheets,filename){
   const wb=XLSX.utils.book_new();
   sheets.forEach(s=>{
@@ -1569,7 +1124,6 @@ function dlXLSX(sheets,filename){
       let w=10;s.data.forEach(r=>{if(r[ci]!=null){const l=String(r[ci]).length;if(l>w)w=l;}});return{wch:Math.min(w+2,40)};
     });
     
-    // Style headers (bold & centered)
     let headerRow = 1;
     if (s.name === 'Resumen Inventario') {
       headerRow = 4;

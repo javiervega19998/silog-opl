@@ -166,5 +166,13 @@ service cloud.firestore {
       allow create: if isAuth() && isViewer();
       allow update, delete: if isAuth() && isViewer();
     }
+
+    // ── Recordatorios (Kanban Admin) ──────────────────────────────
+    match /recordatorios/{id} {
+      allow create: if isAuth() && isViewer();
+      allow read:   if isAuth() && isViewer();
+      allow update: if isAuth() && isViewer();
+      allow delete: if isAuth() && isViewer();
+    }
   }
 }

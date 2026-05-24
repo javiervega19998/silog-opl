@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Recordatorios (Kanban)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B;}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:1rem}.nav-brand span{color:var(--accent)}
+.nav-right{display:flex;gap:8px;align-items:center}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
+.btn-new{background:var(--accent);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600;font-family:'Inter',sans-serif}
+.main{max-width:1200px;margin:0 auto;padding:20px 16px 80px;height:calc(100vh - 60px);display:flex;flex-direction:column}
+.page-header{margin-bottom:20px}.page-header h2{font-size:1.3rem;font-weight:700}.page-header p{color:var(--text2);font-size:.83rem;margin-top:4px}
+.kanban-board{display:flex;gap:16px;overflow-x:auto;flex:1;padding-bottom:10px}
+.kanban-col{background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:280px;flex:1;display:flex;flex-direction:column;max-height:100%}
+.col-header{padding:12px 16px;border-bottom:1px solid var(--border);font-weight:700;font-size:.9rem;display:flex;justify-content:space-between;align-items:center}
+.col-count{background:var(--surface2);color:var(--text2);font-size:.7rem;padding:2px 8px;border-radius:12px}
+.col-body{padding:12px;overflow-y:auto;flex:1;min-height:100px}
+.col-body.drag-over{background:rgba(255,255,255,0.02)}
+/* Cards */
+.kanban-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;cursor:grab;position:relative;transition:.2s}
+.kanban-card:hover{border-color:var(--primary)}
+.kanban-card:active{cursor:grabbing}
+.kanban-card.priority-alta{border-left:3px solid var(--danger)}
+.kanban-card.priority-media{border-left:3px solid var(--warning)}
+.kanban-card.priority-baja{border-left:3px solid var(--success)}
+.k-title{font-size:.85rem;font-weight:600;margin-bottom:6px}
+.k-desc{font-size:.75rem;color:var(--text2);margin-bottom:10px;white-space:pre-wrap;line-height:1.4}
+.k-meta{display:flex;justify-content:space-between;align-items:flex-end;font-size:.65rem;color:var(--text2)}
+.k-user{background:rgba(255,255,255,0.05);padding:3px 6px;border-radius:4px;color:var(--accent)}
+.k-actions{display:flex;gap:6px;margin-top:10px;border-top:1px solid var(--border);padding-top:8px}
+.k-btn{background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:.7rem;transition:.2s}
+.k-btn:hover{color:var(--text)}
+.k-btn-del:hover{color:var(--danger)}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:1.1rem;font-weight:700;margin-bottom:20px;color:var(--accent)}
+.form-row{margin-bottom:12px}.form-row label{display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;font-family:'Inter',sans-serif;outline:none}
+.field:focus{border-color:var(--primary)}
+.modal-actions{display:flex;gap:10px;margin-top:20px}
+.btn-save{flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:.9rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+.btn-cancel-m{flex:1;padding:12px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text2);font-size:.9rem;cursor:pointer;font-family:'Inter',sans-serif}
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+/* Toast */
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+/* Responsive Kanban */
+@media (max-width: 768px) {
+  .kanban-board { flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+  .kanban-col { min-height: 200px; flex: none; }
+  .col-body { min-height: 50px; }
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> SpA</div>
+  <div class="nav-right">
+    <button class="btn-new" onclick="openModal()">+ Nuevo Recordatorio</button>
+    <button class="btn-back" onclick="window.location.href='dashboard.html'">← Volver</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="page-header">
+    <h2>📌 Recordatorios</h2>
+    <p>Tablero Kanban colaborativo administrativo</p>
+  </div>
+
+  <div class="kanban-board">
+    <!-- PENDIENTES -->
+    <div class="kanban-col">
+      <div class="col-header">
+        <span style="color:#FCD34D">⏳ Pendientes</span>
+        <span class="col-count" id="count-pendientes">0</span>
+      </div>
+      <div class="col-body" id="col-pendientes" ondrop="drop(event, 'pendientes')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+    </div>
+    <!-- EN PROGRESO -->
+    <div class="kanban-col">
+      <div class="col-header">
+        <span style="color:#93C5FD">🚀 En Progreso</span>
+        <span class="col-count" id="count-progreso">0</span>
+      </div>
+      <div class="col-body" id="col-progreso" ondrop="drop(event, 'progreso')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+    </div>
+    <!-- REVISIÓN -->
+    <div class="kanban-col">
+      <div class="col-header">
+        <span style="color:#A78BFA">👀 Revisión</span>
+        <span class="col-count" id="count-revision">0</span>
+      </div>
+      <div class="col-body" id="col-revision" ondrop="drop(event, 'revision')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+    </div>
+    <!-- FINALIZADO -->
+    <div class="kanban-col">
+      <div class="col-header">
+        <span style="color:#6EE7B7">✅ Finalizado</span>
+        <span class="col-count" id="count-finalizado">0</span>
+      </div>
+      <div class="col-body" id="col-finalizado" ondrop="drop(event, 'finalizado')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nueva/Editar Tarjeta -->
+<div class="modal-overlay" id="modal-form">
+  <div class="modal">
+    <h3 id="modal-title">Nuevo Recordatorio</h3>
+    <input type="hidden" id="r-id" />
+    <div class="form-row">
+      <label>Título</label>
+      <input class="field" id="r-titulo" placeholder="Ej. Revisar facturas" maxlength="60"/>
+    </div>
+    <div class="form-row">
+      <label>Descripción</label>
+      <textarea class="field" id="r-desc" rows="3" placeholder="Detalles de la tarea..." maxlength="250"></textarea>
+    </div>
+    <div class="form-row">
+      <label>Prioridad</label>
+      <select class="field" id="r-prio">
+        <option value="baja">Baja</option>
+        <option value="media" selected>Media</option>
+        <option value="alta">Alta</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel-m" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" id="btn-save" onclick="saveRecordatorio()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- Scripts Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+
+<script>
+let _recordatorios = [];
+let _draggedId = null;
+let _unsubscribe = null;
+
+// Requiere rol admin, administrativo u operaciones (via auth.js)
+// Usaremos _isViewer que incluye admin y administrativo.
+// Wait, isViewer() does not include operaciones.
+// If we need 'operaciones' to use this, they must be included. 
+// But in auth.js _isViewer is true for admin, administrativo, administrativo.conductor.
+// We will check if it's admin or administrativo or if the section ops uses it.
+// According to request: "común entre todo el personal administrativo"
+
+function showToast(msg, type='success'){
+  const t=document.createElement('div');
+  t.className=`toast toast-${type}`;
+  t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(()=>t.classList.add('show'),10);
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300)},3000);
+}
+
+function formatDate(ts){
+  if(!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleString('es-CL', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await requireAuth();
+    if(!_isAdmin && !_isViewer && !_userRole.includes('admin') && !_userRole.includes('operaciones')) {
+      // Allow if they have any administrative role
+      if(!_isViewer) {
+         window.location.href = 'dashboard.html';
+         return;
+      }
+    }
+    
+    // Auto-cleanup cards in "finalizado" > 24h
+    await cleanupFinalizados();
+    
+    // Listen for changes
+    listenRecordatorios();
+  } catch(e) {
+    console.warn("Auth error", e);
+  }
+});
+
+async function cleanupFinalizados() {
+  try {
+    const limitDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const snap = await db.collection('recordatorios')
+      .where('estado', '==', 'finalizado')
+      .get();
+      
+    const batch = db.batch();
+    let count = 0;
+    snap.forEach(doc => {
+      const data = doc.data();
+      if(data.updated_at && data.updated_at.toDate() < limitDate) {
+        batch.delete(doc.ref);
+        count++;
+      }
+    });
+    if(count > 0) {
+      await batch.commit();
+      console.log(`Auto-eliminados ${count} recordatorios finalizados.`);
+    }
+  } catch (e) {
+    console.error("Cleanup error:", e);
+  }
+}
+
+function listenRecordatorios() {
+  _unsubscribe = db.collection('recordatorios').onSnapshot(snap => {
+    _recordatorios = [];
+    snap.forEach(doc => {
+      _recordatorios.push({ id: doc.id, ...doc.data() });
+    });
+    renderBoard();
+  }, err => {
+    console.error("Listen err:", err);
+    showToast('Error al cargar datos', 'error');
+  });
+}
+
+function renderBoard() {
+  const cols = {
+    pendientes: [],
+    progreso: [],
+    revision: [],
+    finalizado: []
+  };
+  
+  // Sort and group
+  _recordatorios.sort((a,b) => {
+    const ta = a.updated_at ? a.updated_at.toDate().getTime() : 0;
+    const tb = b.updated_at ? b.updated_at.toDate().getTime() : 0;
+    return tb - ta; // Descendente por fecha
+  });
+  
+  _recordatorios.forEach(r => {
+    if(cols[r.estado]) cols[r.estado].push(r);
+    else cols['pendientes'].push(r);
+  });
+  
+  Object.keys(cols).forEach(state => {
+    const el = document.getElementById(`col-${state}`);
+    const cnt = document.getElementById(`count-${state}`);
+    el.innerHTML = '';
+    cnt.textContent = cols[state].length;
+    
+    cols[state].forEach(r => {
+      el.appendChild(createCard(r));
+    });
+  });
+}
+
+function createCard(r) {
+  const div = document.createElement('div');
+  div.className = `kanban-card priority-${r.prioridad}`;
+  div.draggable = true;
+  div.id = `card-${r.id}`;
+  
+  div.addEventListener('dragstart', (e) => {
+    _draggedId = r.id;
+    e.dataTransfer.setData('text/plain', r.id);
+    div.style.opacity = '0.5';
+  });
+  div.addEventListener('dragend', () => {
+    div.style.opacity = '1';
+    _draggedId = null;
+  });
+  
+  const creator = r.creador_nombre || r.creador_email || 'Usuario';
+  const updater = r.updated_by_name || creator;
+  
+  div.innerHTML = `
+    <div class="k-title">${r.titulo}</div>
+    <div class="k-desc">${r.descripcion}</div>
+    <div class="k-meta">
+      <span>🕒 ${formatDate(r.created_at)}</span>
+      <span class="k-user" title="Última acción por">👤 ${updater}</span>
+    </div>
+    <div class="k-actions">
+      <button class="k-btn" onclick="openModal('${r.id}')" title="Editar">✏️ Editar</button>
+      <button class="k-btn k-btn-del" onclick="deleteCard('${r.id}')" title="Eliminar">🗑️</button>
+      <div style="flex:1"></div>
+      ${renderMoveButtons(r.id, r.estado)}
+    </div>
+  `;
+  return div;
+}
+
+function renderMoveButtons(id, estado) {
+  const states = ['pendientes', 'progreso', 'revision', 'finalizado'];
+  const idx = states.indexOf(estado);
+  let html = '';
+  if(idx > 0) {
+    html += `<button class="k-btn" onclick="moveCard('${id}', '${states[idx-1]}')" title="Atrás">◀</button>`;
+  }
+  if(idx < states.length - 1) {
+    html += `<button class="k-btn" onclick="moveCard('${id}', '${states[idx+1]}')" title="Adelante">▶</button>`;
+  }
+  return html;
+}
+
+async function moveCard(id, newState) {
+  try {
+    await db.collection('recordatorios').doc(id).update({
+      estado: newState,
+      updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+      updated_by_uid: _uid,
+      updated_by_name: _name || _email
+    });
+  } catch (e) {
+    showToast('Error al mover tarjeta: ' + e.message, 'error');
+  }
+}
+
+async function deleteCard(id) {
+  if(!confirm('¿Eliminar esta tarea permanentemente?')) return;
+  try {
+    await db.collection('recordatorios').doc(id).delete();
+    showToast('🗑️ Tarjeta eliminada', 'success');
+  } catch(e) {
+    showToast('Error al eliminar: ' + e.message, 'error');
+  }
+}
+
+// Drag & Drop
+function allowDrop(ev) {
+  ev.preventDefault();
+  ev.currentTarget.classList.add('drag-over');
+}
+function dragLeave(ev) {
+  ev.currentTarget.classList.remove('drag-over');
+}
+async function drop(ev, newState) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  const id = _draggedId || ev.dataTransfer.getData('text/plain');
+  if(!id) return;
+  const card = _recordatorios.find(r => r.id === id);
+  if(card && card.estado !== newState) {
+    await moveCard(id, newState);
+  }
+}
+
+// Modal
+function openModal(id = null) {
+  const form = document.getElementById('modal-form');
+  const title = document.getElementById('modal-title');
+  document.getElementById('r-id').value = '';
+  document.getElementById('r-titulo').value = '';
+  document.getElementById('r-desc').value = '';
+  document.getElementById('r-prio').value = 'media';
+  
+  if(id) {
+    const r = _recordatorios.find(x => x.id === id);
+    if(r) {
+      document.getElementById('r-id').value = r.id;
+      document.getElementById('r-titulo').value = r.titulo;
+      document.getElementById('r-desc').value = r.descripcion;
+      document.getElementById('r-prio').value = r.prioridad || 'media';
+      title.textContent = 'Editar Recordatorio';
+    }
+  } else {
+    title.textContent = 'Nuevo Recordatorio';
+  }
+  
+  form.classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-form').classList.remove('open');
+}
+
+async function saveRecordatorio() {
+  const id = document.getElementById('r-id').value;
+  const titulo = document.getElementById('r-titulo').value.trim();
+  const desc = document.getElementById('r-desc').value.trim();
+  const prio = document.getElementById('r-prio').value;
+  
+  if(!titulo) { showToast('Ingresa un título', 'error'); return; }
+  
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  
+  const data = {
+    titulo: titulo,
+    descripcion: desc,
+    prioridad: prio,
+    updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+    updated_by_uid: _uid,
+    updated_by_name: _name || _email
+  };
+  
+  try {
+    if(id) {
+      await db.collection('recordatorios').doc(id).update(data);
+      showToast('Recordatorio actualizado', 'success');
+    } else {
+      data.estado = 'pendientes';
+      data.created_at = firebase.firestore.FieldValue.serverTimestamp();
+      data.creador_uid = _uid;
+      data.creador_nombre = _name || _email;
+      await db.collection('recordatorios').add(data);
+      showToast('Recordatorio creado', 'success');
+    }
+    closeModal();
+  } catch(e) {
+    showToast('Error al guardar: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar';
+  }
+}
+</script>
+</body>
+</html>
