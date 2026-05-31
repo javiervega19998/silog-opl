@@ -168,7 +168,7 @@ async function loadData(){
     cutoff.setDate(cutoff.getDate()-365);
     const ts=firebase.firestore.Timestamp.fromDate(cutoff);
 
-    let tSnap, dSnap, gSnap, vSnap;
+    let tSnap, dSnap, gSnap, vSnap, hrSnap;
     try {
       const results = await Promise.all([
         db.collection('turnos').where('fecha','>=',ts).get().catch(e => {
@@ -186,35 +186,127 @@ async function loadData(){
         db.collection('vehiculos').get().catch(e => {
           console.warn("Vehiculos query failed:", e);
           return null;
+        }),
+        db.collection('hojas_ruta').get().catch(e => {
+          console.warn("Hojas query failed:", e);
+          return null;
         })
       ]);
       tSnap = results[0];
       dSnap = results[1];
       gSnap = results[2];
       vSnap = results[3];
+      hrSnap = results[4];
     } catch(err) {
       console.warn("Parallel fetch failed, fallback sequential:", err);
       tSnap = await db.collection('turnos').get();
       dSnap = await db.collection('despachos').get();
       gSnap = await db.collection('gastos_ruta').get();
       vSnap = await db.collection('vehiculos').get();
+      hrSnap = await db.collection('hojas_ruta').get();
     }
 
-    _turnos=[];tSnap.forEach(d=>{const t=d.data();t._id=d.id;t._date=t.fecha?.toDate?t.fecha.toDate():(t.hora_apertura?.toDate?t.hora_apertura.toDate():null);_turnos.push(t);});
+    const hojasByTurnoId = {};
+    if (hrSnap) {
+      hrSnap.forEach(d => {
+        const h = d.data();
+        if (h.turno_id) {
+          hojasByTurnoId[h.turno_id] = { id: d.id, ...h };
+        }
+      });
+    }
+
+    _turnos=[];
+    tSnap.forEach(d=>{
+      const t=d.data();
+      t._id=d.id;
+      t._date=t.fecha?.toDate?t.fecha.toDate():(t.hora_apertura?.toDate?t.hora_apertura.toDate():null);
+      
+      const h = hojasByTurnoId[t._id];
+      if (h) {
+        t.conductor_nombre = h.conductor_nombre || t.conductor_nombre || '';
+        t.conductor_email = h.conductor_email || t.conductor_email || '';
+        t.patente = h.patente || t.patente || '';
+      }
+      
+      let n = t.conductor_nombre || '';
+      let email = t.conductor_email || '';
+      if (!n || n === '-' || n === '—') {
+        n = email || '—';
+      }
+      if (n.includes('@')) {
+        if (n.toLowerCase().includes('javier.vega')) {
+          n = 'Javier Vega';
+        } else {
+          const parts = n.split('@')[0].split('.');
+          n = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        }
+      }
+      if (n.toLowerCase().includes('javier.vega') || email.toLowerCase().includes('javier.vega')) {
+        n = 'Javier Vega';
+      }
+      if (n === '-' || n === '—' || !n) {
+        n = 'Conductor Indefinido';
+      }
+      t.conductor_nombre = n;
+      _turnos.push(t);
+    });
+
     _despachos=[];
     dSnap.forEach(d=>{
       const dp=d.data();
       dp._date=dp.pod_timestamp?.toDate?dp.pod_timestamp.toDate():(dp.fecha?.toDate?dp.fecha.toDate():null);
+      
+      const h = hojasByTurnoId[dp.turno_id];
       const t = _turnos.find(x => x._id === dp.turno_id);
-      if(t){
-        dp.patente=t.patente||'N/A';
-        dp.conductor_nombre=t.conductor_nombre||t.conductor_email||'—';
+      
+      let condName = '';
+      let condEmail = '';
+      
+      if (h) {
+        condName = h.conductor_nombre || '';
+        condEmail = h.conductor_email || '';
+        dp.patente = h.patente || 'N/A';
+      } else if (t) {
+        condName = t.conductor_nombre || '';
+        condEmail = t.conductor_email || '';
+        dp.patente = t.patente || 'N/A';
       } else {
-        dp.patente=dp.patente||'N/A';
-        dp.conductor_nombre=dp.conductor_nombre||dp.conductor_email||'—';
+        dp.patente = dp.patente || 'N/A';
       }
+      
+      let finalName = condName.trim();
+      let finalEmail = condEmail.trim();
+      
+      if (!finalName || finalName === '-' || finalName === '—') {
+        if (finalEmail && finalEmail !== '-' && finalEmail !== '—') {
+          finalName = finalEmail;
+        } else {
+          finalName = dp.conductor_nombre || dp.conductor_email || '—';
+        }
+      }
+      
+      if (finalName.includes('@')) {
+        if (finalName.toLowerCase().includes('javier.vega')) {
+          finalName = 'Javier Vega';
+        } else {
+          const parts = finalName.split('@')[0].split('.');
+          finalName = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        }
+      }
+      
+      if (finalName.toLowerCase().includes('javier.vega') || finalEmail.toLowerCase().includes('javier.vega')) {
+        finalName = 'Javier Vega';
+      }
+      
+      if (finalName === '-' || finalName === '—' || !finalName) {
+        finalName = 'Conductor Indefinido';
+      }
+      
+      dp.conductor_nombre = finalName;
       _despachos.push(dp);
     });
+
     _gastos=[];gSnap.forEach(d=>{const g=d.data();g._date=g.fecha?.toDate?g.fecha.toDate():null;_gastos.push(g);});
     
     _vehiculos=[];
@@ -455,7 +547,24 @@ function renderOtifByVehicle(turnosList, despachosList){
 function renderRankConductores(entregados){
   const container=document.getElementById('rank-conductores');
   const byDriver={};
-  entregados.forEach(d=>{const n=d.conductor_nombre||d.conductor_email||'—';byDriver[n]=(byDriver[n]||0)+1;});
+  entregados.forEach(d=>{
+    let n=d.conductor_nombre||d.conductor_email||'—';
+    if (n.includes('@')) {
+      if (n.toLowerCase().includes('javier.vega')) {
+        n = 'Javier Vega';
+      } else {
+        const parts = n.split('@')[0].split('.');
+        n = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+      }
+    }
+    if (n.toLowerCase().includes('javier.vega')) {
+      n = 'Javier Vega';
+    }
+    if (n === '-' || n === '—' || !n) {
+      n = 'Conductor Indefinido';
+    }
+    byDriver[n]=(byDriver[n]||0)+1;
+  });
   const sorted=Object.entries(byDriver).sort((a,b)=>b[1]-a[1]).slice(0,5);
   if(!sorted.length){container.innerHTML='<div class="empty">Sin datos</div>';return;}
   container.innerHTML=sorted.map(([name,count],i)=>{
