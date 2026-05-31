@@ -646,7 +646,7 @@ async function loadCentroCostos(){
         totEgr+=r.total_gastos||0;
         const f=r._fecha?r._fecha.toLocaleDateString('es-CL',{day:'2-digit',month:'short'}):'—';
         return`<tr>
-          <td>...t/d>
+          <td>${f}</td>
           <td><code style="color:var(--accent)">${sanitize(r.patente||'—')}</code></td>
           <td style="font-size:.78rem">${sanitize(r.conductor_nombre || r.conductor_email || '—')}</td>
           <td>${sanitize(r.distribuidor)}</td>

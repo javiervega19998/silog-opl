@@ -170,6 +170,7 @@ async function loadCentroCostos(){
     // Load gastos for these turnos (optimized by period)
     let qGastos = db.collection('gastos_ruta');
     let qDespachos = db.collection('despachos');
+    let qHojas = db.collection('hojas_ruta');
     if(periodo){
       const year = parseInt(periodo.split('-')[0]);
       const month = parseInt(periodo.split('-')[1]);
@@ -179,6 +180,10 @@ async function loadCentroCostos(){
       const endTS = firebase.firestore.Timestamp.fromDate(end);
       qGastos = qGastos.where('fecha', '>=', startTS).where('fecha', '<', endTS);
       qDespachos = qDespachos.where('fecha', '>=', startTS).where('fecha', '<', endTS);
+      
+      const startStr = `${periodo}-01`;
+      const endStr = `${periodo}-31`;
+      qHojas = qHojas.where('fecha', '>=', startStr).where('fecha', '<=', endStr);
     }
     
     let gSnap;
@@ -204,11 +209,36 @@ async function loadCentroCostos(){
     const despachosByTurno={};
     dSnap.forEach(d=>{const dp=d.data();if(!despachosByTurno[dp.turno_id])despachosByTurno[dp.turno_id]={entregados:0,devueltos:0};if(dp.estado==='entregado')despachosByTurno[dp.turno_id].entregados++;else if(dp.estado==='devuelto')despachosByTurno[dp.turno_id].devueltos++;});
 
+    // Load hojas_ruta to resolve distributor authoritative name
+    let hSnap;
+    try {
+      hSnap = await qHojas.get();
+    } catch(err) {
+      console.warn("Query failed for hojas_ruta in CC, using fallback:", err);
+      hSnap = await db.collection('hojas_ruta').get();
+    }
+    const hojaByTurnoId = {};
+    hSnap.forEach(d => {
+      const h = d.data();
+      if (h.turno_id) {
+        hojaByTurnoId[h.turno_id] = h;
+      }
+    });
+
     // Build cost rows
     _allCostos=turnos.map(t=>{
       const g=gastosByTurno[t.id]||{combustible:0,peaje:0};
       const d=despachosByTurno[t.id]||{entregados:0,devueltos:0};
-      return{...t,combustible:g.combustible,peaje:g.peaje,total_gastos:g.combustible+g.peaje,entregados:d.entregados,devueltos:d.devueltos};
+      const h=hojaByTurnoId[t.id]||{};
+      return{
+        ...t,
+        combustible:g.combustible,
+        peaje:g.peaje,
+        total_gastos:g.combustible+g.peaje,
+        entregados:d.entregados,
+        devueltos:d.devueltos,
+        distribuidor:h.distribuidor || t.distribuidor || 'SIN DISTRIBUIDOR'
+      };
     });
 
     let totComb=0,totPeaje=0,totGastos=0;
