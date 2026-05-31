@@ -250,10 +250,11 @@ select.field{appearance:auto;cursor:pointer}
       <p style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">Detalle Entregas</p>
       <div style="overflow-x:auto">
         <table class="items-tbl" id="hoja-entregas-tbl">
-          <thead><tr><th>N°</th><th>Documento</th><th>Lugar</th><th>Estado</th><th>Observaciones</th><th>Comuna</th><th>Valor Diario</th></tr></thead>
+          <thead><tr><th>N°</th><th>Documento</th><th>Lugar</th><th>Estado</th><th>Observaciones</th><th>Comuna</th><th>Valor Diario</th><th style="width:40px">Acc.</th></tr></thead>
           <tbody id="hoja-entregas"></tbody>
         </table>
       </div>
+      <button class="btn-add-item" type="button" onclick="agregarClienteHoja()" style="margin-top:8px; width:100%; border:1px dashed var(--border); background:none; padding:10px; border-radius:8px; color:var(--accent); cursor:pointer; font-weight:600; font-size:0.83rem; font-family:'Inter',sans-serif; margin-bottom:14px;">➕ Agregar Cliente</button>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn-save" style="flex:1" onclick="guardarHoja()">💾 Guardar Cambios</button>
         <button class="btn-sm" style="flex:0 0 auto;padding:12px 18px;background:var(--success);border-color:var(--success);color:#fff" onclick="exportHojaExcel()">📥 Excel</button>
@@ -1516,11 +1517,52 @@ function openHoja(id){
     <td><input class="field he-obs" value="${sanitize(e.observaciones||e.devolucion_motivo||'')}" style="width:120px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
     <td><input class="field he-comuna" value="${sanitize(e.comuna||'')}" style="width:90px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
     <td><input class="field he-valor" type="number" value="${e.valor_diario||0}" style="width:80px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td><button class="btn-sm" type="button" style="background:none; border:none; color:var(--danger); font-size:1.1rem; padding:2px; cursor:pointer;" onclick="eliminarClienteHojaRow(this)" title="Eliminar Cliente">🗑️</button></td>
   </tr>`).join('');
   document.getElementById('modal-hoja').classList.add('open');
 }
 
 function closeHojaModal(){document.getElementById('modal-hoja').classList.remove('open');_hojaActual=null;}
+
+function eliminarClienteHojaRow(btn) {
+  if(!confirm('¿Deseas quitar este cliente de la Hoja de Ruta? Se removerá al guardar los cambios.')) return;
+  const tr = btn.closest('tr');
+  if (tr) {
+    tr.remove();
+    reindexarCorrelativosHoja();
+  }
+}
+
+function reindexarCorrelativosHoja() {
+  const rows = document.querySelectorAll('#hoja-entregas tr');
+  rows.forEach((tr, i) => {
+    const corrTd = tr.querySelector('.he-corr') || tr.cells[0];
+    if (corrTd) corrTd.textContent = i + 1;
+  });
+}
+
+function agregarClienteHoja() {
+  const tbody = document.getElementById('hoja-entregas');
+  const nextIndex = tbody.rows.length + 1;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="he-corr">${nextIndex}</td>
+    <td><input class="field he-doc" placeholder="Documento..." style="width:100px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td><input class="field he-lugar" placeholder="Cliente..." style="width:140px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td>
+      <select class="field he-estado" style="width:125px; padding:6px 10px; font-size:0.8rem; border-radius:6px; font-weight:600; cursor:pointer; outline:none; transition:0.2s; color:var(--success); border-color:rgba(16, 185, 129, 0.4); background:var(--surface2);" onchange="this.style.color = this.value === 'entregado' ? 'var(--success)' : 'var(--danger)'; this.style.borderColor = this.value === 'entregado' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)';">
+        <option value="entregado" style="color:var(--text);background:var(--bg);">🟢 Entregado</option>
+        <option value="devuelto" style="color:var(--text);background:var(--bg);">🔴 Rechazado</option>
+      </select>
+    </td>
+    <td><input class="field he-obs" placeholder="Observación..." style="width:120px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td><input class="field he-comuna" placeholder="Comuna" style="width:90px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td><input class="field he-valor" type="number" value="0" style="width:80px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td><button class="btn-sm" type="button" style="background:none; border:none; color:var(--danger); font-size:1.1rem; padding:2px; cursor:pointer;" onclick="eliminarClienteHojaRow(this)" title="Eliminar Cliente">🗑️</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
 async function guardarHoja(){
   const id=document.getElementById('hoja-id').value;if(!id)return;
   
@@ -1599,10 +1641,64 @@ async function guardarHoja(){
     const batch = db.batch();
     const hrRef = db.collection('hojas_ruta').doc(id);
     
+    // Identify deleted clients
+    const originalEntregas = _hojaActual.entregas || [];
+    const deletedEntregas = originalEntregas.filter(orig => 
+      !entregas.some(newE => newE.documento === orig.documento || (newE.cliente === orig.cliente && newE.direccion === orig.direccion))
+    );
+
+    // Revert inventory and clean up storage files for deleted clients
+    for (const del of deletedEntregas) {
+      if (distribuidorEditado.toLowerCase().includes('total') && del.documento) {
+        const docNum = del.documento;
+        const movs = [];
+        const s1 = await db.collection('movimientos_bodega').where('numero_documento', '==', docNum).get();
+        s1.forEach(d => movs.push({ id: d.id, ref: d.ref, ...d.data() }));
+        
+        const s2 = await db.collection('movimientos_bodega').where('referencia', '==', docNum).get();
+        s2.forEach(d => { if (!movs.some(m => m.id === d.id)) movs.push({ id: d.id, ref: d.ref, ...d.data() }); });
+        
+        for (const mov of movs) {
+          if (mov.tipo === 'salida' || mov.tipo === 'despacho' || mov.cantidad > 0) {
+            const prodId = mov.producto_id;
+            const cant = parseFloat(mov.cantidad) || 0;
+            if (prodId && cant > 0) {
+              const prodRef = db.collection('inventory').doc(prodId);
+              const prodDoc = await prodRef.get();
+              if (prodDoc.exists) {
+                const currentStock = parseFloat(prodDoc.data().stock || prodDoc.data().cantidad || 0);
+                const currentDisp = parseFloat(prodDoc.data().stock_disponible || prodDoc.data().disponible || currentStock);
+                batch.update(prodRef, {
+                  stock: currentStock + cant,
+                  stock_disponible: currentDisp + cant,
+                  cantidad: currentStock + cant,
+                  disponible: currentDisp + cant
+                });
+              }
+            }
+          }
+          batch.delete(mov.ref);
+        }
+      }
+
+      const fileUrls = [del.devolucion_foto_url, del.firma_url, del.foto_url];
+      for (const url of fileUrls) {
+        if (url && url.startsWith('http')) {
+          try {
+            const ref = storage.refFromURL(url);
+            await ref.delete();
+          } catch(err) {
+            console.warn("Storage cleanup failed for deleted client file:", url, err.message);
+          }
+        }
+      }
+    }
+
+    // Save recalculated totals and new client collection to the Master Sheet
     batch.update(hrRef, {
       entregas,
       n_guias: totalGuias,
-      total_entregas: entregas.length,
+      total_entregas: entregas.length - devueltasCount,
       total_devoluciones: devueltasCount,
       conductor_email: condEmail,
       conductor_nombre: condNombre,
@@ -1668,6 +1764,11 @@ async function guardarHoja(){
             pod_timestamp: firebase.firestore.FieldValue.serverTimestamp()
           });
         }
+      });
+
+      // Delete any despachos that are no longer in the edited list!
+      Object.keys(existingDespachos).forEach(k => {
+        batch.delete(existingDespachos[k].ref);
       });
     }
 
