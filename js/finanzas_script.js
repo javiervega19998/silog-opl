@@ -242,30 +242,54 @@ async function loadCentroCostos(){
     });
 
     let totComb=0,totPeaje=0,totGastos=0;
-    const body=document.getElementById('cc-body');
-    if(!_allCostos.length){body.innerHTML='<tr><td colspan="9" class="txt-c empty">Sin datos para este periodo</td></tr>';
-    }else{
-      body.innerHTML=_allCostos.map(r=>{
-        totComb+=r.combustible||0; totPeaje+=r.peaje||0; totGastos+=r.total_gastos||0;
-        const f=r._fecha?r._fecha.toLocaleDateString('es-CL',{day:'2-digit',month:'short'}):'—';
-        return`<tr>
-          <td>${f}</td>
-          <td><code style="color:var(--accent)">${sanitize(r.patente||'—')}</code></td>
-          <td style="font-size:.78rem">${sanitize(r.conductor_nombre || r.conductor_email || '—')}</td>
-          <td>${sanitize(r.nombre_distribuidor || r.distribuidor || 'SIN DISTRIBUIDOR')}</td>
-          <td class="txt-r">${r.entregados}</td>
-          <td class="txt-r">${r.devueltos}</td>
-          <td class="txt-r money money-red">${fmt(r.combustible)}</td>
-          <td class="txt-r money money-red">${fmt(r.peaje)}</td>
-          <td class="txt-r money money-red">${fmt(r.total_gastos)}</td>
-        </tr>`;
-      }).join('');
-    }
+    _allCostos.forEach(r=>{
+      totComb+=r.combustible||0;
+      totPeaje+=r.peaje||0;
+      totGastos+=r.total_gastos||0;
+    });
     document.getElementById('cc-ingresos').textContent=fmt(totComb);
     document.getElementById('cc-egresos').textContent=fmt(totPeaje);
     document.getElementById('cc-margen').textContent=fmt(totGastos);
     document.getElementById('cc-turnos').textContent=_allCostos.length;
+
+    _ccLimit = 10;
+    renderCentroCostos();
   }catch(e){console.warn(e);showToast('Error: '+e.message,'error');}
+}
+
+let _ccLimit = 10;
+function loadMoreCentroCostos(){
+  _ccLimit += 10;
+  renderCentroCostos();
+}
+
+function renderCentroCostos(){
+  const body=document.getElementById('cc-body');
+  const loadBtn=document.getElementById('btn-load-more-cc');
+  if(!_allCostos.length){
+    body.innerHTML='<tr><td colspan="9" class="txt-c empty">Sin datos para este periodo</td></tr>';
+    if(loadBtn) loadBtn.style.display='none';
+    return;
+  }
+  const displayCostos=_allCostos.slice(0,_ccLimit);
+  body.innerHTML=displayCostos.map(r=>{
+    const f=r._fecha?r._fecha.toLocaleDateString('es-CL',{day:'2-digit',month:'short'}):'—';
+    return`<tr>
+      <td>${f}</td>
+      <td><code style="color:var(--accent)">${sanitize(r.patente||'—')}</code></td>
+      <td style="font-size:.78rem">${sanitize(r.conductor_nombre || r.conductor_email || '—')}</td>
+      <td>${sanitize(r.nombre_distribuidor || r.distribuidor || 'SIN DISTRIBUIDOR')}</td>
+      <td class="txt-r">${r.entregados}</td>
+      <td class="txt-r">${r.devueltos}</td>
+      <td class="txt-r money money-red">${fmt(r.combustible)}</td>
+      <td class="txt-r money money-red">${fmt(r.peaje)}</td>
+      <td class="txt-r money money-red">${fmt(r.total_gastos)}</td>
+    </tr>`;
+  }).join('');
+  
+  if(loadBtn){
+    loadBtn.style.display=_allCostos.length>_ccLimit?'inline-block':'none';
+  }
 }
 
 // â• â• â•  PRE-FACTURAS â• â• â• 
@@ -1607,7 +1631,7 @@ async function loadHojasRuta(isMore = false){
     if(isMore && _lastHRDoc) {
       query = query.startAfter(_lastHRDoc);
     }
-    query = query.limit(15);
+    query = query.limit(10);
     
     const snap=await query.get();
     if(snap.empty) {
@@ -1620,7 +1644,7 @@ async function loadHojasRuta(isMore = false){
     }
     
     _lastHRDoc = snap.docs[snap.docs.length - 1];
-    if(snap.size < 15) _hasMoreHR = false;
+    if(snap.size < 10) _hasMoreHR = false;
     
     let newDocs=[];
     snap.forEach(d=>newDocs.push({id:d.id,...d.data()}));
@@ -1647,7 +1671,7 @@ async function loadHojasRuta(isMore = false){
       if(isMore && _lastHRDoc) {
         queryFallback = queryFallback.startAfter(_lastHRDoc);
       }
-      queryFallback = queryFallback.limit(15);
+      queryFallback = queryFallback.limit(10);
       
       const snap=await queryFallback.get();
       if(snap.empty) {
@@ -1656,7 +1680,7 @@ async function loadHojasRuta(isMore = false){
         return;
       }
       _lastHRDoc = snap.docs[snap.docs.length - 1];
-      if(snap.size < 15) _hasMoreHR = false;
+      if(snap.size < 10) _hasMoreHR = false;
       
       let newDocs=[];
       snap.forEach(d=>newDocs.push({id:d.id,...d.data()}));

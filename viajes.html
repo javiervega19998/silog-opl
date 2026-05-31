@@ -168,6 +168,9 @@
       <button class="btn-back" onclick="clearFilterDate('history')" style="padding:10px 14px">✕ Limpiar</button>
     </div>
     <div id="history-list"><div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div></div>
+    <div style="text-align:center;margin-top:14px">
+      <button id="btn-load-more-history" onclick="loadHistory(true)" style="padding:10px 18px;display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:8px;cursor:pointer">➕ Ver más viajes</button>
+    </div>
   </div>
 
   <!-- ADMIN: todos los viajes -->
@@ -182,6 +185,9 @@
       <button class="btn-back" onclick="clearFilterDate('admin')" style="padding:10px 14px">✕ Limpiar</button>
     </div>
     <div id="admin-viajes-list"><div style="color:var(--text2);text-align:center;padding:32px">Selecciona un filtro o carga todos</div></div>
+    <div style="text-align:center;margin-top:14px">
+      <button id="btn-load-more-admin" onclick="loadAdminViajes(true)" style="padding:10px 18px;display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:8px;cursor:pointer">➕ Ver más viajes</button>
+    </div>
   </div>
   <!-- MODAL EDITAR VIAJE (ADMIN) -->
   <div id="modal-edit-trip" style="position:fixed;inset:0;background:rgba(6,13,31,.85);backdrop-filter:blur(6px);z-index:1000;display:none;align-items:center;justify-content:center;padding:14px">
@@ -687,9 +693,20 @@ async function deleteTrip(tripId, btn){
   }
 }
 
-async function loadHistory(){
+async function loadHistory(isMore = false){
+  if (!isMore) {
+    _historyLimit = 10;
+  } else {
+    _historyLimit += 10;
+  }
+  
   const list=document.getElementById('history-list');
-  list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div>';
+  const loadBtn=document.getElementById('btn-load-more-history');
+  
+  if(!isMore) {
+    list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div>';
+  }
+  
   const filterDate = document.getElementById('filter-date-history').value;
   try{
     let snap;
@@ -699,7 +716,11 @@ async function loadHistory(){
       snap = await db.collection('hojas_ruta').where('conductor_email','==',_email).get();
     }
     
-    if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';return;}
+    if(snap.empty){
+      list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';
+      if(loadBtn) loadBtn.style.display='none';
+      return;
+    }
     let docs=[];
     snap.forEach(d=>{
       const data = d.data();
@@ -707,7 +728,11 @@ async function loadHistory(){
       docs.push({id: d.id, ...data});
     });
     
-    if(!docs.length){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';return;}
+    if(!docs.length){
+      list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';
+      if(loadBtn) loadBtn.style.display='none';
+      return;
+    }
     
     docs.sort((a,b)=>{
       const da = a.created_at?.toMillis?.() || (a.fecha ? new Date(a.fecha).getTime() : 0);
@@ -717,53 +742,116 @@ async function loadHistory(){
 
     let displayDocs = docs;
     if(!filterDate) {
-      displayDocs = docs.slice(0, 50);
+      displayDocs = docs.slice(0, _historyLimit);
     }
     
     list.innerHTML=displayDocs.map(tripCard).join('');
-  }catch(e){list.innerHTML=`<div style="color:var(--text2);text-align:center;padding:32px">Error: ${e.message}</div>`;}
+    if(loadBtn) {
+      loadBtn.style.display = (docs.length > _historyLimit && !filterDate) ? 'inline-block' : 'none';
+      loadBtn.innerHTML = '➕ Ver más viajes';
+    }
+  }catch(e){
+    list.innerHTML=`<div style="color:var(--text2);text-align:center;padding:32px">Error: ${e.message}</div>`;
+  }
 }
 
-async function loadAdminViajes(){
-  const list=document.getElementById('admin-viajes-list');
-  list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div>';
-  const filtro=document.getElementById('filter-conductor').value;
+let _lastAdminDoc = null;
+let _hasMoreAdmin = true;
+let _adminViajes = [];
+let _loadingAdmin = false;
+
+async function loadAdminViajes(isMore = false){
+  if (_loadingAdmin) return;
+  if (isMore && !_hasMoreAdmin) return;
+  
+  const list = document.getElementById('admin-viajes-list');
+  const loadBtn = document.getElementById('btn-load-more-admin');
+  
+  if (!isMore) {
+    _lastAdminDoc = null;
+    _hasMoreAdmin = true;
+    _adminViajes = [];
+    list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div>';
+  } else {
+    _loadingAdmin = true;
+    if (loadBtn) loadBtn.innerHTML = '<span class="spinner"></span> Cargando más...';
+  }
+  
+  const filtro = document.getElementById('filter-conductor').value;
   const filterDate = document.getElementById('filter-date-admin').value;
-  try{
-    let snap;
-    if(filterDate) {
-      snap = await db.collection('hojas_ruta').where('fecha','==',filterDate).get();
-    } else if(filtro) {
-      snap = await db.collection('hojas_ruta').where('conductor_email','==',filtro).get();
-    } else {
-      snap = await db.collection('hojas_ruta').orderBy('created_at','desc').limit(50).get();
+  
+  try {
+    let query = db.collection('hojas_ruta').orderBy('created_at', 'desc');
+    
+    if (filterDate) {
+      query = db.collection('hojas_ruta').where('fecha', '==', filterDate);
+    } else if (filtro) {
+      query = db.collection('hojas_ruta').where('conductor_email', '==', filtro);
     }
     
-    if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes.</div>';return;}
-    let docs=[];
-    snap.forEach(d=>{
+    if (isMore && _lastAdminDoc && !filterDate && !filtro) {
+      query = query.startAfter(_lastAdminDoc);
+    }
+    
+    if (!filterDate && !filtro) {
+      query = query.limit(10);
+    }
+    
+    const snap = await query.get();
+    
+    if (snap.empty) {
+      _hasMoreAdmin = false;
+      if (!isMore) {
+        list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes.</div>';
+      }
+      if (loadBtn) loadBtn.style.display = 'none';
+      return;
+    }
+    
+    if (!filterDate && !filtro) {
+      _lastAdminDoc = snap.docs[snap.docs.length - 1];
+      if (snap.size < 10) _hasMoreAdmin = false;
+    } else {
+      _hasMoreAdmin = false;
+    }
+    
+    let newDocs = [];
+    snap.forEach(d => {
       const data = d.data();
-      if(filterDate && filtro && data.conductor_email !== filtro) return;
-      docs.push({id: d.id, ...data});
+      if (filterDate && filtro && data.conductor_email !== filtro) return;
+      newDocs.push({ id: d.id, ...data });
     });
     
-    if(!docs.length){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes.</div>';return;}
-    
-    if(filterDate || filtro) {
-      docs.sort((a,b)=>{
+    if (filterDate || filtro) {
+      newDocs.sort((a,b) => {
         const da = a.created_at?.toMillis?.() || (a.fecha ? new Date(a.fecha).getTime() : 0);
         const db = b.created_at?.toMillis?.() || (b.fecha ? new Date(b.fecha).getTime() : 0);
         return db - da;
       });
     }
     
-    let displayDocs = docs;
-    if(!filterDate) {
-      displayDocs = docs.slice(0, 50);
+    if (isMore) {
+      _adminViajes = _adminViajes.concat(newDocs);
+    } else {
+      _adminViajes = newDocs;
     }
     
-    list.innerHTML=displayDocs.map(tripCard).join('');
-  }catch(e){list.innerHTML=`<div style="color:var(--text2);text-align:center;padding:32px">Error: ${e.message}</div>`;}
+    if (!_adminViajes.length) {
+      list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes.</div>';
+      if (loadBtn) loadBtn.style.display = 'none';
+      return;
+    }
+    
+    list.innerHTML = _adminViajes.map(tripCard).join('');
+    if (loadBtn) {
+      loadBtn.style.display = _hasMoreAdmin ? 'inline-block' : 'none';
+      loadBtn.innerHTML = '➕ Ver más viajes';
+    }
+  } catch(e) {
+    list.innerHTML = `<div style="color:var(--text2);text-align:center;padding:32px">Error: ${e.message}</div>`;
+  } finally {
+    _loadingAdmin = false;
+  }
 }
 
 async function openEditModal(tripId) {
