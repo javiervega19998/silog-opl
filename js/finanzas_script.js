@@ -137,37 +137,7 @@ async function loadCentroCostos(){
     // Reload raw loaders to match the period for export files
     await Promise.all([loadGastosRaw(), loadMovBodega(), loadGastosContabilidad()]);
 
-    // Load turnos for the period
-    let q=db.collection('turnos');
-    if(periodo){
-      const year = parseInt(periodo.split('-')[0]);
-      const month = parseInt(periodo.split('-')[1]);
-      const start = new Date(year, month - 1, 1);
-      const end = new Date(year, month, 1);
-      q = q.where('fecha', '>=', firebase.firestore.Timestamp.fromDate(start))
-           .where('fecha', '<', firebase.firestore.Timestamp.fromDate(end));
-    }
-    let tSnap;
-    try {
-      tSnap=await q.get();
-    } catch(err) {
-      console.warn("Native turnos range query failed, falling back to full query:", err);
-      tSnap=await db.collection('turnos').get();
-    }
-    let turnos=[];
-    tSnap.forEach(d=>{
-      const t=d.data();
-      const fecha=t.fecha?.toDate?t.fecha.toDate():null;
-      if(!fecha)return;
-      const m=fecha.toISOString().slice(0,7);
-      if(periodo&&m!==periodo)return;
-      if(vehiculo&&t.patente!==vehiculo)return;
-      if(conductor&&t.conductor_email!==conductor)return;
-      turnos.push({id:d.id,...t,_fecha:fecha});
-    });
-    turnos.sort((a,b)=>b._fecha-a._fecha);
-
-    // Load gastos for these turnos (optimized by period)
+    // Load gastos (optimized by period)
     let qGastos = db.collection('gastos_ruta');
     let qDespachos = db.collection('despachos');
     let qHojas = db.collection('hojas_ruta');
@@ -209,7 +179,7 @@ async function loadCentroCostos(){
     const despachosByTurno={};
     dSnap.forEach(d=>{const dp=d.data();if(!despachosByTurno[dp.turno_id])despachosByTurno[dp.turno_id]={entregados:0,devueltos:0};if(dp.estado==='entregado')despachosByTurno[dp.turno_id].entregados++;else if(dp.estado==='devuelto')despachosByTurno[dp.turno_id].devueltos++;});
 
-    // Load hojas_ruta to resolve distributor authoritative name
+    // Load hojas_ruta as master list of trips
     let hSnap;
     try {
       hSnap = await qHojas.get();
@@ -217,27 +187,42 @@ async function loadCentroCostos(){
       console.warn("Query failed for hojas_ruta in CC, using fallback:", err);
       hSnap = await db.collection('hojas_ruta').get();
     }
-    const hojaByTurnoId = {};
+    
+    let sheets = [];
     hSnap.forEach(d => {
       const h = d.data();
-      if (h.turno_id) {
-        hojaByTurnoId[h.turno_id] = h;
-      }
+      const fStr = h.fecha || '';
+      if (!fStr) return;
+      const m = fStr.slice(0, 7);
+      if (periodo && m !== periodo) return;
+      if (vehiculo && h.patente !== vehiculo) return;
+      if (conductor && h.conductor_email !== conductor) return;
+      
+      const parts = fStr.split('-');
+      const mon = parseInt(parts[1]);
+      const day = parseInt(parts[2]);
+      const dateObj = new Date(parseInt(parts[0]), mon - 1, day, 12, 0, 0); // midday to avoid timezone shift
+      
+      sheets.push({ id: d.id, ...h, _fecha: dateObj });
     });
+    sheets.sort((a, b) => b._fecha - a._fecha);
 
     // Build cost rows
-    _allCostos=turnos.map(t=>{
-      const g=gastosByTurno[t.id]||{combustible:0,peaje:0};
-      const d=despachosByTurno[t.id]||{entregados:0,devueltos:0};
-      const h=hojaByTurnoId[t.id]||{};
-      return{
-        ...t,
-        combustible:g.combustible,
-        peaje:g.peaje,
-        total_gastos:g.combustible+g.peaje,
-        entregados:d.entregados,
-        devueltos:d.devueltos,
-        distribuidor:h.distribuidor || t.distribuidor || 'SIN DISTRIBUIDOR'
+    _allCostos = sheets.map(h => {
+      const g = gastosByTurno[h.turno_id] || { combustible: 0, peaje: 0 };
+      const d = despachosByTurno[h.turno_id] || { entregados: 0, devueltos: 0 };
+      
+      const deliveredCount = typeof h.total_entregas === 'number' ? h.total_entregas : d.entregados;
+      const returnedCount = typeof h.total_devoluciones === 'number' ? h.total_devoluciones : d.devueltos;
+      
+      return {
+        ...h,
+        combustible: g.combustible,
+        peaje: g.peaje,
+        total_gastos: g.combustible + g.peaje,
+        entregados: deliveredCount,
+        devueltos: returnedCount,
+        distribuidor: h.distribuidor || 'SIN DISTRIBUIDOR'
       };
     });
 
@@ -1714,7 +1699,7 @@ function renderHojasRuta(){
     <td style="font-weight:700;color:var(--accent)">${sanitize(h.patente||'—')}</td>
     <td class="txt-c">${h.total_entregas||0}</td>
     <td class="txt-c" style="color:var(--danger)">${h.total_devoluciones||0}</td>
-    <td class="txt-c">${h.km_recorridos||'—'} km</td>
+    <td class="txt-c">${h.km_recorridos !== undefined && h.km_recorridos !== null ? h.km_recorridos : '—'} km</td>
     <td class="txt-c">${estadoBadge[h.estado]||sanitize(h.estado)}</td>
     <td class="txt-c"><button class="btn-sm" onclick="openHoja('${sanitize(h.id)}')">👁️ Ver</button> <button class="btn-sm" style="background:var(--success);border-color:var(--success);color:#fff" onclick="exportHojaExcelById('${sanitize(h.id)}')">📥</button></td>
   </tr>`).join('');
