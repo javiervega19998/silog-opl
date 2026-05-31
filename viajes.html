@@ -717,7 +717,7 @@ async function loadHistory(){
 
     let displayDocs = docs;
     if(!filterDate) {
-      displayDocs = docs.slice(0, 7);
+      displayDocs = docs.slice(0, 50);
     }
     
     list.innerHTML=displayDocs.map(tripCard).join('');
@@ -736,7 +736,7 @@ async function loadAdminViajes(){
     } else if(filtro) {
       snap = await db.collection('hojas_ruta').where('conductor_email','==',filtro).get();
     } else {
-      snap = await db.collection('hojas_ruta').orderBy('created_at','desc').limit(7).get();
+      snap = await db.collection('hojas_ruta').orderBy('created_at','desc').limit(50).get();
     }
     
     if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes.</div>';return;}
@@ -759,7 +759,7 @@ async function loadAdminViajes(){
     
     let displayDocs = docs;
     if(!filterDate) {
-      displayDocs = docs.slice(0, 7);
+      displayDocs = docs.slice(0, 50);
     }
     
     list.innerHTML=displayDocs.map(tripCard).join('');
