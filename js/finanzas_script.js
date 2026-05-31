@@ -1,386 +1,5 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Silog SpA · Finanzas</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
-<style>
-:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;--warning:#F59E0B}
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
-.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.nav-brand{font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:6px}.nav-brand span{color:var(--accent)}
-.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif}
-.main{max-width:1100px;margin:0 auto;padding:16px 16px 80px}
 
-/* Tabs */
-.tab-row{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px}
-.tab-btn{flex-shrink:0;padding:10px 18px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:10px;cursor:pointer;font-size:.82rem;font-weight:600;font-family:'Inter',sans-serif;transition:.2s;white-space:nowrap}
-.tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
-
-/* Stats */
-.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px}
-@media(min-width:700px){.stats-row{grid-template-columns:repeat(4,1fr)}}
-.stat{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden}
-.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.stat-blue::before{background:linear-gradient(90deg,var(--primary),#60A5FA)}
-.stat-green::before{background:linear-gradient(90deg,var(--success),#34D399)}
-.stat-orange::before{background:linear-gradient(90deg,var(--accent),#f97316)}
-.stat-red::before{background:linear-gradient(90deg,var(--danger),#F87171)}
-.stat .s-icon{font-size:1.6rem;margin-bottom:6px}
-.stat .s-val{font-size:1.6rem;font-weight:800;line-height:1}
-.stat .s-lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-top:4px;font-weight:600}
-
-/* Card */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px;overflow:hidden;position:relative}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--accent))}
-.card h3{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:8px}
-
-/* Table */
-.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
-table{width:100%;border-collapse:collapse;font-size:.82rem}
-thead{background:var(--surface2)}
-th{padding:10px 12px;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;white-space:nowrap}
-td{padding:10px 12px;border-top:1px solid var(--border);white-space:nowrap}
-tr:hover{background:rgba(27,75,155,.06)}
-.txt-r{text-align:right}.txt-c{text-align:center}
-.money{font-weight:700;font-family:'Consolas','Courier New',monospace}
-.money-green{color:var(--success)}.money-red{color:var(--danger)}.money-orange{color:var(--accent)}
-
-/* Badge */
-.badge-sm{font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:12px;text-transform:uppercase}
-.b-borrador{background:rgba(138,157,192,.15);color:var(--text2)}
-.b-enviada{background:rgba(37,99,235,.15);color:#60A5FA}
-.b-pagada{background:rgba(16,185,129,.15);color:var(--success)}
-
-/* Forms */
-.form-group{margin-bottom:12px}
-.form-group label{display:block;font-size:.72rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600}
-.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-size:.9rem;font-family:'Inter',sans-serif;outline:none}
-.field:focus{border-color:var(--primary)}
-select.field{appearance:auto;cursor:pointer}
-.row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-
-/* Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(6,13,31,.88);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
-.modal-overlay.open{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:95%;max-width:600px;max-height:90vh;overflow-y:auto;padding:24px 20px 28px}
-.modal-title{font-size:1rem;font-weight:800;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
-.modal-close{background:none;border:none;color:var(--text2);font-size:1.2rem;cursor:pointer;padding:4px 8px}
-.btn-save{width:100%;padding:13px;background:linear-gradient(135deg,var(--primary),#2563EB);border:none;border-radius:12px;color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif}
-.btn-save:disabled{opacity:.5;cursor:not-allowed}
-.btn-sm{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.75rem;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600}
-
-/* Items table inline */
-.items-tbl{width:100%;border-collapse:collapse;font-size:.82rem;margin:8px 0}
-.items-tbl th{padding:6px 8px;text-align:left;font-size:.68rem;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)}
-.items-tbl td{padding:6px 8px;border-bottom:1px solid rgba(30,48,86,.5)}
-.items-tbl input{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:.82rem;font-family:'Inter',sans-serif;width:100%;outline:none}
-.btn-add-item{background:none;border:1px dashed var(--border);color:var(--accent);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif;width:100%;margin-top:4px}
-
-.empty{text-align:center;padding:30px;color:var(--text2);font-size:.85rem}
-.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
-.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
-.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
-</style>
-</head>
-<body>
-<nav class="nav">
-  <div class="nav-brand"><span>SILOG</span> Finanzas</div>
-  <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
-</nav>
-
-<div class="main">
-  <div class="tab-row">
-    <button class="tab-btn active" onclick="showTab('costos')">💰 Centro de Costos</button>
-    <button class="tab-btn" onclick="showTab('facturas')">📄 Pre-Facturas</button>
-    <button class="tab-btn" onclick="showTab('hojas-ruta')">📋 Hojas de Ruta</button>
-    <button class="tab-btn" onclick="showTab('bodega-fin')">🏭 Ingresos Bodega</button>
-    <button class="tab-btn" onclick="showTab('resumen')">📊 Resumen</button>
-    <button class="tab-btn" id="tbtn-comprobantes" onclick="showTab('comprobantes')">📂 Comprobantes</button>
-  </div>
-
-  <!-- ═══ TAB: CENTRO DE COSTOS ═══ -->
-  <div id="tab-costos">
-    <div class="stats-row">
-      <div class="stat stat-green"><div class="s-icon">💵</div><div class="s-val" id="cc-ingresos">$0</div><div class="s-lbl">Facturado</div></div>
-      <div class="stat stat-red"><div class="s-icon">📉</div><div class="s-val" id="cc-egresos">$0</div><div class="s-lbl">Egresos</div></div>
-      <div class="stat stat-blue"><div class="s-icon">📊</div><div class="s-val" id="cc-margen">$0</div><div class="s-lbl">Margen</div></div>
-      <div class="stat stat-orange"><div class="s-icon">🚛</div><div class="s-val" id="cc-turnos">0</div><div class="s-lbl">Turnos</div></div>
-    </div>
-
-    <!-- Filters -->
-    <div class="card">
-      <h3>🔍 Filtros</h3>
-      <div class="row-3">
-        <div class="form-group">
-          <label>Periodo</label>
-          <input class="field" type="month" id="cc-periodo"/>
-        </div>
-        <div class="form-group">
-          <label>Vehículo</label>
-          <select class="field" id="cc-vehiculo"><option value="">Todos</option></select>
-        </div>
-        <div class="form-group">
-          <label>Conductor</label>
-          <select class="field" id="cc-conductor"><option value="">Todos</option></select>
-        </div>
-      </div>
-      <button class="btn-sm" onclick="loadCentroCostos()" style="margin-top:4px">🔄 Actualizar</button>
-    </div>
-
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>Fecha</th><th>Vehículo</th><th>Conductor</th><th>Distribuidor</th>
-          <th class="txt-r">Entregas</th><th class="txt-r">Devoluciones</th>
-          <th class="txt-r">Combustible</th><th class="txt-r">Peajes</th>
-          <th class="txt-r">Total Gastos</th>
-        </tr></thead>
-        <tbody id="cc-body"><tr><td colspan="9" class="txt-c" style="color:var(--text2);padding:20px">Cargando…</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ═══ TAB: PRE-FACTURAS ═══ -->
-  <div id="tab-facturas" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <h2 style="font-size:1rem;font-weight:700">📄 Pre-Facturas</h2>
-      <button class="btn-sm" style="background:var(--accent);border-color:var(--accent);color:#fff" onclick="openFacturaModal()">+ Nueva Pre-Factura</button>
-    </div>
-
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>N°</th><th>Cliente</th><th>RUT</th><th>Fecha</th>
-          <th class="txt-r">Neto</th><th class="txt-r">IVA 19%</th><th class="txt-r">Total</th>
-          <th class="txt-c">Estado</th><th class="txt-c">Acciones</th>
-        </tr></thead>
-        <tbody id="fact-body"><tr><td colspan="9" class="txt-c" style="color:var(--text2);padding:20px">Cargando…</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ═══ TAB: HOJAS DE RUTA ═══ -->
-  <div id="tab-hojas-ruta" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <h2 style="font-size:1rem;font-weight:700">📋 Historial Hojas de Ruta</h2>
-    </div>
-    <div class="card">
-      <h3>🔍 Filtros</h3>
-      <div class="row-3">
-        <div class="form-group"><label>Conductor</label>
-          <select class="field" id="hr-conductor"><option value="">Todos</option></select>
-        </div>
-        <div class="form-group"><label>Fecha</label>
-          <input class="field" type="date" id="hr-fecha"/>
-        </div>
-        <div class="form-group"><label>Empresa (Cliente)</label>
-          <input class="field" type="text" id="hr-empresa" placeholder="Filtrar por empresa…"/>
-        </div>
-      </div>
-      <button class="btn-sm" onclick="loadHojasRuta()" style="margin-top:4px">🔄 Filtrar</button>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>Fecha</th><th>Conductor</th><th>Distribuidor</th><th>Patente</th>
-          <th class="txt-c">Entregas</th><th class="txt-c">Dev.</th>
-          <th class="txt-r">Combust.</th><th class="txt-r">Peaje</th>
-          <th class="txt-c">KM</th><th class="txt-c">Estado</th>
-          <th class="txt-c">Acciones</th>
-        </tr></thead>
-        <tbody id="hr-body"><tr><td colspan="11" class="txt-c" style="color:var(--text2);padding:20px">Selecciona filtros y presiona Filtrar</td></tr></tbody>
-      </table>
-    </div>
-    <div style="text-align:center;margin-top:14px">
-      <button class="btn-sm" id="btn-load-more-hr" onclick="loadHojasRuta(true)" style="padding:10px 18px;display:none">➕ Cargar más hojas de ruta</button>
-    </div>
-  </div>
-
-  <!-- MODAL: Ver/Editar Hoja de Ruta -->
-  <div class="modal-overlay" id="modal-hoja">
-    <div class="modal" style="max-width:700px">
-      <div class="modal-title">📋 Hoja de Ruta <button class="modal-close" onclick="closeHojaModal()">✕</button></div>
-      <input type="hidden" id="hoja-id"/>
-      <div style="background:var(--surface2);padding:12px 16px;border-radius:10px;margin-bottom:14px">
-        <div class="row-2" style="font-size:.85rem">
-          <div>👤 <b id="hoja-conductor">—</b></div>
-          <div>🚛 <b id="hoja-patente">—</b></div>
-          <div>📅 <b id="hoja-fecha">—</b></div>
-          <div>⏰ <span id="hoja-horario">—</span></div>
-        </div>
-      </div>
-      <div class="form-group"><label>Estado</label>
-        <select class="field" id="hoja-estado">
-          <option value="pendiente_revision">🟡 Pendiente Revisión</option>
-          <option value="revisada">🟢 Revisada</option>
-          <option value="observada">🔴 Observada</option>
-        </select>
-      </div>
-      <p style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">Detalle Entregas</p>
-      <div style="overflow-x:auto">
-        <table class="items-tbl" id="hoja-entregas-tbl">
-          <thead><tr><th>N°</th><th>Documento</th><th>Lugar</th><th>Estado</th><th>Observaciones</th><th>Comuna</th><th>Valor Diario</th></tr></thead>
-          <tbody id="hoja-entregas"></tbody>
-        </table>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="btn-save" style="flex:1" onclick="guardarHoja()">💾 Guardar Cambios</button>
-        <button class="btn-sm" style="flex:0 0 auto;padding:12px 18px;background:var(--success);border-color:var(--success);color:#fff" onclick="exportHojaExcel()">📥 Excel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ TAB: INGRESOS BODEGA ═══ -->
-  <div id="tab-bodega-fin" style="display:none">
-    <div class="stats-row">
-      <div class="stat stat-green"><div class="s-icon">🏭</div><div class="s-val" id="bg-ingresos">$0</div><div class="s-lbl">Ingresos Bodega</div></div>
-      <div class="stat stat-blue"><div class="s-icon">📐</div><div class="s-val" id="bg-m2">$0</div><div class="s-lbl">Ingresos M² Extras</div></div>
-      <div class="stat stat-red"><div class="s-icon">🏢</div><div class="s-val" id="bg-arriendo">$0</div><div class="s-lbl">Costos Arriendo</div></div>
-      <div class="stat stat-orange"><div class="s-icon">📊</div><div class="s-val" id="bg-margen">$0</div><div class="s-lbl">Margen Bodega</div></div>
-    </div>
-    <div class="card">
-      <h3>➕ Registrar Movimiento</h3>
-      <div class="row-3">
-        <div class="form-group"><label>Concepto</label>
-          <select class="field" id="bg-concepto">
-            <option value="ingreso_bodega">Ingreso por Bodega</option>
-            <option value="ingreso_m2">Ingreso por M² Extras</option>
-            <option value="costo_arriendo">Costo Arriendo Bodega</option>
-          </select>
-        </div>
-        <div class="form-group"><label>Monto (CLP)</label><input class="field" type="number" id="bg-monto" placeholder="0"/></div>
-        <div class="form-group"><label>Fecha</label><input class="field" type="date" id="bg-fecha"/></div>
-      </div>
-      <div class="row-2">
-        <div class="form-group"><label>Cliente / Proveedor</label><input class="field" type="text" id="bg-cliente" placeholder="Nombre del cliente o arrendador"/></div>
-        <div class="form-group"><label>M² (si aplica)</label><input class="field" type="number" step="0.1" id="bg-m2-val" placeholder="Ej: 25.5"/></div>
-      </div>
-      <div class="form-group"><label>Descripción</label><input class="field" type="text" id="bg-desc" placeholder="Detalle del movimiento"/></div>
-      <button class="btn-sm" style="background:var(--accent);border-color:var(--accent);color:#fff;padding:10px 16px" onclick="guardarMovBodega()">💾 Registrar</button>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>Fecha</th><th>Concepto</th><th>Cliente</th><th>M²</th>
-          <th class="txt-r">Monto</th><th>Descripción</th><th class="txt-c">Acc.</th>
-        </tr></thead>
-        <tbody id="bg-body"><tr><td colspan="7" class="txt-c" style="color:var(--text2);padding:20px">Cargando…</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ═══ TAB: RESUMEN & EXPORTACIONES ═══ -->
-  <div id="tab-resumen" style="display:none">
-    <div class="stats-row">
-      <div class="stat stat-green"><div class="s-icon">📄</div><div class="s-val" id="res-facturas">0</div><div class="s-lbl">Pre-Facturas</div></div>
-      <div class="stat stat-blue"><div class="s-icon">💰</div><div class="s-val" id="res-total">$0</div><div class="s-lbl">Total Facturado</div></div>
-      <div class="stat stat-orange"><div class="s-icon">⏳</div><div class="s-val" id="res-pendiente">$0</div><div class="s-lbl">Pendiente Cobro</div></div>
-      <div class="stat stat-green"><div class="s-icon">✅</div><div class="s-val" id="res-pagado">$0</div><div class="s-lbl">Pagado</div></div>
-    </div>
-
-    <!-- Export buttons -->
-    <div class="card">
-      <h3>📥 Exportar a Excel (.xlsx)</h3>
-      <p style="font-size:.78rem;color:var(--text2);margin-bottom:14px">Descarga documentos consolidados con toda la información financiera ordenada por fecha.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button class="btn-sm" style="padding:12px;font-size:.82rem" onclick="exportConsolidado()">
-          📊 Reporte Consolidado<br><span style="font-size:.68rem;color:var(--text2);font-weight:400">Ingresos + Egresos + Margen</span>
-        </button>
-        <button class="btn-sm" style="padding:12px;font-size:.82rem" onclick="exportGastosDetalle()">
-          ⛽ Gastos Operacionales<br><span style="font-size:.68rem;color:var(--text2);font-weight:400">Combustible, Peajes, detallado</span>
-        </button>
-        <button class="btn-sm" style="padding:12px;font-size:.82rem" onclick="exportMovimientosBodega()">
-          🏭 Movimientos Bodega<br><span style="font-size:.68rem;color:var(--text2);font-weight:400">Ingresos, Salidas, Mermas</span>
-        </button>
-        <button class="btn-sm" style="padding:12px;font-size:.82rem" onclick="exportPreFacturas()">
-          📄 Pre-Facturas<br><span style="font-size:.68rem;color:var(--text2);font-weight:400">Detalle por cliente y servicio</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>📋 Reporte Completo Multi-Hoja</h3>
-      <p style="font-size:.78rem;color:var(--text2);margin-bottom:10px">Un solo archivo Excel con todas las hojas: Consolidado, Gastos, Bodega, Facturas.</p>
-      <button class="btn-save" style="background:linear-gradient(135deg,var(--accent),#E86B10)" onclick="exportTodoExcel()">📥 Descargar Reporte Completo (.xlsx)</button>
-    </div>
-  </div>
-  
-  <!-- ═══ TAB: COMPROBANTES Y FACTURAS (ADMIN) ═══ -->
-  <div id="tab-comprobantes" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <h2 style="font-size:1rem;font-weight:700">📂 Auditoría de Comprobantes de Gastos y Facturas</h2>
-      <button class="btn-sm" style="background:var(--accent);border-color:var(--accent);color:#fff" onclick="cleanOldComprobantes(true)">🧹 Forzar Limpieza por Antigüedad</button>
-    </div>
-    <p style="font-size:.78rem;color:var(--text2);margin-bottom:14px">Visualiza y descarga los comprobantes de gastos (combustible, peajes) y facturas de hojas de ruta organizados y agrupados por cada viaje.</p>
-    <div id="comprobantes-list"><div class="empty">Cargando comprobantes…</div></div>
-  </div>
-</div>
-
-<!-- MODAL: Nueva Pre-Factura -->
-<div class="modal-overlay" id="modal-factura">
-  <div class="modal">
-    <div class="modal-title">📄 Nueva Pre-Factura (SII) <button class="modal-close" onclick="closeFacturaModal()">✕</button></div>
-    
-    <div class="row-2">
-      <div class="form-group"><label>N° Documento</label><input class="field" type="text" id="f-numero" placeholder="PF-0001"/></div>
-      <div class="form-group"><label>Fecha Emisión</label><input class="field" type="date" id="f-fecha"/></div>
-    </div>
-
-    <p style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">Datos Emisor</p>
-    <div style="background:var(--surface2);padding:10px 14px;border-radius:8px;font-size:.82rem;margin-bottom:12px">
-      <div><b>SILOG SpA</b></div>
-      <div style="color:var(--text2)">RUT: 77.XXX.XXX-X · Giro: Transporte y Logística</div>
-    </div>
-
-    <p style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0">Datos Receptor</p>
-    <div class="form-group"><label>Cliente</label>
-      <select class="field" id="f-cliente" onchange="onClienteSelect()">
-        <option value="" disabled selected>Seleccionar…</option>
-      </select>
-    </div>
-    <div class="row-2">
-      <div class="form-group"><label>RUT Cliente</label><input class="field" type="text" id="f-rut" placeholder="76.XXX.XXX-X"/></div>
-      <div class="form-group"><label>Giro</label><input class="field" type="text" id="f-giro" placeholder="Comercio al por mayor"/></div>
-    </div>
-    <div class="form-group"><label>Dirección</label><input class="field" type="text" id="f-dir" placeholder="Calle, N°, Comuna"/></div>
-
-    <p style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">Detalle</p>
-    <table class="items-tbl">
-      <thead><tr><th>Descripción</th><th style="width:60px">Cant.</th><th style="width:90px">P. Unit.</th><th style="width:90px">Subtotal</th><th style="width:30px"></th></tr></thead>
-      <tbody id="f-items"></tbody>
-    </table>
-    <button class="btn-add-item" onclick="addItemRow()">+ Agregar ítem</button>
-
-    <div style="background:var(--surface2);border-radius:10px;padding:12px 16px;margin-top:14px">
-      <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:4px"><span>Neto</span><span class="money" id="f-neto">$0</span></div>
-      <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:4px"><span>IVA 19%</span><span class="money" id="f-iva">$0</span></div>
-      <div style="display:flex;justify-content:space-between;font-size:1.05rem;font-weight:800;border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span>Total</span><span class="money money-green" id="f-total">$0</span></div>
-    </div>
-
-    <div class="form-group" style="margin-top:12px">
-      <label>Observaciones</label>
-      <textarea class="field" id="f-obs" rows="2" placeholder="Condiciones de pago, notas…"></textarea>
-    </div>
-
-    <button class="btn-save" onclick="guardarFactura()" style="margin-top:8px">💾 Guardar Pre-Factura</button>
-  </div>
-</div>
-
-<div id="toast-container"></div>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" defer></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
-<script>
-let _uid='',_email='',_allCostos=[],_allFacturas=[],_clientes=[],_allGastosRaw=[],_allMovBodega=[];
+let _uid='',_email='',_allCostos=[],_allFacturas=[],_clientes=[],_allGastosRaw=[],_allMovBodega=[],_allGastosContabilidad=[];
 let _lastHRDoc=null,_hasMoreHR=true,_loadingMoreHR=false;
 
 requireAdmin(async(user,data)=>{
@@ -388,19 +7,30 @@ requireAdmin(async(user,data)=>{
   _email=data.correo_electronico||data.email||user.email;
   document.getElementById('cc-periodo').value=new Date().toISOString().slice(0,7);
   document.getElementById('f-fecha').value=new Date().toISOString().split('T')[0];
-  await Promise.all([loadFilters(),loadClientes(),loadCentroCostos(),loadFacturas(),loadGastosRaw(),loadMovBodega()]);
+  document.getElementById('gc-fecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('te-periodo').value=new Date().toISOString().slice(0,7);
+  await Promise.all([
+    loadFilters(),
+    loadClientes(),
+    loadCentroCostos(),
+    loadFacturas(),
+    loadGastosRaw(),
+    loadMovBodega(),
+    loadGastosContabilidad(),
+    loadTotalEnergiesLiquidation()
+  ]);
 });
 
 function showTab(t){
-  ['costos','facturas','hojas-ruta','bodega-fin','resumen','comprobantes'].forEach(id=>{
+  ['costos','facturas','hojas-ruta','bodega-fin','contabilidad','comprobantes'].forEach(id=>{
     const el = document.getElementById('tab-'+id);
     if(el) el.style.display=id===t?'block':'none';
   });
   document.querySelectorAll('.tab-btn').forEach((b)=>{
     const onclickVal = b.getAttribute('onclick') || '';
-    b.classList.toggle('active', onclickVal.includes(t));
+    b.classList.toggle('active', onclickVal.startsWith("showTab(") && onclickVal.includes(t));
   });
-  if(t==='resumen')updateResumen();
+  if(t==='contabilidad')updateContabilidad();
   if(t==='bodega-fin')loadIngresosBodega();
   if(t==='hojas-ruta')loadHojasRuta();
   if(t==='comprobantes')loadComprobantes();
@@ -408,7 +38,7 @@ function showTab(t){
 
 function fmt(n){return'$'+(n||0).toLocaleString('es-CL')}
 
-// ═══ FILTERS ═══
+// â• â• â•  FILTERS â• â• â• 
 async function loadFilters(){
   try{
     const [vSnap,uSnap]=await Promise.all([db.collection('vehiculos').get(),db.collection('users').get()]);
@@ -497,7 +127,7 @@ function onClienteSelect(){
   }
 }
 
-// ═══ CENTRO DE COSTOS ═══
+// â• â• â•  CENTRO DE COSTOS â• â• â• 
 async function loadCentroCostos(){
   const periodo=document.getElementById('cc-periodo').value;
   const vehiculo=document.getElementById('cc-vehiculo').value;
@@ -505,7 +135,7 @@ async function loadCentroCostos(){
 
   try{
     // Reload raw loaders to match the period for export files
-    await Promise.all([loadGastosRaw(), loadMovBodega()]);
+    await Promise.all([loadGastosRaw(), loadMovBodega(), loadGastosContabilidad()]);
 
     // Load turnos for the period
     let q=db.collection('turnos');
@@ -540,7 +170,6 @@ async function loadCentroCostos(){
     // Load gastos for these turnos (optimized by period)
     let qGastos = db.collection('gastos_ruta');
     let qDespachos = db.collection('despachos');
-    let qHojas = db.collection('hojas_ruta');
     if(periodo){
       const year = parseInt(periodo.split('-')[0]);
       const month = parseInt(periodo.split('-')[1]);
@@ -550,10 +179,6 @@ async function loadCentroCostos(){
       const endTS = firebase.firestore.Timestamp.fromDate(end);
       qGastos = qGastos.where('fecha', '>=', startTS).where('fecha', '<', endTS);
       qDespachos = qDespachos.where('fecha', '>=', startTS).where('fecha', '<', endTS);
-      
-      const startStr = `${periodo}-01`;
-      const endStr = `${periodo}-31`;
-      qHojas = qHojas.where('fecha', '>=', startStr).where('fecha', '<=', endStr);
     }
     
     let gSnap;
@@ -579,50 +204,25 @@ async function loadCentroCostos(){
     const despachosByTurno={};
     dSnap.forEach(d=>{const dp=d.data();if(!despachosByTurno[dp.turno_id])despachosByTurno[dp.turno_id]={entregados:0,devueltos:0};if(dp.estado==='entregado')despachosByTurno[dp.turno_id].entregados++;else if(dp.estado==='devuelto')despachosByTurno[dp.turno_id].devueltos++;});
 
-    // Load hojas_ruta to resolve distributor authoritative name
-    let hSnap;
-    try {
-      hSnap = await qHojas.get();
-    } catch(err) {
-      console.warn("Query failed for hojas_ruta in CC, using fallback:", err);
-      hSnap = await db.collection('hojas_ruta').get();
-    }
-    const hojaByTurnoId = {};
-    hSnap.forEach(d => {
-      const h = d.data();
-      if (h.turno_id) {
-        hojaByTurnoId[h.turno_id] = h;
-      }
-    });
-
     // Build cost rows
     _allCostos=turnos.map(t=>{
       const g=gastosByTurno[t.id]||{combustible:0,peaje:0};
       const d=despachosByTurno[t.id]||{entregados:0,devueltos:0};
-      const h=hojaByTurnoId[t.id]||{};
-      return{
-        ...t,
-        combustible:g.combustible,
-        peaje:g.peaje,
-        total_gastos:g.combustible+g.peaje,
-        entregados:d.entregados,
-        devueltos:d.devueltos,
-        distribuidor:h.distribuidor || t.distribuidor || 'SIN DISTRIBUIDOR'
-      };
+      return{...t,combustible:g.combustible,peaje:g.peaje,total_gastos:g.combustible+g.peaje,entregados:d.entregados,devueltos:d.devueltos};
     });
 
-    let totIng=0,totEgr=0;
+    let totComb=0,totPeaje=0,totGastos=0;
     const body=document.getElementById('cc-body');
     if(!_allCostos.length){body.innerHTML='<tr><td colspan="9" class="txt-c empty">Sin datos para este periodo</td></tr>';
     }else{
       body.innerHTML=_allCostos.map(r=>{
-        totEgr+=r.total_gastos||0;
+        totComb+=r.combustible||0; totPeaje+=r.peaje||0; totGastos+=r.total_gastos||0;
         const f=r._fecha?r._fecha.toLocaleDateString('es-CL',{day:'2-digit',month:'short'}):'—';
         return`<tr>
-          <td>...t/d>
+          <td>${f}</td>
           <td><code style="color:var(--accent)">${sanitize(r.patente||'—')}</code></td>
           <td style="font-size:.78rem">${sanitize(r.conductor_nombre || r.conductor_email || '—')}</td>
-          <td>${sanitize(r.distribuidor)}</td>
+          <td>${sanitize(r.nombre_distribuidor || r.distribuidor || 'SIN DISTRIBUIDOR')}</td>
           <td class="txt-r">${r.entregados}</td>
           <td class="txt-r">${r.devueltos}</td>
           <td class="txt-r money money-red">${fmt(r.combustible)}</td>
@@ -631,13 +231,14 @@ async function loadCentroCostos(){
         </tr>`;
       }).join('');
     }
-    document.getElementById('cc-ingresos').textContent=fmt(totIng);
-    document.getElementById('cc-egresos').textContent=fmt(totEgr);
-    document.getElementById('cc-margen').textContent=fmt(totIng-totEgr);
+    document.getElementById('cc-ingresos').textContent=fmt(totComb);
+    document.getElementById('cc-egresos').textContent=fmt(totPeaje);
+    document.getElementById('cc-margen').textContent=fmt(totGastos);
     document.getElementById('cc-turnos').textContent=_allCostos.length;
   }catch(e){console.warn(e);showToast('Error: '+e.message,'error');}
 }
 
+// â• â• â•  PRE-FACTURAS â• â• â• 
 async function loadFacturas(){
   try{
     const s=await db.collection('prefacturas').get();
@@ -653,23 +254,204 @@ function renderFacturas(){
   body.innerHTML=_allFacturas.map(f=>{
     const badgeCls={borrador:'b-borrador',enviada:'b-enviada',pagada:'b-pagada'}[f.estado]||'b-borrador';
     const badgeTxt={borrador:'Borrador',enviada:'Enviada',pagada:'Pagada'}[f.estado]||f.estado;
-    const fecha=f.fecha_emision?formatDate(f.fecha_emision):'—';
+    const fecha=f.fecha_emision?formatDate(f.fecha_emision):'â€”';
     return`<tr>
-      <td><code style="color:var(--accent)">${sanitize(f.numero||'—')}</code></td>
-      <td>${sanitize(f.cliente_nombre||'—')}</td>
-      <td style="font-size:.78rem">${sanitize(f.cliente_rut||'—')}</td>
+      <td><code style="color:var(--accent)">${sanitize(f.numero||'â€”')}</code></td>
+      <td>${sanitize(f.cliente_nombre||'â€”')}</td>
+      <td style="font-size:.78rem">${sanitize(f.cliente_rut||'â€”')}</td>
       <td>${fecha}</td>
       <td class="txt-r money">${fmt(f.neto||0)}</td>
       <td class="txt-r money">${fmt(f.iva||0)}</td>
       <td class="txt-r money money-green">${fmt(f.total||0)}</td>
       <td class="txt-c"><span class="badge-sm ${badgeCls}">${badgeTxt}</span></td>
       <td class="txt-c">
-        <button class="btn-sm" onclick="cambiarEstado('${f.id}','enviada')" title="Marcar enviada">📧</button>
-        <button class="btn-sm" onclick="cambiarEstado('${f.id}','pagada')" title="Marcar pagada">✅</button>
-        <button class="btn-sm" onclick="imprimirFactura('${f.id}')" title="Imprimir">🖨️</button>
+        <button class="btn-sm" onclick="cambiarEstado('${f.id}','enviada')" title="Marcar enviada">ðŸ“§</button>
+        <button class="btn-sm" onclick="cambiarEstado('${f.id}','pagada')" title="Marcar pagada">âœ…</button>
+        <button class="btn-sm" onclick="imprimirFactura('${f.id}')" title="Imprimir">ðŸ–¨ï¸ </button>
       </td>
     </tr>`;
   }).join('');
+}
+
+let _teLoadedTrips = [];
+let _teArriendoBodega = 0;
+let _teM2Extras = 0;
+
+async function loadTotalEnergiesLiquidation() {
+  const period = document.getElementById('te-periodo').value;
+  const tbody = document.getElementById('te-trips-body');
+  if (!period) return;
+  tbody.innerHTML = '<tr><td colspan="5" class="txt-c"><span class="spinner"></span> Cargando viajes...</td></tr>';
+  
+  try {
+    // 1. Obtener Hojas de Ruta
+    const hrSnap = await db.collection('hojas_ruta').get();
+    _teLoadedTrips = [];
+    hrSnap.forEach(d => {
+      const r = d.data();
+      const dist = (r.nombre_distribuidor || r.distribuidor || '').trim().toLowerCase();
+      if (dist.includes('total') && r.fecha && r.fecha.startsWith(period)) {
+        _teLoadedTrips.push({ id: d.id, ...r });
+      }
+    });
+
+    // Ordenar descendente por fecha
+    _teLoadedTrips.sort((a,b) => (b.fecha || '').localeCompare(a.fecha || ''));
+
+    // 2. Obtener Movimientos de Bodega (Ingresos)
+    const bgSnap = await db.collection('ingresos_bodega').get();
+    _teArriendoBodega = 0;
+    _teM2Extras = 0;
+    
+    bgSnap.forEach(d => {
+      const m = d.data();
+      const cliName = (m.cliente || '').trim().toLowerCase();
+      if (cliName.includes('total') && m.fecha && m.fecha.startsWith(period)) {
+        if (m.concepto === 'ingreso_bodega') {
+          _teArriendoBodega += m.monto || 0;
+        } else if (m.concepto === 'ingreso_m2') {
+          _teM2Extras += m.monto || 0;
+        }
+      }
+    });
+
+    // 3. Renderizar filas de viajes
+    if (_teLoadedTrips.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="txt-c" style="color:var(--text2);padding:15px">Sin viajes de TotalEnergies registrados en este periodo.</td></tr>';
+    } else {
+      tbody.innerHTML = _teLoadedTrips.map(trip => {
+        const clientsStr = (trip.clientes_despacho || []).join(', ') || 'â€”';
+        return `<tr>
+          <td>${sanitize(trip.fecha || 'â€”')}</td>
+          <td>${sanitize(trip.conductor_nombre || trip.conductor_email || 'â€”')}</td>
+          <td><code>${sanitize(trip.patente || 'â€”')}</code></td>
+          <td style="font-size:.78rem; max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${sanitize(clientsStr)}">${sanitize(clientsStr)}</td>
+          <td class="txt-r">
+            <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+              <span>$</span>
+              <input type="number" class="te-servicio-cost field" style="width:110px; text-align:right; padding:4px 8px; font-size:.82rem; margin:0;" data-id="${trip.id}" value="${trip.valor_servicio || 0}" onchange="updateTotalEnergiesTripCost('${trip.id}', this.value)"/>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    recalculateTotalEnergiesLiquidation();
+
+  } catch(e) {
+    console.error("Error loadTotalEnergiesLiquidation:", e);
+    tbody.innerHTML = `<tr><td colspan="5" class="txt-c" style="color:var(--danger);padding:15px">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function updateTotalEnergiesTripCost(tripId, val) {
+  const cost = parseFloat(val) || 0;
+  try {
+    await db.collection('hojas_ruta').doc(tripId).update({
+      valor_servicio: cost
+    });
+    const idx = _teLoadedTrips.findIndex(t => t.id === tripId);
+    if (idx !== -1) {
+      _teLoadedTrips[idx].valor_servicio = cost;
+    }
+    showToast('ðŸ’° Valor de servicio actualizado', 'success');
+    recalculateTotalEnergiesLiquidation();
+  } catch(e) {
+    showToast('Error al actualizar costo: ' + e.message, 'error');
+  }
+}
+
+function recalculateTotalEnergiesLiquidation() {
+  let totalServicios = 0;
+  document.querySelectorAll('.te-servicio-cost').forEach(input => {
+    totalServicios += parseFloat(input.value) || 0;
+  });
+
+  const neto = totalServicios + _teArriendoBodega + _teM2Extras;
+  const iva = Math.round(neto * 0.19);
+  const total = neto + iva;
+
+  document.getElementById('te-summary-trips-count').textContent = _teLoadedTrips.length;
+  document.getElementById('te-summary-trips-cost').textContent = fmt(totalServicios);
+  document.getElementById('te-summary-arriendo').textContent = fmt(_teArriendoBodega);
+  document.getElementById('te-summary-m2').textContent = fmt(_teM2Extras);
+  document.getElementById('te-summary-neto').textContent = fmt(neto);
+  document.getElementById('te-summary-total').textContent = fmt(total);
+}
+
+function generarPreFacturaTotalEnergies() {
+  let totalServicios = 0;
+  document.querySelectorAll('.te-servicio-cost').forEach(input => {
+    totalServicios += parseFloat(input.value) || 0;
+  });
+
+  if (totalServicios === 0 && _teArriendoBodega === 0 && _teM2Extras === 0) {
+    showToast('âš ï¸  No hay montos cargados para pre-facturar', 'error');
+    return;
+  }
+
+  // 1. Abrir modal de Factura
+  document.getElementById('modal-factura').classList.add('open');
+  document.getElementById('f-numero').value = 'PF-' + (String(_allFacturas.length + 1).padStart(4, '0'));
+  document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
+
+  // 2. Pre-seleccionar TotalEnergies
+  const sel = document.getElementById('f-cliente');
+  let matchedValue = '';
+  for (let i = 0; i < sel.options.length; i++) {
+    const text = sel.options[i].text.toLowerCase();
+    if (text.includes('total')) {
+      matchedValue = sel.options[i].value;
+      break;
+    }
+  }
+
+  if (matchedValue) {
+    sel.value = matchedValue;
+    onClienteSelect();
+  }
+
+  // 3. Limpiar Ã­tems y cargar los calculados
+  const tbody = document.getElementById('f-items');
+  tbody.innerHTML = '';
+
+  const period = document.getElementById('te-periodo').value;
+
+  if (totalServicios > 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" class="fi-desc" value="Servicios de Transporte TotalEnergies (${_teLoadedTrips.length} viajes) - ${period}"/></td>
+      <td><input type="number" class="fi-cant" value="1" min="1" oninput="calcTotals()"/></td>
+      <td><input type="number" class="fi-precio" value="${totalServicios}" oninput="calcTotals()"/></td>
+      <td class="txt-r money fi-sub">${fmt(totalServicios)}</td>
+      <td><button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem" onclick="this.closest('tr').remove();calcTotals()">âœ•</button></td>`;
+    tbody.appendChild(tr);
+  }
+
+  if (_teArriendoBodega > 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" class="fi-desc" value="Cobros por Arriendo de Bodega TotalEnergies - ${period}"/></td>
+      <td><input type="number" class="fi-cant" value="1" min="1" oninput="calcTotals()"/></td>
+      <td><input type="number" class="fi-precio" value="${_teArriendoBodega}" oninput="calcTotals()"/></td>
+      <td class="txt-r money fi-sub">${fmt(_teArriendoBodega)}</td>
+      <td><button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem" onclick="this.closest('tr').remove();calcTotals()">âœ•</button></td>`;
+    tbody.appendChild(tr);
+  }
+
+  if (_teM2Extras > 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" class="fi-desc" value="Cobros por M2 Extras Bodega TotalEnergies - ${period}"/></td>
+      <td><input type="number" class="fi-cant" value="1" min="1" oninput="calcTotals()"/></td>
+      <td><input type="number" class="fi-precio" value="${_teM2Extras}" oninput="calcTotals()"/></td>
+      <td class="txt-r money fi-sub">${fmt(_teM2Extras)}</td>
+      <td><button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem" onclick="this.closest('tr').remove();calcTotals()">âœ•</button></td>`;
+    tbody.appendChild(tr);
+  }
+
+  calcTotals();
+  showToast('ðŸ“‹ LiquidaciÃ³n TotalEnergies cargada en Pre-Factura', 'success');
 }
 
 function openFacturaModal(){
@@ -683,11 +465,11 @@ function addItemRow(){
   const tbody=document.getElementById('f-items');
   const tr=document.createElement('tr');
   tr.innerHTML=`
-    <td><input type="text" class="fi-desc" placeholder="Servicio transporte…"/></td>
+    <td><input type="text" class="fi-desc" placeholder="Servicio transporteâ€¦"/></td>
     <td><input type="number" class="fi-cant" value="1" min="1" oninput="calcTotals()"/></td>
     <td><input type="number" class="fi-precio" value="0" oninput="calcTotals()"/></td>
     <td class="txt-r money fi-sub">$0</td>
-    <td><button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem" onclick="this.closest('tr').remove();calcTotals()">✕</button></td>`;
+    <td><button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem" onclick="this.closest('tr').remove();calcTotals()">âœ•</button></td>`;
   tbody.appendChild(tr);
 }
 
@@ -711,7 +493,7 @@ async function guardarFactura(){
   const clienteId=document.getElementById('f-cliente').value;
   const cli=_clientes.find(c=>c.id===clienteId);
   
-  if(!numero){showToast('Ingresa N° documento','error');return;}
+  if(!numero){showToast('Ingresa NÂ° documento','error');return;}
   if(!clienteId){showToast('Selecciona un cliente','error');return;}
 
   const items=[];
@@ -721,7 +503,7 @@ async function guardarFactura(){
     const precio=parseInt(tr.querySelector('.fi-precio')?.value)||0;
     if(desc&&cant>0)items.push({descripcion:desc,cantidad:cant,precio_unitario:precio,subtotal:cant*precio});
   });
-  if(!items.length){showToast('Agrega al menos un ítem','error');return;}
+  if(!items.length){showToast('Agrega al menos un Ã­tem','error');return;}
 
   const neto=items.reduce((s,i)=>s+i.subtotal,0);
   const iva=Math.round(neto*0.19);
@@ -737,15 +519,15 @@ async function guardarFactura(){
       fecha_emision:firebase.firestore.FieldValue.serverTimestamp(),
       creado_por:_uid
     });
-    showToast('✅ Pre-factura guardada','success');
+    showToast('âœ… Pre-factura guardada','success');
     closeFacturaModal();await loadFacturas();
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 
 async function cambiarEstado(id,estado){
-  if(!confirm(`¿Cambiar estado a "${estado}"?`))return;
+  if(!confirm(`Â¿Cambiar estado a "${estado}"?`))return;
   await db.collection('prefacturas').doc(id).update({estado});
-  showToast('✅ Estado actualizado','success');
+  showToast('âœ… Estado actualizado','success');
   await loadFacturas();
 }
 
@@ -764,29 +546,328 @@ td{padding:8px;border-bottom:1px solid #eee}.r{text-align:right}
 .totals{width:250px;margin-left:auto}.totals td{padding:4px 8px;font-size:12px}.totals .total{font-size:14px;font-weight:700;border-top:2px solid #333}
 .footer{margin-top:30px;text-align:center;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:12px}
 @media print{body{padding:15px}}</style></head><body>
-<div class="header"><div><h1>SILOG SpA</h1><p>RUT: 77.XXX.XXX-X · Giro: Transporte y Logística</p></div>
-<div class="doc"><h2 style="color:#F47920">PRE-FACTURA</h2><p><b>N°:</b> ${f.numero}</p><p><b>Fecha:</b> ${f.fecha_emision?formatDate(f.fecha_emision):new Date().toLocaleDateString('es-CL')}</p></div></div>
-<div class="parties"><div class="party"><h3>Emisor</h3><p><b>SILOG SpA</b></p><p>Giro: Transporte y Logística</p></div>
-<div class="party"><h3>Receptor</h3><p><b>${f.cliente_nombre||'—'}</b></p><p>RUT: ${f.cliente_rut||'—'}</p><p>Giro: ${f.cliente_giro||'—'}</p><p>Dir: ${f.cliente_direccion||'—'}</p></div></div>
-<table><thead><tr><th>Descripción</th><th class="r">Cant.</th><th class="r">P. Unitario</th><th class="r">Subtotal</th></tr></thead><tbody>${itemsHtml}</tbody></table>
+<div class="header"><div><h1>SILOG SpA</h1><p>RUT: 77.XXX.XXX-X Â· Giro: Transporte y LogÃ­stica</p></div>
+<div class="doc"><h2 style="color:#F47920">PRE-FACTURA</h2><p><b>NÂ°:</b> ${f.numero}</p><p><b>Fecha:</b> ${f.fecha_emision?formatDate(f.fecha_emision):new Date().toLocaleDateString('es-CL')}</p></div></div>
+<div class="parties"><div class="party"><h3>Emisor</h3><p><b>SILOG SpA</b></p><p>Giro: Transporte y LogÃ­stica</p></div>
+<div class="party"><h3>Receptor</h3><p><b>${f.cliente_nombre||'â€”'}</b></p><p>RUT: ${f.cliente_rut||'â€”'}</p><p>Giro: ${f.cliente_giro||'â€”'}</p><p>Dir: ${f.cliente_direccion||'â€”'}</p></div></div>
+<table><thead><tr><th>DescripciÃ³n</th><th class="r">Cant.</th><th class="r">P. Unitario</th><th class="r">Subtotal</th></tr></thead><tbody>${itemsHtml}</tbody></table>
 <table class="totals"><tr><td>Neto</td><td class="r">${fmt(f.neto)}</td></tr><tr><td>IVA 19%</td><td class="r">${fmt(f.iva)}</td></tr><tr class="total"><td><b>TOTAL</b></td><td class="r"><b>${fmt(f.total)}</b></td></tr></table>
 ${f.observaciones?`<p style="margin-top:16px;font-size:11px"><b>Observaciones:</b> ${f.observaciones}</p>`:''}
-<div class="footer">Documento generado por SILOG SpA · Este documento no es un DTE válido ante el SII</div>
+<div class="footer">Documento generado por SILOG SpA Â· Este documento no es un DTE vÃ¡lido ante el SII</div>
 </body></html>`);
   w.document.close();
   setTimeout(()=>w.print(),300);
 }
 
-function updateResumen(){
-  const total=_allFacturas.reduce((s,f)=>s+(f.total||0),0);
-  const pagado=_allFacturas.filter(f=>f.estado==='pagada').reduce((s,f)=>s+(f.total||0),0);
-  document.getElementById('res-facturas').textContent=_allFacturas.length;
-  document.getElementById('res-total').textContent=fmt(total);
-  document.getElementById('res-pagado').textContent=fmt(pagado);
-  document.getElementById('res-pendiente').textContent=fmt(total-pagado);
+async function loadGastosContabilidad(){
+  const periodo=document.getElementById('cc-periodo').value;
+  try{
+    let q=db.collection('gastos_contabilidad');
+    const snap=await q.get();
+    _allGastosContabilidad=[];
+    snap.forEach(d=>{
+      const g=d.data();
+      if(!periodo || (g.fecha && g.fecha.startsWith(periodo))) {
+        _allGastosContabilidad.push({id:d.id,...g});
+      }
+    });
+    _allGastosContabilidad.sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  }catch(e){
+    console.warn("loadGastosContabilidad failed:",e);
+  }
 }
 
-// ═══ RAW DATA LOADERS ═══
+async function updateContabilidad(){
+  await Promise.all([loadFacturas(), loadIngresosBodega(), loadGastosContabilidad()]);
+  renderContabilidad();
+}
+
+function renderContabilidad(){
+  const periodo=document.getElementById('cc-periodo').value;
+
+  // 1. Ingresos
+  let totalFacturas=0;
+  _allFacturas.forEach(f=>{
+    const date=f.fecha_emision?.toDate?f.fecha_emision.toDate():null;
+    if(date){
+      const m=date.toISOString().slice(0,7);
+      if(!periodo||m===periodo) totalFacturas+=f.neto||0;
+    }
+  });
+
+  let totalBodegaIngresos=0;
+  let totalBodegaM2=0;
+  let totalBodegaArriendo=0;
+  _ingresosBodega.forEach(m=>{
+    if(!periodo||(m.fecha&&m.fecha.startsWith(periodo))){
+      if(m.concepto==='ingreso_bodega') totalBodegaIngresos+=m.monto||0;
+      else if(m.concepto==='ingreso_m2') totalBodegaM2+=m.monto||0;
+      else if(m.concepto==='costo_arriendo') totalBodegaArriendo+=m.monto||0;
+    }
+  });
+
+  let totalIngresosVarios=0;
+  let totalSueldosBruto=0;
+  let totalSueldosLiquido=0;
+  let totalServicios=0;
+  
+  _allGastosContabilidad.forEach(g=>{
+    if(g.tipo==='sueldo'){
+      totalSueldosBruto+=g.monto_bruto||0;
+      totalSueldosLiquido+=g.monto_liquido||0;
+    }else if(g.tipo==='servicio'){
+      totalServicios+=g.monto_neto||g.monto||0;
+    }else if(g.tipo==='ingreso'){
+      totalIngresosVarios+=g.monto||0;
+    }
+  });
+
+  const totalIngresos=totalFacturas+totalBodegaIngresos+totalBodegaM2+totalIngresosVarios;
+
+  // 2. Egresos
+  let totalRutaCombustible=0;
+  let totalRutaPeajes=0;
+  _allGastosRaw.forEach(g=>{
+    if(g._date){
+      const m=g._date.toISOString().slice(0,7);
+      if(!periodo||m===periodo){
+        if(g.tipo==='combustible') totalRutaCombustible+=g.monto_clp||0;
+        else totalRutaPeajes+=g.monto_clp||0;
+      }
+    }
+  });
+
+  const totalEgresos=totalRutaCombustible+totalRutaPeajes+totalBodegaArriendo+totalSueldosBruto+totalServicios;
+  const margen=totalIngresos-totalEgresos;
+  const totalManuales=totalSueldosBruto+totalServicios;
+
+  // Render KPIs
+  document.getElementById('cont-ingresos').textContent=fmt(totalIngresos);
+  document.getElementById('cont-egresos').textContent=fmt(totalEgresos);
+  
+  const contMargen=document.getElementById('cont-margen');
+  contMargen.textContent=fmt(margen);
+  const mCard=document.getElementById('stat-margen-card');
+  if(mCard){
+    mCard.className='stat '+(margen>=0?'stat-green':'stat-red');
+  }
+  document.getElementById('cont-manuales').textContent=fmt(totalIngresosVarios);
+  const mExpensesSub = document.getElementById('cont-manuales-gastos-sub');
+  if (mExpensesSub) {
+    mExpensesSub.textContent = "Gastos manuales: " + fmt(totalSueldosBruto + totalServicios);
+  }
+
+  // Render Breakdown Table
+  document.getElementById('det-ing-facturas').textContent=fmt(totalFacturas);
+  document.getElementById('det-ing-bodega').textContent=fmt(totalBodegaIngresos);
+  document.getElementById('det-ing-m2').textContent=fmt(totalBodegaM2);
+  document.getElementById('det-ing-varios').textContent=fmt(totalIngresosVarios);
+  document.getElementById('det-ing-total').textContent=fmt(totalIngresos);
+
+  document.getElementById('det-egr-combustible').textContent=fmt(totalRutaCombustible);
+  document.getElementById('det-egr-peajes').textContent=fmt(totalRutaPeajes);
+  document.getElementById('det-egr-arriendo').textContent=fmt(totalBodegaArriendo);
+  document.getElementById('det-egr-sueldos').textContent=fmt(totalSueldosBruto);
+  document.getElementById('det-egr-servicios').textContent=fmt(totalServicios);
+  document.getElementById('det-egr-total').textContent=fmt(totalEgresos);
+
+  // Render Manual Expenses/Incomes List Table
+  const tbody=document.getElementById('cont-body');
+  if(!_allGastosContabilidad.length){
+    tbody.innerHTML='<tr><td colspan="7" class="txt-c empty">Sin movimientos registrados</td></tr>';
+  }else{
+    tbody.innerHTML=_allGastosContabilidad.map(g=>{
+      const isSueldo=g.tipo==='sueldo';
+      const isIngreso=g.tipo==='ingreso';
+      
+      let badgeCls = 'b-borrador';
+      let badgeTxt = 'Servicio';
+      let colLabel = '';
+      let montoBruto = '';
+      
+      if(isSueldo){
+        badgeCls = 'b-pagada';
+        badgeTxt = 'Sueldo';
+        colLabel = `ðŸ‘¤ ${sanitize(g.personal_nombre)}`;
+        montoBruto = fmt(g.monto_bruto);
+      } else if (isIngreso) {
+        badgeCls = 'b-enviada';
+        badgeTxt = 'Ingreso';
+        colLabel = sanitize(g.subtipo === 'facturacion_varias' ? 'ðŸ“„ FacturaciÃ³n Varia' : 'ðŸ’µ Otro Ingreso');
+        montoBruto = fmt(g.monto_neto || g.monto);
+      } else {
+        colLabel = sanitize(getServicioLabel(g.subtipo));
+        montoBruto = fmt(g.monto_neto || g.monto);
+      }
+      
+      const montoLiquido = isSueldo ? fmt(g.monto_liquido) : (isIngreso && g.monto_total ? fmt(g.monto_total) : (g.monto_total ? fmt(g.monto_total) : 'â€”'));
+      const glosa=sanitize(g.descripcion||'â€”');
+      return `<tr>
+        <td>${sanitize(g.fecha||'â€”')}</td>
+        <td><span class="badge-sm ${badgeCls}">${badgeTxt}</span></td>
+        <td style="font-weight:600; color:${isIngreso?'var(--success)':'var(--text)'}">${colLabel}</td>
+        <td class="txt-r money ${isIngreso?'money-green':'money-red'}">${isIngreso?'+':'-'}${montoBruto}</td>
+        <td class="txt-r money" style="color:var(--text2)">${montoLiquido}</td>
+        <td style="font-size:.78rem">${glosa}</td>
+        <td class="txt-c">
+          <button class="btn-sm" style="border-color:var(--danger);color:#FCA5A5;padding:4px 8px" onclick="deleteGastoContabilidad('${sanitize(g.id)}')">ðŸ—‘ï¸ </button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function getServicioLabel(sub){
+  const m={
+    'luz':'ðŸ’¡ Luz',
+    'agua':'ðŸš° Agua',
+    'electricidad':'âš¡ Electricidad',
+    'telefonia_internet':'ðŸ“ž TelefonÃ­a e Internet',
+    'arriendo_inmobiliario':'ðŸ   Arriendo Inmobiliario'
+  };
+  return m[sub]||sub;
+}
+
+function onMovTipoChange() {
+  const movTipo = document.getElementById('gc-mov-tipo').value;
+  const secGastoTipo = document.getElementById('gc-gasto-tipo-group');
+  const btnSubmit = document.getElementById('btn-gc-submit');
+  const cardTitle = document.getElementById('gc-card-title');
+  
+  if (movTipo === 'gasto') {
+    if (secGastoTipo) secGastoTipo.style.display = 'block';
+    document.getElementById('gc-sec-ingreso').style.display = 'none';
+    if (cardTitle) cardTitle.textContent = 'âž• Registrar Gasto Administrativo / Servicio';
+    if (btnSubmit) {
+      btnSubmit.textContent = 'ðŸ’¾ Registrar Gasto';
+      btnSubmit.style.background = 'var(--accent)';
+      btnSubmit.style.borderColor = 'var(--accent)';
+    }
+    onTipoGastoChange();
+  } else {
+    if (secGastoTipo) secGastoTipo.style.display = 'none';
+    document.getElementById('gc-sec-sueldo').style.display = 'none';
+    document.getElementById('gc-sec-servicio').style.display = 'none';
+    document.getElementById('gc-sec-ingreso').style.display = 'grid';
+    if (cardTitle) cardTitle.textContent = 'âž• Registrar Ingreso Manual (FacturaciÃ³n Varia)';
+    if (btnSubmit) {
+      btnSubmit.textContent = 'ðŸ’¾ Registrar Ingreso';
+      btnSubmit.style.background = 'linear-gradient(135deg,var(--success),#059669)';
+      btnSubmit.style.borderColor = 'var(--success)';
+    }
+  }
+}
+
+function onTipoGastoChange(){
+  const tipo=document.getElementById('gc-tipo').value;
+  document.getElementById('gc-sec-sueldo').style.display=tipo==='sueldo'?'grid':'none';
+  document.getElementById('gc-sec-servicio').style.display=tipo==='servicio'?'grid':'none';
+}
+
+function calcSueldoLiquidoAutomatico(){
+  const bruto=parseInt(document.getElementById('gc-bruto').value)||0;
+  document.getElementById('gc-liquido').value=Math.round(bruto*0.8);
+}
+
+function calcIngresoIvaAutomatico() {
+    const neto = parseInt(document.getElementById('gc-ingreso-monto').value) || 0;
+    if (neto > 0) {
+      const iva = Math.round(neto * 0.19);
+      document.getElementById('gc-ingreso-iva').value = '$ ' + iva.toLocaleString('es-CL');
+      document.getElementById('gc-ingreso-total').value = '$ ' + (neto + iva).toLocaleString('es-CL');
+    } else {
+      document.getElementById('gc-ingreso-iva').value = '';
+      document.getElementById('gc-ingreso-total').value = '';
+    }
+  }
+
+  function calcServicioIvaAutomatico() {
+    const neto = parseInt(document.getElementById('gc-monto').value) || 0;
+    if (neto > 0) {
+      const iva = Math.round(neto * 0.19);
+      document.getElementById('gc-servicio-iva').value = '$ ' + iva.toLocaleString('es-CL');
+      document.getElementById('gc-servicio-total').value = '$ ' + (neto + iva).toLocaleString('es-CL');
+    } else {
+      document.getElementById('gc-servicio-iva').value = '';
+      document.getElementById('gc-servicio-total').value = '';
+    }
+  }
+
+async function guardarGastoContabilidad(){
+  const movTipo=document.getElementById('gc-mov-tipo').value;
+  const fecha=document.getElementById('gc-fecha').value||new Date().toISOString().split('T')[0];
+  const descripcion=document.getElementById('gc-desc').value.trim();
+
+  let data={
+    fecha,
+    descripcion,
+    creado_por:_email,
+    created_at:firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  if(movTipo==='ingreso'){
+    const subtipo=document.getElementById('gc-ingreso-subtipo').value;
+    const neto=parseInt(document.getElementById('gc-ingreso-monto').value)||0;
+    if(neto<=0){showToast('Ingresa un monto neto válido para el ingreso','error');return;}
+    const iva=Math.round(neto*0.19);
+    const total=neto+iva;
+    data.tipo='ingreso';
+    data.subtipo=subtipo;
+    data.monto=neto;
+    data.monto_neto=neto;
+    data.iva=iva;
+    data.monto_total=total;
+  }else{
+    const tipo=document.getElementById('gc-tipo').value;
+    data.tipo=tipo;
+    if(tipo==='sueldo'){
+      const personal_nombre=document.getElementById('gc-personal').value.trim();
+      const bruto=parseInt(document.getElementById('gc-bruto').value)||0;
+      const liquido=parseInt(document.getElementById('gc-liquido').value)||0;
+      if(!personal_nombre){showToast('Ingresa el nombre o cargo del personal','error');return;}
+      if(bruto<=0){showToast('Ingresa un sueldo bruto válido','error');return;}
+      data.personal_nombre=personal_nombre;
+      data.monto_bruto=bruto;
+      data.monto_liquido=liquido;
+    }else{
+      const subtipo=document.getElementById('gc-subtipo').value;
+      const monto=parseInt(document.getElementById('gc-monto').value)||0;
+      if(monto<=0){showToast('Ingresa un monto válido para el servicio','error');return;}
+      data.subtipo=subtipo;
+      data.monto=monto;
+      data.monto_neto=monto;
+      data.iva=Math.round(monto * 0.19);
+      data.monto_total=monto + Math.round(monto * 0.19);
+    }
+  }
+
+  try{
+    await db.collection('gastos_contabilidad').add(data);
+    showToast('â Movimiento registrado exitosamente','success');
+    document.getElementById('gc-personal').value='';
+    document.getElementById('gc-bruto').value='';
+    document.getElementById('gc-liquido').value='';
+    document.getElementById('gc-monto').value='';
+    document.getElementById('gc-ingreso-monto').value='';
+    document.getElementById('gc-ingreso-iva').value='';
+    document.getElementById('gc-ingreso-total').value='';
+    document.getElementById('gc-desc').value='';
+    await loadGastosContabilidad();
+    renderContabilidad();
+  }catch(e){showToast('Error registrando movimiento: '+e.message,'error');}
+}
+
+async function deleteGastoContabilidad(id){
+  if(!confirm('Â¿EstÃ¡s seguro de que deseas eliminar este gasto de contabilidad?'))return;
+  try{
+    await db.collection('gastos_contabilidad').doc(id).delete();
+    showToast('ðï¸ Registro eliminado','success');
+    await loadGastosContabilidad();
+    renderContabilidad();
+  }catch(e){showToast('Error al eliminar: '+e.message,'error');}
+}
+
+// âââ RAW DATA LOADERS âââ
 async function loadGastosRaw(){
   const periodo=document.getElementById('cc-periodo').value;
   try{
@@ -848,11 +929,11 @@ async function loadMovBodega(){
 function fmtDate(d){return d?d.toLocaleDateString('es-CL',{year:'numeric',month:'2-digit',day:'2-digit'}):''}
 function fmtDateFull(d){return d?d.toLocaleDateString('es-CL',{year:'numeric',month:'2-digit',day:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}):''}
 
-// ═══ EXPORT: Reporte Consolidado ═══
+// âââ EXPORT: Reporte Consolidado âââ
 function exportConsolidado(){
-  const rows=[['Fecha','Tipo','Área','Descripción','Monto CLP','Vehículo','Conductor']];
+  const rows=[['Fecha','Tipo','Ãrea','DescripciÃ³n','Monto CLP','VehÃ­culo','Conductor']];
   
-  // Gastos operacionales
+  // Gastos operacionales en ruta (Egresos)
   _allGastosRaw.forEach(g=>{
     rows.push([
       fmtDate(g._date),
@@ -865,7 +946,7 @@ function exportConsolidado(){
     ]);
   });
   
-  // Pre-facturas como ingresos
+  // Pre-facturas (Ingresos)
   _allFacturas.forEach(f=>{
     const fecha=f.fecha_emision?.toDate?f.fecha_emision.toDate():null;
     (f.items||[]).forEach(item=>{
@@ -881,40 +962,123 @@ function exportConsolidado(){
     });
   });
   
-  // Movimientos bodega
-  _allMovBodega.forEach(m=>{
-    const tipo=m.tipo_movimiento||m.tipo||'';
-    const esEgreso=['salida','merma'].includes(tipo);
-    rows.push([
-      fmtDate(m._date),
-      esEgreso?'EGRESO':'INGRESO',
-      'Bodega',
-      `${tipo.toUpperCase()} - ${m.producto_nombre||m.nombre||''} x${m.cantidad||0} - ${m.subtipo||m.referencia||''}`,
-      esEgreso?-(m.cantidad||0):(m.cantidad||0),
-      '',
-      m.operario_nombre||m.operario_email||''
-    ]);
+  // Ingresos/Costos Bodega (Ingresos & Egresos)
+  _ingresosBodega.forEach(m=>{
+    const periodo = document.getElementById('cc-periodo').value;
+    if(!periodo || (m.fecha && m.fecha.startsWith(periodo))) {
+      const esGasto = m.concepto === 'costo_arriendo';
+      const labelConcepto = m.concepto === 'ingreso_bodega' ? 'Ingreso Bodega' : (m.concepto === 'ingreso_m2' ? 'Ingreso MÂ²' : 'Arriendo Bodega');
+      rows.push([
+        m.fecha ? new Date(m.fecha + 'T12:00:00').toLocaleDateString('es-CL') : 'â',
+        esGasto ? 'EGRESO' : 'INGRESO',
+        'Bodega',
+        `${labelConcepto} - ${m.cliente||''} (${m.descripcion||''})`,
+        esGasto ? -(m.monto||0) : (m.monto||0),
+        '',
+        m.creado_por||''
+      ]);
+    }
+  });
+
+  // Gastos manuales Contabilidad (Sueldos, Servicios e Ingresos)
+  _allGastosContabilidad.forEach(g=>{
+    const isSueldo = g.tipo === 'sueldo';
+    const isIngreso = g.tipo === 'ingreso';
+    if (isIngreso) {
+      rows.push([
+        g.fecha ? new Date(g.fecha + 'T12:00:00').toLocaleDateString('es-CL') : 'â',
+        'INGRESO',
+        'Contabilidad Manual',
+        `${g.subtipo === 'facturacion_varias' ? 'FacturaciÃ³n Varia' : 'Otro Ingreso'} - ${g.descripcion || ''}`,
+        g.monto_neto || g.monto || 0,
+        '',
+        g.creado_por||''
+      ]);
+    } else {
+      rows.push([
+        g.fecha ? new Date(g.fecha + 'T12:00:00').toLocaleDateString('es-CL') : 'â',
+        'EGRESO',
+        isSueldo ? 'Sueldo' : 'Servicio BÃ¡sico',
+        isSueldo ? `Sueldo Personal - ${g.personal_nombre} (${g.descripcion||''})` : `Servicio - ${getServicioLabel(g.subtipo)} (${g.descripcion||''})`,
+        isSueldo ? -(g.monto_bruto||0) : -(g.monto||0),
+        '',
+        g.creado_por||''
+      ]);
+    }
   });
   
-  // Sort by date
+  // Sort by date (ascending)
   const header=rows.shift();
-  rows.sort((a,b)=>(a[0]||'').localeCompare(b[0]||''));
-  rows.unshift(header);
+  rows.sort((a,b)=>{
+    const parseDate = (dStr) => {
+      if(!dStr || dStr === 'â') return new Date(0);
+      const parts = dStr.split('/');
+      return new Date(parts[2], parts[1] - 1, parts[0]);
+    };
+    return parseDate(a[0]) - parseDate(b[0]);
+  });
+  
+  // Calculate running Utilidad Acumulada
+  let utilityAcc = 0;
+  rows.forEach(r => {
+    const val = r[4] || 0;
+    utilityAcc += val;
+    r.push(utilityAcc); // Push utilityAcc to Col index 7 (new 8th column)
+  });
   
   // Add summary
-  const totalIng=rows.slice(1).filter(r=>r[1]==='INGRESO').reduce((s,r)=>s+(r[4]||0),0);
-  const totalEgr=rows.slice(1).filter(r=>r[1]==='EGRESO').reduce((s,r)=>s+Math.abs(r[4]||0),0);
-  rows.push([]);
-  rows.push(['','','','TOTAL INGRESOS',totalIng,'','']);
-  rows.push(['','','','TOTAL EGRESOS',-totalEgr,'','']);
-  rows.push(['','','','MARGEN',totalIng-totalEgr,'','']);
+  const totalIng=rows.filter(r=>r[1]==='INGRESO').reduce((s,r)=>s+(r[4]||0),0);
+  const totalEgr=rows.filter(r=>r[1]==='EGRESO').reduce((s,r)=>s+Math.abs(r[4]||0),0);
   
-  downloadXLSX([{name:'Consolidado',data:rows}],'SILOG_Consolidado');
+  const finalRows = [
+    ['Fecha','Tipo','Ãrea','DescripciÃ³n','Monto CLP','VehÃ­culo','Conductor','Utilidad Acumulada']
+  ];
+  
+  rows.forEach(r => finalRows.push(r));
+  finalRows.push([]); // blank row
+  finalRows.push(['','','','TOTAL INGRESOS',totalIng,'','','']);
+  finalRows.push(['','','','TOTAL EGRESOS',-totalEgr,'','','']);
+  finalRows.push(['','','','UTILIDAD TOTAL',totalIng-totalEgr,'','',totalIng-totalEgr]);
+  
+  // Convert standard primitive values to styled cell objects
+  const styledRows = finalRows.map((row, idx) => {
+    if (idx === 0) return row; // Header row
+    if (row.length === 0) return []; // Blank separator row
+    
+    const label = row[3];
+    if (label && (label.startsWith('TOTAL') || label.startsWith('UTILIDAD'))) {
+      const hasAcc = row[7] !== '';
+      return [
+        row[0], row[1], row[2], 
+        makeStyledCell(row[3], null, true, false), // Bold label
+        makeStyledCell(row[4], row[4] >= 0 ? '10B981' : 'EF4444', true, true), // Bold money
+        row[5], row[6],
+        hasAcc ? makeStyledCell(row[7], row[7] >= 0 ? '10B981' : 'EF4444', true, true) : ''
+      ];
+    }
+    
+    const isIncome = row[1] === 'INGRESO';
+    const color = isIncome ? '10B981' : 'EF4444';
+    const accVal = row[7];
+    const accColor = accVal >= 0 ? '10B981' : 'EF4444';
+    return [
+      row[0],
+      makeStyledCell(row[1], color, false, false), // Col 1: Tipo (color font)
+      row[2],
+      row[3],
+      makeStyledCell(row[4], color, false, true),  // Col 4: Monto CLP (color font & CLP format)
+      row[5],
+      row[6],
+      makeStyledCell(accVal, accColor, false, true) // Col 7: Utilidad Acumulada (color font & CLP format)
+    ];
+  });
+  
+  downloadXLSX([{name:'Consolidado',data:styledRows}],'SILOG_Consolidado');
 }
 
-// ═══ EXPORT: Gastos Operacionales Detalle ═══
+// âââ EXPORT: Gastos Operacionales Detalle âââ
 function exportGastosDetalle(){
-  const rows=[['Fecha','Hora','Tipo Gasto','Descripción','Monto CLP','Vehículo (Patente)','Conductor','Turno ID','Boleta/Referencia']];
+  const rows=[['Fecha','Hora','Tipo Gasto','DescripciÃ³n','Monto CLP','VehÃ­culo (Patente)','Conductor','Turno ID','Boleta/Referencia']];
   _allGastosRaw.forEach(g=>{
     rows.push([
       fmtDate(g._date),
@@ -925,7 +1089,7 @@ function exportGastosDetalle(){
       g.patente||'',
       g.conductor_nombre||g.conductor_email||'',
       g.turno_id||'',
-      g.boleta_url?'Sí':'No'
+      g.boleta_url?'SÃ­':'No'
     ]);
   });
   
@@ -940,9 +1104,39 @@ function exportGastosDetalle(){
   downloadXLSX([{name:'Gastos Operacionales',data:rows}],'SILOG_Gastos_Operacionales');
 }
 
-// ═══ EXPORT: Movimientos Bodega ═══
+// âââ EXPORT: Gastos de Bodega âââ
+function exportGastosBodega(){
+  const rows=[['Fecha','Concepto','Cliente/Proveedor','MÂ² Extras','Monto CLP','DescripciÃ³n','Creado Por']];
+  _ingresosBodega.forEach(m=>{
+    const periodo = document.getElementById('cc-periodo').value;
+    if(!periodo || (m.fecha && m.fecha.startsWith(periodo))) {
+      const labels={'ingreso_bodega':'Ingreso Bodega','ingreso_m2':'Ingreso MÂ² Extras','costo_arriendo':'Costo Arriendo'};
+      rows.push([
+        m.fecha ? new Date(m.fecha + 'T12:00:00').toLocaleDateString('es-CL') : 'â',
+        labels[m.concepto]||m.concepto,
+        m.cliente||'â',
+        m.m2||'â',
+        m.monto||0,
+        m.descripcion||'',
+        m.creado_por||''
+      ]);
+    }
+  });
+  
+  // Totals
+  const totalIng = _ingresosBodega.filter(m => m.concepto !== 'costo_arriendo').reduce((s, m) => s + (m.monto || 0), 0);
+  const totalEgr = _ingresosBodega.filter(m => m.concepto === 'costo_arriendo').reduce((s, m) => s + (m.monto || 0), 0);
+  rows.push([]);
+  rows.push(['','','','Total Ingresos Bodega:',totalIng,'','']);
+  rows.push(['','','','Total Costo Arriendo:',totalEgr,'','']);
+  rows.push(['','','','MARGEN BODEGA:',totalIng-totalEgr,'','']);
+  
+  downloadXLSX([{name:'Gastos y Flujos Bodega',data:rows}],'SILOG_Gastos_Bodega');
+}
+
+// âââ EXPORT: Movimientos Bodega âââ
 function exportMovimientosBodega(){
-  const rows=[['Fecha','Hora','Tipo Movimiento','Subtipo','Producto','Cantidad','Ubicación','Operario','Referencia']];
+  const rows=[['Fecha','Hora','Tipo Movimiento','Subtipo','Producto','Cantidad','UbicaciÃ³n','Operario','Referencia']];
   _allMovBodega.forEach(m=>{
     rows.push([
       fmtDate(m._date),
@@ -966,9 +1160,9 @@ function exportMovimientosBodega(){
   downloadXLSX([{name:'Movimientos Bodega',data:rows}],'SILOG_Movimientos_Bodega');
 }
 
-// ═══ EXPORT: Pre-Facturas ═══
+// âââ EXPORT: Pre-Facturas âââ
 function exportPreFacturas(){
-  const rows=[['Fecha','N° Documento','Cliente','RUT','Giro','Dirección','Descripción Servicio','Cantidad','Precio Unitario','Subtotal','Neto','IVA 19%','Total','Estado']];
+  const rows=[['Fecha','NÂ° Documento','Cliente','RUT','Giro','DirecciÃ³n','DescripciÃ³n Servicio','Cantidad','Precio Unitario','Subtotal','Neto','IVA 19%','Total','Estado']];
   _allFacturas.forEach(f=>{
     const fecha=f.fecha_emision?.toDate?f.fecha_emision.toDate():null;
     (f.items||[{descripcion:'Sin detalle',cantidad:1,precio_unitario:f.neto||0,subtotal:f.neto||0}]).forEach((item,i)=>{
@@ -1001,38 +1195,262 @@ function exportPreFacturas(){
   downloadXLSX([{name:'Pre-Facturas',data:rows}],'SILOG_PreFacturas');
 }
 
-// ═══ EXPORT: Todo en un Excel ═══
+// âââ EXPORT: Todo en un Excel âââ
 function exportTodoExcel(){
-  // Build all sheets
   const sheets=[];
   
-  // 1. Consolidado
-  const consRows=[['Fecha','Tipo','Área','Descripción','Monto CLP','Vehículo','Conductor']];
+  // 1. Consolidado General
+  const consRows=[['Fecha','Tipo','Ãrea','DescripciÃ³n','Monto CLP','VehÃ­culo','Conductor']];
   _allGastosRaw.forEach(g=>consRows.push([fmtDate(g._date),'EGRESO',g.tipo==='combustible'?'Combustible':'Peaje',g.tipo==='combustible'?`Combustible ${g.litros||''}L`:`Peaje ${g.autopista||''}`,-(g.monto_clp||0),g.patente||'',g.conductor_nombre||'']));
   _allFacturas.forEach(f=>{const d=f.fecha_emision?.toDate?f.fecha_emision.toDate():null;(f.items||[]).forEach(i=>consRows.push([fmtDate(d),'INGRESO','Servicios',`${f.numero} ${i.descripcion} (${f.cliente_nombre||''})`,i.subtotal||0,'','']));});
-  _allMovBodega.forEach(m=>{const t=m.tipo_movimiento||m.tipo||'';consRows.push([fmtDate(m._date),['salida','merma'].includes(t)?'EGRESO':'INGRESO','Bodega',`${t.toUpperCase()} ${m.producto_nombre||''} x${m.cantidad||0}`,['salida','merma'].includes(t)?-(m.cantidad||0):(m.cantidad||0),'',m.operario_nombre||'']);});
-  const cHeader=consRows.shift();consRows.sort((a,b)=>(a[0]||'').localeCompare(b[0]||''));consRows.unshift(cHeader);
-  sheets.push({name:'Consolidado',data:consRows});
+  
+  _ingresosBodega.forEach(m=>{
+    const periodo = document.getElementById('cc-periodo').value;
+    if(!periodo || (m.fecha && m.fecha.startsWith(periodo))) {
+      const esGasto=m.concepto==='costo_arriendo';
+      consRows.push([m.fecha?new Date(m.fecha+'T12:00:00').toLocaleDateString('es-CL'):'â',esGasto?'EGRESO':'INGRESO','Bodega',`${m.concepto==='costo_arriendo'?'Arriendo Bodega':'Ingreso Bodega'} ${m.cliente||''}`,esGasto?-(m.monto||0):(m.monto||0),'','']);
+    }
+  });
+
+  _allGastosContabilidad.forEach(g=>{
+    const isSueldo=g.tipo==='sueldo';
+    const isIngreso=g.tipo==='ingreso';
+    if (isIngreso) {
+      consRows.push([
+        g.fecha ? new Date(g.fecha+'T12:00:00').toLocaleDateString('es-CL') : 'â',
+        'INGRESO',
+        'Contabilidad Manual',
+        `${g.subtipo === 'facturacion_varias' ? 'FacturaciÃ³n Varia' : 'Otro Ingreso'} - ${g.descripcion || ''}`,
+        g.monto_neto || g.monto || 0,
+        '',
+        ''
+      ]);
+    } else {
+      consRows.push([
+        g.fecha ? new Date(g.fecha+'T12:00:00').toLocaleDateString('es-CL') : 'â',
+        'EGRESO',
+        isSueldo ? 'Sueldos' : 'Servicios',
+        isSueldo ? `Sueldo ${g.personal_nombre}` : `Servicio ${getServicioLabel(g.subtipo)}`,
+        isSueldo ? -(g.monto_bruto||0) : -(g.monto||0),
+        '',
+        ''
+      ]);
+    }
+  });
+
+  const cHeader=consRows.shift();
+  consRows.sort((a,b)=>{
+    const parseDate=(dStr)=>{
+      if(!dStr||dStr==='â')return new Date(0);
+      const parts=dStr.split('/');
+      return new Date(parts[2],parts[1]-1,parts[0]);
+    };
+    return parseDate(a[0]) - parseDate(b[0]);
+  });
+  
+  // Calculate running Utilidad Acumulada for Sheet 1
+  let cRunningUtil = 0;
+  consRows.forEach(row => {
+    const rowMonto = row[4] || 0;
+    cRunningUtil += rowMonto;
+    row.push(cRunningUtil); // Push running utility to index 7 (8th column)
+  });
+  
+  // Add Sheet 1 final totals row
+  const sheet1TotalIng = consRows.filter(r=>r[1]==='INGRESO').reduce((s,r)=>s+(r[4]||0),0);
+  const sheet1TotalEgr = consRows.filter(r=>r[1]==='EGRESO').reduce((s,r)=>s+Math.abs(r[4]||0),0);
+  const sheet1FinalUtil = sheet1TotalIng - sheet1TotalEgr;
+  
+  const finalConsRows = [
+    ['Fecha','Tipo','Ãrea','DescripciÃ³n','Monto CLP','VehÃ­culo','Conductor','Utilidad Acumulada']
+  ];
+  consRows.forEach(row => finalConsRows.push(row));
+  finalConsRows.push([]); // blank row
+  finalConsRows.push(['','','','TOTAL INGRESOS',sheet1TotalIng,'','','']);
+  finalConsRows.push(['','','','TOTAL EGRESOS',-sheet1TotalEgr,'','','']);
+  finalConsRows.push(['','','','UTILIDAD TOTAL',sheet1FinalUtil,'','',sheet1FinalUtil]);
+  
+  // Apply formatting/styles to Sheet 1
+  const styledConsRows = finalConsRows.map((row, idx) => {
+    if (idx === 0) return row; // Header row
+    if (row.length === 0) return []; // Blank separator row
+    
+    const label = row[3];
+    if (label && (label.startsWith('TOTAL') || label.startsWith('UTILIDAD'))) {
+      const hasAcc = row[7] !== '';
+      return [
+        row[0], row[1], row[2], 
+        makeStyledCell(row[3], null, true, false), // Bold label
+        makeStyledCell(row[4], row[4] >= 0 ? '10B981' : 'EF4444', true, true), // Bold money
+        row[5], row[6],
+        hasAcc ? makeStyledCell(row[7], row[7] >= 0 ? '10B981' : 'EF4444', true, true) : ''
+      ];
+    }
+    
+    const isIncome = row[1] === 'INGRESO';
+    const color = isIncome ? '10B981' : 'EF4444';
+    const accVal = row[7];
+    const accColor = accVal >= 0 ? '10B981' : 'EF4444';
+    return [
+      row[0],
+      makeStyledCell(row[1], color, false, false), // Col 1: Tipo (color font)
+      row[2],
+      row[3],
+      makeStyledCell(row[4], color, false, true),  // Col 4: Monto CLP (color font & CLP format)
+      row[5],
+      row[6],
+      makeStyledCell(accVal, accColor, false, true) // Col 7: Utilidad Acumulada (color font & CLP format)
+    ];
+  });
+  sheets.push({name:'Consolidado General',data:styledConsRows});
   
   // 2. Gastos
-  const gRows=[['Fecha','Hora','Tipo','Descripción','Monto CLP','Patente','Conductor','Turno']];
+  const gRows=[['Fecha','Hora','Tipo','DescripciÃ³n','Monto CLP','Patente','Conductor','Turno']];
   _allGastosRaw.forEach(g=>gRows.push([fmtDate(g._date),g._date?g._date.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}):'',g.tipo||'',g.tipo==='combustible'?`${g.litros||0}L`:(g.autopista||''),g.monto_clp||0,g.patente||'',g.conductor_nombre||'',g.turno_id||'']));
   sheets.push({name:'Gastos Operacionales',data:gRows});
   
-  // 3. Bodega
-  const bRows=[['Fecha','Tipo','Subtipo','Producto','Cantidad','Ubicación','Operario','Referencia']];
+  // 3. Bodega Movimientos
+  const bRows=[['Fecha','Tipo','Subtipo','Producto','Cantidad','UbicaciÃ³n','Operario','Referencia']];
   _allMovBodega.forEach(m=>bRows.push([fmtDate(m._date),(m.tipo_movimiento||m.tipo||'').toUpperCase(),m.subtipo||'',m.producto_nombre||m.nombre||'',m.cantidad||0,m.ubicacion||'',m.operario_nombre||'',m.referencia||'']));
-  sheets.push({name:'Bodega',data:bRows});
+  sheets.push({name:'Movimientos Stock Bodega',data:bRows});
+
+  // 4. Bodega Gastos/Ingresos Financieros
+  const bgRows=[['Fecha','Concepto','Cliente/Proveedor','MÂ²','Monto CLP','DescripciÃ³n','Creado Por']];
+  _ingresosBodega.forEach(m=>{
+    const periodo = document.getElementById('cc-periodo').value;
+    if(!periodo || (m.fecha && m.fecha.startsWith(periodo))) {
+      bgRows.push([m.fecha?new Date(m.fecha+'T12:00:00').toLocaleDateString('es-CL'):'â',m.concepto,m.cliente||'',m.m2||'',m.monto||0,m.descripcion||'',m.creado_por||'']);
+    }
+  });
+  sheets.push({name:'Finanzas Bodega',data:bgRows});
   
-  // 4. Facturas
-  const fRows=[['Fecha','N°','Cliente','RUT','Servicio','Cant.','P.Unit.','Subtotal','Neto','IVA','Total','Estado']];
+  // 5. Facturas
+  const fRows=[['Fecha','NÂ°','Cliente','RUT','Servicio','Cant.','P.Unit.','Subtotal','Neto','IVA','Total','Estado']];
   _allFacturas.forEach(f=>{const d=f.fecha_emision?.toDate?f.fecha_emision.toDate():null;(f.items||[]).forEach((i,idx)=>fRows.push([fmtDate(d),f.numero||'',idx===0?(f.cliente_nombre||''):'',idx===0?(f.cliente_rut||''):'',i.descripcion||'',i.cantidad||0,i.precio_unitario||0,i.subtotal||0,idx===0?(f.neto||0):'',idx===0?(f.iva||0):'',idx===0?(f.total||0):'',idx===0?(f.estado||''):'']));});
   sheets.push({name:'Pre-Facturas',data:fRows});
+
+  // 6. Contabilidad Manual (Sueldos, Servicios e Ingresos)
+  const mHeaders = ['Fecha', 'Tipo Movimiento', 'Colaborador / Concepto', 'Monto Neto / Costo', 'Monto Total con IVA / LÃ­quido', 'DescripciÃ³n / Glosa', 'Creado Por', 'Utilidad Acumulada'];
+  
+  // Sort ascending chronological order
+  const sortedManual = [..._allGastosContabilidad].sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  
+  let mRunningUtil = 0;
+  const mRowsList = [];
+  sortedManual.forEach(g => {
+    const isSueldo = g.tipo === 'sueldo';
+    const isIngreso = g.tipo === 'ingreso';
+    
+    let tipoMov = '';
+    let concepto = '';
+    let neto = 0;
+    let totalOrLiq = 0;
+    
+    if (isIngreso) {
+      tipoMov = 'Ingreso';
+      concepto = g.subtipo === 'facturacion_varias' ? 'FacturaciÃ³n Varia' : 'Otro Ingreso';
+      neto = g.monto_neto || g.monto || 0;
+      totalOrLiq = g.monto_total || g.monto || 0;
+    } else if (isSueldo) {
+      tipoMov = 'Sueldo';
+      concepto = g.personal_nombre;
+      neto = -(g.monto_bruto || 0);
+      totalOrLiq = -(g.monto_liquido || 0);
+    } else {
+      tipoMov = 'Servicio';
+      concepto = getServicioLabel(g.subtipo);
+      neto = -(g.monto || 0);
+      totalOrLiq = -(g.monto || 0);
+    }
+    
+    mRunningUtil += neto;
+    mRowsList.push([
+      g.fecha ? new Date(g.fecha+'T12:00:00').toLocaleDateString('es-CL') : 'â',
+      tipoMov,
+      concepto,
+      neto,
+      totalOrLiq,
+      g.descripcion || '',
+      g.creado_por || '',
+      mRunningUtil
+    ]);
+  });
+  
+  // Total sum rows
+  const sheet6TotalNet = mRowsList.reduce((s, r) => s + r[3], 0);
+  const sheet6TotalLiq = mRowsList.reduce((s, r) => s + r[4], 0);
+  
+  mRowsList.push([]); // blank separator row
+  mRowsList.push([
+    'TOTALES',
+    '',
+    '',
+    sheet6TotalNet,
+    sheet6TotalLiq,
+    '',
+    '',
+    sheet6TotalNet
+  ]);
+  
+  // Style and color all cells in Sheet 6
+  const styledManualRows = [mHeaders].concat(mRowsList.map(row => {
+    if (row.length === 0) return [];
+    
+    const isTotal = row[0] === 'TOTALES';
+    if (isTotal) {
+      return [
+        makeStyledCell(row[0], null, true, false), // Bold 'TOTALES'
+        '',
+        '',
+        makeStyledCell(row[3], row[3] >= 0 ? '10B981' : 'EF4444', true, true), // Bold Net
+        makeStyledCell(row[4], row[4] >= 0 ? '10B981' : 'EF4444', true, true), // Bold Total
+        '',
+        '',
+        makeStyledCell(row[7], row[7] >= 0 ? '10B981' : 'EF4444', true, true)  // Bold Utility
+      ];
+    }
+    
+    const isInc = row[1] === 'Ingreso';
+    const color = isInc ? '10B981' : 'EF4444';
+    const accVal = row[7];
+    const accColor = accVal >= 0 ? '10B981' : 'EF4444';
+    
+    return [
+      row[0],
+      makeStyledCell(row[1], color, false, false), // Tipo
+      row[2],
+      makeStyledCell(row[3], color, false, true),  // Neto / Costo
+      makeStyledCell(row[4], color, false, true),  // Total con IVA / LÃ­quido
+      row[5],
+      row[6],
+      makeStyledCell(accVal, accColor, false, true) // Utilidad Acumulada
+    ];
+  }));
+  sheets.push({name:'Contabilidad Manual',data:styledManualRows});
   
   downloadXLSX(sheets,'SILOG_Reporte_Completo');
 }
 
-// ═══ XLSX DOWNLOAD HELPER ═══
+function makeStyledCell(value, colorHex = null, isBold = false, isNumeric = true) {
+  const cellObj = {
+    v: value,
+    t: isNumeric ? 'n' : 's',
+    s: {}
+  };
+  if (isNumeric) {
+    cellObj.z = '$#,##0;($#,##0);"-"';
+  }
+  if (colorHex) {
+    cellObj.s.font = { color: { rgb: colorHex } };
+  }
+  if (isBold) {
+    cellObj.s.font = cellObj.s.font || {};
+    cellObj.s.font.bold = true;
+  }
+  return cellObj;
+}
+
+// âââ XLSX DOWNLOAD HELPER âââ
 function downloadXLSX(sheets,filename){
   try{
     const wb=XLSX.utils.book_new();
@@ -1041,7 +1459,14 @@ function downloadXLSX(sheets,filename){
       // Auto-width columns
       const colWidths=s.data[0].map((_,ci)=>{
         let max=10;
-        s.data.forEach(row=>{const cell=row[ci];if(cell!==undefined&&cell!==null){const len=String(cell).length;if(len>max)max=len;}});
+        s.data.forEach(row=>{
+          const cell=row[ci];
+          if(cell!==undefined&&cell!==null){
+            const cellVal = (cell && typeof cell === 'object' && cell.v !== undefined) ? cell.v : cell;
+            const len=String(cellVal !== null && cellVal !== undefined ? cellVal : '').length;
+            if(len>max)max=len;
+          }
+        });
         return{wch:Math.min(max+2,40)};
       });
       ws['!cols']=colWidths;
@@ -1072,7 +1497,7 @@ function downloadXLSX(sheets,filename){
     });
     const periodo=document.getElementById('cc-periodo').value||new Date().toISOString().slice(0,7);
     XLSX.writeFile(wb,`${filename}_${periodo}.xlsx`);
-    showToast('📥 Excel descargado exitosamente','success');
+    showToast('ð¥ Excel descargado exitosamente','success');
   }catch(e){
     showToast('Error generando Excel: '+e.message,'error');
     console.error(e);
@@ -1120,7 +1545,7 @@ async function populateExpensesForHojasRuta(hojas) {
   });
 }
 
-// ═══ HOJAS DE RUTA ═══
+// âââ HOJAS DE RUTA âââ
 let _hojasRuta=[],_hojaActual=null;
 async function loadHojasRuta(isMore = false){
   if(_loadingMoreHR) return;
@@ -1129,11 +1554,11 @@ async function loadHojasRuta(isMore = false){
   if(!isMore) {
     _lastHRDoc = null;
     _hasMoreHR = true;
-    document.getElementById('hr-body').innerHTML = '<tr><td colspan="11" class="txt-c" style="color:var(--text2);padding:20px">Cargando…</td></tr>';
+    document.getElementById('hr-body').innerHTML = '<tr><td colspan="11" class="txt-c" style="color:var(--text2);padding:20px">Cargandoâ¦</td></tr>';
   } else {
     _loadingMoreHR = true;
     const loadBtn = document.getElementById('btn-load-more-hr');
-    if(loadBtn) loadBtn.innerHTML = '<span class="spinner"></span> Cargando más...';
+    if(loadBtn) loadBtn.innerHTML = '<span class="spinner"></span> Cargando mÃ¡s...';
   }
 
   // Populate conductor filter from existing users
@@ -1158,7 +1583,7 @@ async function loadHojasRuta(isMore = false){
     if(snap.empty) {
       _hasMoreHR = false;
       if(!isMore) {
-        document.getElementById('hr-body').innerHTML = '<tr><td colspan="11" class="txt-c" style="color:var(--text2);padding:20px">Sin hojas de ruta</td></tr>';
+        document.getElementById('hr-body').innerHTML = '<tr><td colspan="9" class="txt-c" style="color:var(--text2);padding:20px">Sin hojas de ruta</td></tr>';
       }
       updateLoadMoreBtnVisibility();
       return;
@@ -1214,7 +1639,7 @@ async function loadHojasRuta(isMore = false){
         _hojasRuta = newDocs;
       }
     } catch(err2) {
-      document.getElementById('hr-body').innerHTML = `<tr><td colspan="11" class="txt-c">Error: ${err2.message}</td></tr>`;
+      document.getElementById('hr-body').innerHTML = `<tr><td colspan="9" class="txt-c">Error: ${err2.message}</td></tr>`;
     }
   } finally {
     _loadingMoreHR = false;
@@ -1226,7 +1651,7 @@ async function loadHojasRuta(isMore = false){
 }
 function renderHojasRuta(){
   const body=document.getElementById('hr-body');
-  if(!_hojasRuta.length){body.innerHTML='<tr><td colspan="11" class="txt-c" style="color:var(--text2);padding:20px">Sin hojas de ruta</td></tr>';return;}
+  if(!_hojasRuta.length){body.innerHTML='<tr><td colspan="9" class="txt-c" style="color:var(--text2);padding:20px">Sin hojas de ruta</td></tr>';return;}
   const estadoBadge={'pendiente_revision':'<span class="badge-sm b-borrador">🟡 Pendiente</span>','revisada':'<span class="badge-sm b-pagada">🟢 Revisada</span>','observada':'<span class="badge-sm b-enviada">🔴 Observada</span>'};
   body.innerHTML=_hojasRuta.map(h=>`<tr>
     <td>${sanitize(h.fecha||'—')}</td>
@@ -1235,8 +1660,6 @@ function renderHojasRuta(){
     <td style="font-weight:700;color:var(--accent)">${sanitize(h.patente||'—')}</td>
     <td class="txt-c">${h.total_entregas||0}</td>
     <td class="txt-c" style="color:var(--danger)">${h.total_devoluciones||0}</td>
-    <td class="txt-r money">${fmt(h.combustible||0)}</td>
-    <td class="txt-r money">${fmt(h.peaje||0)}</td>
     <td class="txt-c">${h.km_recorridos||'—'} km</td>
     <td class="txt-c">${estadoBadge[h.estado]||sanitize(h.estado)}</td>
     <td class="txt-c"><button class="btn-sm" onclick="openHoja('${sanitize(h.id)}')">👁️ Ver</button> <button class="btn-sm" style="background:var(--success);border-color:var(--success);color:#fff" onclick="exportHojaExcelById('${sanitize(h.id)}')">📥</button></td>
@@ -1276,9 +1699,22 @@ function openHoja(id){
   </tr>`).join('');
   document.getElementById('modal-hoja').classList.add('open');
 }
-
 function closeHojaModal(){document.getElementById('modal-hoja').classList.remove('open');_hojaActual=null;}
-async function guardarHoja(){
+
+function agregarClienteHoja(){
+  const tbody=document.getElementById('hoja-entregas');
+  const corr = tbody.children.length + 1;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="he-corr">${corr}</td>
+    <td><input class="field he-doc" placeholder="N° Doc" style="width:100px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td><input class="field he-lugar" placeholder="Cliente/Dir" style="width:140px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td>
+      <select class="field he-estado" style="width:125px; padding:6px 10px; font-size:0.8rem; border-radius:6px; font-weight:600; cursor:pointer; outline:none; transition:0.2s; color:var(--success); border-color:rgba(16, 185, 129, 0.4); background:var(--surface2);" onchange="this.style.color = this.value === 'entregado' ? 'var(--success)' : 'var(--danger)'; this.style.borderColor = this.value === 'entregado' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)';">
+        <option value="entregado" selected style="color:var(--text);background:var(--bg);">🟢 Entregado</option>
+        <option value="devuelto" style="color:var(--text);background:var(--bg);">🔴 Rechazado</option>
+      </select>
+    </td>async function guardarHoja(){
   const id=document.getElementById('hoja-id').value;if(!id)return;
   
   const btn = document.querySelector('#modal-hoja .btn-save');
@@ -1454,8 +1890,19 @@ async function guardarHoja(){
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = prevHtml; }
   }
-}
+      });
+    }
 
+    await batch.commit();
+    showToast('â Hoja de ruta actualizada','success');
+    closeHojaModal();
+    loadHojasRuta();
+  }catch(e){
+    showToast('Error al guardar: '+e.message,'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = prevHtml; }
+  }
+}
 function exportHojaExcelById(id){
   const h=_hojasRuta.find(x=>x.id===id);if(!h)return;
   _hojaActual=h;exportHojaExcel();
@@ -1463,27 +1910,51 @@ function exportHojaExcelById(id){
 function exportHojaExcel(){
   if(!_hojaActual){showToast('Abre una hoja de ruta primero','error');return;}
   const h=_hojaActual;
-  const hi=h.hora_inicio?formatTime(h.hora_inicio):'—';
-  const ht=h.hora_termino?formatTime(h.hora_termino):'—';
+  const hi=h.hora_inicio?formatTime(h.hora_inicio):'â';
+  const ht=h.hora_termino?formatTime(h.hora_termino):'â';
   const entregas=h.entregas||[];
   const data=[];
   data.push(['','','','','','','']); // Row 1: blank
   data.push(['',`HOJA DE RUTA ${h.fecha||''} SILOG SpA`,'','','','','']); // Row 2: title
-  data.push(['','CONDUCTOR:',h.conductor_nombre||'','DISTRIBUIDOR:',h.distribuidor||'','','']); // Row 3
-  data.push(['','PATENTE:',h.patente||'','INICIO:',hi,'TERMINO:',ht]); // Row 4
+  data.push(['','','','','','','']); // Row 3: completely empty
+  data.push(['','','','INICIO:',hi,'TERMINO:',ht]); // Row 4: B4/C4 empty
   data.push(['','KM INICIAL:',h.km_inicial||'','KM FINAL:',h.km_final||'','KM RECORRIDOS:',h.km_recorridos||'']); // Row 5
   data.push(['','','','','','','']); // Row 6: blank
-  data.push(['','N°','DOCUMENTO','LUGAR','OBSERVACIONES','COMUNA','VALOR DIARIO']); // Row 7: headers
+  data.push(['','NÂ°','DOCUMENTO','LUGAR','ESTADO','OBSERVACIONES','COMUNA','VALOR DIARIO']); // Row 7: headers
   let totalValor=0;
   entregas.forEach(e=>{
     totalValor+=e.valor_diario||0;
-    data.push(['',(e.correlativo||''),e.documento||'',e.direccion||e.cliente||'',e.observaciones||'',e.comuna||'',e.valor_diario||0]);
+    const estadoStr = e.estado === 'entregado' || e.estado === 'Conforme' ? 'Entregado' : (e.estado === 'devuelto' || e.estado === 'rechazado' ? 'Rechazado' : e.estado||'');
+    data.push(['',(e.correlativo||''),e.documento||'',e.cliente||e.direccion||'',estadoStr,e.observaciones||e.devolucion_motivo||'',e.comuna||'',e.valor_diario||0]);
   });
-  data.push(['','','','','','TOTAL',totalValor]);
-  data.push(['','','','','','','']);
-  data.push(['','COMBUSTIBLE:',h.combustible||0,'PEAJE:',h.peaje||0,'DEVOLUCIONES:',h.total_devoluciones||0]);
-  data.push(['','N° GUÍAS:',h.n_guias||'','','','','']);
+  data.push(['','','','','','','TOTAL',totalValor]);
+  data.push(['','','','','','','','']);
+  data.push(['','COMBUSTIBLE:',h.combustible||0,'PEAJE:',h.peaje||0,'DEVOLUCIONES:',h.total_devoluciones||0,'']);
+  const totalGuias = entregas.reduce((max, e) => Math.max(max, e.correlativo || 0), 0) || entregas.length;
+  data.push(['','NÂ° GUÃAS:',totalGuias,'','','','','']);
   const ws=XLSX.utils.aoa_to_sheet(data);
+
+  // Format Column G cells (Valor Diario) and totals as CLP currency
+  for (let r = 8; r <= 8 + entregas.length; r++) {
+    const cellRef = 'G' + r;
+    if (ws[cellRef]) {
+      ws[cellRef].t = 'n';
+      ws[cellRef].z = '$#,##0';
+    }
+  }
+
+  // Format Peaje & Combustible cells as CLP currency
+  const extraRow = 8 + entregas.length + 2;
+  const cellCombustible = 'C' + extraRow;
+  const cellPeaje = 'E' + extraRow;
+  if (ws[cellCombustible]) {
+    ws[cellCombustible].t = 'n';
+    ws[cellCombustible].z = '$#,##0';
+  }
+  if (ws[cellPeaje]) {
+    ws[cellPeaje].t = 'n';
+    ws[cellPeaje].z = '$#,##0';
+  }
   // Merge title row (B2:G2) centered
   ws['!merges']=[{s:{r:1,c:1},e:{r:1,c:6}}];
   // Style title cell alignment
@@ -1504,10 +1975,10 @@ function exportHojaExcel(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Hoja de Ruta');
   XLSX.writeFile(wb,`Hoja_Ruta_${h.fecha||'sin_fecha'}_${(h.conductor_nombre||'conductor').replace(/\s+/g,'_')}.xlsx`);
-  showToast('📥 Excel descargado','success');
+  showToast('ð¥ Excel descargado','success');
 }
 
-// ═══ INGRESOS BODEGA ═══
+// âââ INGRESOS BODEGA âââ
 let _ingresosBodega=[];
 async function loadIngresosBodega(){
   try{
@@ -1524,17 +1995,17 @@ async function loadIngresosBodega(){
 function renderIngresosBodega(){
   const body=document.getElementById('bg-body');
   if(!_ingresosBodega.length){body.innerHTML='<tr><td colspan="7" class="txt-c" style="color:var(--text2);padding:20px">Sin movimientos registrados</td></tr>';updateBodegaStats();return;}
-  const labels={'ingreso_bodega':'Ingreso Bodega','ingreso_m2':'Ingreso M² Extras','costo_arriendo':'Costo Arriendo'};
+  const labels={'ingreso_bodega':'Ingreso Bodega','ingreso_m2':'Ingreso MÂ² Extras','costo_arriendo':'Costo Arriendo'};
   body.innerHTML=_ingresosBodega.map(m=>{
     const isGasto=m.concepto==='costo_arriendo';
     return `<tr>
-      <td>${sanitize(m.fecha||'—')}</td>
+      <td>${sanitize(m.fecha||'â')}</td>
       <td>${sanitize(labels[m.concepto]||m.concepto)}</td>
-      <td>${sanitize(m.cliente||'—')}</td>
-      <td class="txt-c">${sanitize(m.m2||'—')}</td>
+      <td>${sanitize(m.cliente||'â')}</td>
+      <td class="txt-c">${sanitize(m.m2||'â')}</td>
       <td class="txt-r money ${isGasto?'money-red':'money-green'}">${isGasto?'-':''}${fmt(m.monto)}</td>
       <td>${sanitize(m.descripcion||'')}</td>
-      <td class="txt-c"><button class="btn-sm" style="border-color:var(--danger);color:#FCA5A5;padding:4px 8px" onclick="deleteMovBodega('${sanitize(m.id)}')">🗑️</button></td>
+      <td class="txt-c"><button class="btn-sm" style="border-color:var(--danger);color:#FCA5A5;padding:4px 8px" onclick="deleteMovBodega('${sanitize(m.id)}')">ðï¸</button></td>
     </tr>`;
   }).join('');
   updateBodegaStats();
@@ -1553,7 +2024,7 @@ function updateBodegaStats(){
 }
 async function guardarMovBodega(){
   const monto=parseInt(document.getElementById('bg-monto').value);
-  if(!monto||monto<=0){showToast('Ingresa un monto válido','error');return;}
+  if(!monto||monto<=0){showToast('Ingresa un monto vÃ¡lido','error');return;}
   const data={
     concepto:document.getElementById('bg-concepto').value,
     monto,
@@ -1566,7 +2037,7 @@ async function guardarMovBodega(){
   };
   try{
     await db.collection('ingresos_bodega').add(data);
-    showToast('✅ Movimiento registrado','success');
+    showToast('â Movimiento registrado','success');
     document.getElementById('bg-monto').value='';
     document.getElementById('bg-cliente').value='';
     document.getElementById('bg-m2-val').value='';
@@ -1575,8 +2046,8 @@ async function guardarMovBodega(){
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 async function deleteMovBodega(id){
-  if(!confirm('¿Eliminar este movimiento?'))return;
-  try{await db.collection('ingresos_bodega').doc(id).delete();showToast('🗑️ Eliminado','success');loadIngresosBodega();}
+  if(!confirm('Â¿Eliminar este movimiento?'))return;
+  try{await db.collection('ingresos_bodega').doc(id).delete();showToast('ðï¸ Eliminado','success');loadIngresosBodega();}
   catch(e){showToast('Error: '+e.message,'error');}
 }
 // Set default date for bodega form
@@ -1589,9 +2060,20 @@ function updateLoadMoreBtnVisibility() {
   }
 }
 
+function showComprobantesSubTab(sub) {
+  const targetG = document.getElementById('comp-subtab-gastos');
+  const targetT = document.getElementById('comp-subtab-total');
+  const btnG = document.getElementById('comp-tbtn-gastos');
+  const btnT = document.getElementById('comp-tbtn-total');
+  if(targetG) targetG.style.display = sub === 'gastos' ? 'block' : 'none';
+  if(targetT) targetT.style.display = sub === 'total' ? 'block' : 'none';
+  if(btnG) btnG.classList.toggle('active', sub === 'gastos');
+  if(btnT) btnT.classList.toggle('active', sub === 'total');
+}
+
 async function loadComprobantes() {
   const list = document.getElementById('comprobantes-list');
-  list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px">Cargando comprobantes…</div>';
+  list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px">Cargando comprobantesâ¦</div>';
   
   try {
     cleanOldComprobantes();
@@ -1614,7 +2096,7 @@ async function loadComprobantes() {
           gastosHTML += `
             <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;align-items:center;gap:10px;margin-bottom:6px">
               <div style="width:40px;height:40px;background:var(--bg);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;overflow:hidden">
-                ${hasImg ? `<img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${imgUrl}','_blank')"/>` : '⛽'}
+                ${hasImg ? `<img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${imgUrl}','_blank')"/>` : 'â½'}
               </div>
               <div style="flex:1">
                 <div style="font-weight:600;font-size:.8rem">${gd.tipo === 'combustible' ? 'Combustible' : 'Peaje'}</div>
@@ -1635,19 +2117,19 @@ async function loadComprobantes() {
       html += `
         <div class="card" style="border-left: 3px solid var(--primary);margin-bottom:14px;padding:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h4 style="font-size:.85rem;font-weight:700">🚛 Viaje: ${sanitize(h.patente)} · ${sanitize(h.conductor_nombre)}</h4>
-            <span style="font-size:.75rem;color:var(--text2)">📅 ${h.fecha}</span>
+            <h4 style="font-size:.85rem;font-weight:700">ð Viaje: ${sanitize(h.patente)} Â· ${sanitize(h.conductor_nombre)}</h4>
+            <span style="font-size:.75rem;color:var(--text2)">ð ${h.fecha}</span>
           </div>
           <div style="display:grid;grid-template-columns:1fr;gap:14px">
             <div style="background:rgba(27,75,155,.1);border:1px solid rgba(27,75,155,.2);border-radius:12px;padding:12px">
-              <h5 style="font-size:.75rem;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">📄 Factura Combustible (Hoja de Ruta)</h5>
+              <h5 style="font-size:.75rem;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">ð Factura Combustible (Hoja de Ruta)</h5>
               <div style="display:flex;align-items:center;gap:10px">
                 <div style="width:40px;height:40px;background:var(--bg);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;overflow:hidden">
-                  ${hasFactura ? `<img src="${h.foto_combustible_url}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${h.foto_combustible_url}','_blank')"/>` : '📄'}
+                  ${hasFactura ? `<img src="${h.foto_combustible_url}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${h.foto_combustible_url}','_blank')"/>` : 'ð'}
                 </div>
                 <div style="flex:1">
                   <div style="font-weight:600;font-size:.8rem">${h.nombre_distribuidor || 'Carga combustible'}</div>
-                  <div style="font-size:.7rem;color:var(--text2)">KM Cierre: ${h.km_final || '—'} · Peaje: ${fmt(h.peaje || 0)}</div>
+                  <div style="font-size:.7rem;color:var(--text2)">KM Cierre: ${h.km_final || 'â'} Â· Peaje: ${fmt(h.peaje || 0)}</div>
                 </div>
                 ${hasFactura ? `<a href="${h.foto_combustible_url}" target="_blank" download class="btn-sm" style="text-decoration:none;font-size:.7rem;background:var(--accent);color:#fff">Descargar</a>
                                  <button onclick="deleteComprobanteManual('factura', '${d.id}', '${h.foto_combustible_url}')" class="btn-sm danger" style="padding:4px 8px;font-size:.7rem;margin-left:4px">Eliminar</button>` : `<span style="font-size:.7rem;color:var(--text2)">${h.foto_combustible_url || 'Sin factura'}</span>`}
@@ -1655,7 +2137,7 @@ async function loadComprobantes() {
             </div>
             
             <div>
-              <h5 style="font-size:.75rem;color:var(--success);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">⛽ Comprobantes de Gastos (Mi Jornada)</h5>
+              <h5 style="font-size:.75rem;color:var(--success);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">â½ Comprobantes de Gastos (Mi Jornada)</h5>
               <div style="display:flex;flex-direction:column;gap:4px">
                 ${gastosHTML}
               </div>
@@ -1665,13 +2147,60 @@ async function loadComprobantes() {
       `;
     }
     list.innerHTML = html;
+
+    // Cargar Comprobantes de Entrega de TotalEnergies
+    const totalList = document.getElementById('te-comprobantes-total-list');
+    if (totalList) {
+      totalList.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px">Cargando comprobantes de entregaâ¦</div>';
+      
+      const teHrs = [];
+      snap.forEach(doc => {
+        const h = doc.data();
+        const dist = (h.nombre_distribuidor || h.distribuidor || '').trim().toLowerCase();
+        if (dist.includes('total')) {
+          teHrs.push({ id: doc.id, ...h });
+        }
+      });
+      
+      if (teHrs.length === 0) {
+        totalList.innerHTML = '<div class="empty">No hay comprobantes de entrega TotalEnergies registrados en el sistema.</div>';
+      } else {
+        totalList.innerHTML = teHrs.map(h => {
+          const hasPod = h.pod_doc_url && !h.pod_doc_url.includes('Eliminado');
+          const clientsStr = (h.clientes_despacho || []).join(', ') || 'â';
+          return `
+            <div class="card" style="border-left: 3px solid var(--accent); margin-bottom:14px; padding:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h4 style="font-size:.85rem; font-weight:700; color:var(--accent);">â½ Viaje Total: ${sanitize(h.patente)} Â· ${sanitize(h.conductor_nombre)}</h4>
+                <span style="font-size:.75rem; color:var(--text2);">ð ${sanitize(h.fecha)}</span>
+              </div>
+              <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:12px; display:flex; align-items:center; gap:12px;">
+                <div style="width:45px; height:45px; background:var(--bg); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; overflow:hidden;">
+                  ${hasPod ? `<div style="cursor:pointer;" onclick="window.open('${h.pod_doc_url}','_blank')">ð</div>` : 'â'}
+                </div>
+                <div style="flex:1;">
+                  <div style="font-weight:600; font-size:.82rem;">Clientes: ${sanitize(clientsStr)}</div>
+                  <div style="font-size:.72rem; color:var(--text2);">Valor del Servicio: ${fmt(h.valor_servicio || 0)} ${h.pod_doc_name ? `Â· Archivo: ${sanitize(h.pod_doc_name)}` : ''}</div>
+                </div>
+                ${hasPod ? `
+                  <div style="display:flex; gap:6px;">
+                    <a href="${h.pod_doc_url}" target="_blank" class="btn-sm" style="text-decoration:none; font-size:.75rem; background:var(--primary); color:#fff; border-radius:6px; padding:6px 12px;">Ver Documento</a>
+                    <button onclick="deleteComprobanteManual('pod', '${h.id}', '${h.pod_doc_url}')" class="btn-sm danger" style="padding:6px 12px; font-size:.75rem; border-radius:6px;">Eliminar</button>
+                  </div>
+                ` : `<span style="font-size:.75rem; color:var(--text2); font-weight:500;">Sin documento adjunto</span>`}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
   } catch(e) {
     list.innerHTML = `<div class="empty">Error al cargar comprobantes: ${e.message}</div>`;
   }
 }
 
 async function deleteComprobanteManual(type, id, url) {
-  if(!confirm('¿Estás seguro de que deseas eliminar este comprobante? Esta acción no se puede deshacer.')) return;
+  if(!confirm('Â¿EstÃ¡s seguro de que deseas eliminar este comprobante? Esta acciÃ³n no se puede deshacer.')) return;
   try {
     if(url && url.startsWith('http') && !url.includes('Eliminado')) {
       try {
@@ -1682,17 +2211,18 @@ async function deleteComprobanteManual(type, id, url) {
       }
     }
     if(type === 'gasto') {
-      await db.collection('gastos_ruta').doc(id).update({
-        foto_boleta_url: "Eliminado manualmente",
-        foto_url: "Eliminado manualmente",
-        boleta_url: ""
-      });
+      await db.collection('gastos_ruta').doc(id).delete();
     } else if(type === 'factura') {
       await db.collection('hojas_ruta').doc(id).update({
-        foto_combustible_url: "Eliminado manualmente"
+        foto_combustible_url: ""
+      });
+    } else if(type === 'pod') {
+      await db.collection('hojas_ruta').doc(id).update({
+        pod_doc_url: "",
+        pod_doc_name: ""
       });
     }
-    showToast('✅ Comprobante eliminado', 'success');
+    showToast('â Comprobante eliminado permanentemente', 'success');
     loadComprobantes();
   } catch(e) {
     showToast('Error al eliminar: ' + e.message, 'error');
@@ -1701,12 +2231,13 @@ async function deleteComprobanteManual(type, id, url) {
 
 async function cleanOldComprobantes(forceShowToast = false) {
   const thresholdDate = new Date();
-  thresholdDate.setDate(thresholdDate.getDate() - 15);
+  thresholdDate.setDate(thresholdDate.getDate() - 1); // 24 Horas
   const thresholdISO = thresholdDate.toISOString().split('T')[0];
   const thresholdTS = firebase.firestore.Timestamp.fromDate(thresholdDate);
   
   let count = 0;
   try {
+    // 1. Facturas en Hojas de Ruta
     const hrSnap = await db.collection('hojas_ruta').where('fecha', '<', thresholdISO).get();
     for(const d of hrSnap.docs) {
       const h = d.data();
@@ -1718,12 +2249,13 @@ async function cleanOldComprobantes(forceShowToast = false) {
           console.warn("Storage delete failed for hoja_ruta:", se.message);
         }
         await db.collection('hojas_ruta').doc(d.id).update({
-          foto_combustible_url: "Eliminado por antigüedad (+15 días)"
+          foto_combustible_url: ""
         });
         count++;
       }
     }
     
+    // 2. Comprobantes de Gastos de Ruta
     const gSnap = await db.collection('gastos_ruta').where('fecha', '<', thresholdTS).get();
     for(const d of gSnap.docs) {
       const g = d.data();
@@ -1735,25 +2267,19 @@ async function cleanOldComprobantes(forceShowToast = false) {
         } catch(se) {
           console.warn("Storage delete failed for gasto:", se.message);
         }
-        await db.collection('gastos_ruta').doc(d.id).update({
-          foto_boleta_url: "Eliminado por antigüedad (+15 días)",
-          foto_url: "Eliminado por antigüedad (+15 días)",
-          boleta_url: ""
-        });
-        count++;
       }
+      // Eliminar el documento completo de Firestore y la app
+      await db.collection('gastos_ruta').doc(d.id).delete();
+      count++;
     }
     
     if(count > 0) {
-      console.log(`🧹 Purgado automático: se eliminaron físicamente ${count} comprobantes de más de 15 días.`);
-      if(forceShowToast) showToast(`🧹 Se purgaron físicamente ${count} imágenes de comprobantes viejos`, 'success');
+      console.log(`ð§¹ Purgado automÃ¡tico: se eliminaron fÃ­sicamente ${count} comprobantes de mÃ¡s de 24 horas.`);
+      if(forceShowToast) showToast(`ð§¹ Se purgaron fÃ­sicamente ${count} comprobantes antiguos (+24h)`, 'success');
     } else {
-      if(forceShowToast) showToast('✅ No se encontraron comprobantes de más de 15 días para pugar.', 'info');
+      if(forceShowToast) showToast('â No se encontraron comprobantes de mÃ¡s de 24 horas para purgar.', 'info');
     }
   } catch(e) {
     console.warn("Error running cleanOldComprobantes:", e);
   }
 }
-</script>
-</body>
-</html>
