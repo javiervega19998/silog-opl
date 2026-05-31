@@ -142,7 +142,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/auth.js?v=6"></script>
 <script>
 let _email='', _isAdmin=false, _curTab='pending', _users=[], _userName='', _completingTask=false, _savingTask=false;
 const iconMap={checklist:'✅',charla:'📚',viaje:'📋',otro:'📌'};
@@ -151,7 +151,7 @@ const tipoLabel={checklist:'Checklist',charla:'Charla',viaje:'Hoja de Ruta',otro
 requireAuth(async(user,data)=>{
   _email=data.correo_electronico||data.email||user.email;
   _userName=data.nombre||data.name||_email;
-  _isAdmin=isViewerRole(data.role);  // admin + administrativo + administrativo.conductor
+  _isAdmin=isViewerRole((data.rol||data.role));  // admin + administrativo + administrativo.conductor
   if(_isAdmin){
     document.getElementById('btn-new').style.display='block';
     document.getElementById('t-assign').style.display='block';
@@ -160,7 +160,7 @@ requireAuth(async(user,data)=>{
     snap.forEach(d=>{
       const u=d.data();
       const em=u.correo_electronico||u.email||'';
-      if(em) _users.push({email:em,name:u.nombre||u.name||em});
+      if(em) _users.push({email:em,name:u.nombre||u.name||em,role:(u.rol||u.role||'').toLowerCase()});
     });
     // Rellenar select de usuarios en modal y en panel de asignación de vehículo
     const sel=document.getElementById('t-para-sel');
@@ -342,6 +342,12 @@ async function saveTask(){
   const titulo=document.getElementById('t-titulo').value.trim();
   const para=document.getElementById('t-para-sel').value.trim();
   if(!titulo||!para){showToast('Completa título y destinatario','error');return;}
+  const tipo=document.getElementById('t-tipo').value;
+  const targetUser = _users.find(u => u.email === para);
+  if(tipo === 'checklist' && targetUser && targetUser.role !== 'conductor') {
+    showToast('❌ Los checklists solo pueden ser realizados por conductores', 'error');
+    return;
+  }
   if(_savingTask) return;
   _savingTask = true;
 
@@ -417,3 +423,6 @@ async function assignVehicle(btn) {
 </script>
 </body>
 </html>
+
+
+

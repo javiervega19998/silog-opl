@@ -91,10 +91,8 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
   <!-- Period -->
   <div class="period-bar">
     <span style="font-size:.75rem;color:var(--text2);font-weight:600">Periodo:</span>
-    <button class="period-btn" onclick="setPeriod(7,this)">7 días</button>
-    <button class="period-btn active" onclick="setPeriod(30,this)">30 días</button>
-    <button class="period-btn" onclick="setPeriod(90,this)">90 días</button>
-    <button class="period-btn" onclick="setPeriod(365,this)">12 meses</button>
+    <button class="period-btn active" onclick="setPeriod(7,this)">7 días</button>
+    <button class="period-btn" onclick="setPeriod(15,this)">15 días</button>
   </div>
 
   <!-- KPIs -->
@@ -141,14 +139,6 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
       <div class="rank-list" id="rank-vehiculos"></div>
     </div>
   </div>
-
-  <!-- KM Stats -->
-  <div class="chart-grid">
-    <div class="chart-card full">
-      <h3>🛣️ Kilómetros Recorridos</h3>
-      <div class="bar-chart" id="chart-km" style="height:120px"></div>
-    </div>
-  </div>
 </div>
 
 <div id="toast-container"></div>
@@ -156,10 +146,10 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/firebase-config.js?v=2"></script>
+<script src="js/auth.js?v=7"></script>
 <script>
-let _days=30,_turnos=[],_despachos=[],_gastos=[],_vehiculos=[];
+let _days=7,_turnos=[],_despachos=[],_gastos=[],_vehiculos=[];
 
 requireAdmin(async(user,data)=>{
   await loadData();
@@ -185,12 +175,9 @@ async function loadData(){
           console.warn("Turnos range query failed, falling back:", e);
           return db.collection('turnos').get();
         }),
-        db.collection('despachos').where('created_at','>=',ts).get().catch(e => {
-          console.warn("Despachos query by created_at failed, trying fecha_entrega...", e);
-          return db.collection('despachos').where('fecha_entrega','>=',ts).get().catch(ee => {
-            console.warn("Despachos native query failed, falling back:", ee);
-            return db.collection('despachos').get();
-          });
+        db.collection('despachos').where('fecha','>=',ts).get().catch(e => {
+          console.warn("Despachos query by fecha failed, falling back:", e);
+          return db.collection('despachos').get();
         }),
         db.collection('gastos_ruta').where('fecha','>=',ts).get().catch(e => {
           console.warn("Gastos range query failed, falling back:", e);
@@ -214,7 +201,20 @@ async function loadData(){
     }
 
     _turnos=[];tSnap.forEach(d=>{const t=d.data();t._id=d.id;t._date=t.fecha?.toDate?t.fecha.toDate():(t.hora_apertura?.toDate?t.hora_apertura.toDate():null);_turnos.push(t);});
-    _despachos=[];dSnap.forEach(d=>{const dp=d.data();dp._date=dp.fecha_entrega?.toDate?dp.fecha_entrega.toDate():(dp.created_at?.toDate?dp.created_at.toDate():null);_despachos.push(dp);});
+    _despachos=[];
+    dSnap.forEach(d=>{
+      const dp=d.data();
+      dp._date=dp.pod_timestamp?.toDate?dp.pod_timestamp.toDate():(dp.fecha?.toDate?dp.fecha.toDate():null);
+      const t = _turnos.find(x => x._id === dp.turno_id);
+      if(t){
+        dp.patente=t.patente||'N/A';
+        dp.conductor_nombre=t.conductor_nombre||t.conductor_email||'—';
+      } else {
+        dp.patente=dp.patente||'N/A';
+        dp.conductor_nombre=dp.conductor_nombre||dp.conductor_email||'—';
+      }
+      _despachos.push(dp);
+    });
     _gastos=[];gSnap.forEach(d=>{const g=d.data();g._date=g.fecha?.toDate?g.fecha.toDate():null;_gastos.push(g);});
     
     _vehiculos=[];
@@ -228,15 +228,42 @@ async function loadData(){
   }catch(e){console.warn(e);}
 }
 
-function filterByDays(arr,days){
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-days);
-  return arr.filter(x=>x._date&&x._date>=cutoff);
+function filterByDaysPast(arr, days) {
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+  cutoff.setHours(0,0,0,0);
+  const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  return arr.filter(x => x._date && x._date >= cutoff && x._date <= todayEnd);
+}
+
+function filterByDaysFuture(arr, days) {
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const futureEnd = new Date(todayStart); futureEnd.setDate(futureEnd.getDate() + days);
+  return arr.filter(x => x._date && x._date >= todayStart && x._date < futureEnd);
+}
+
+function renderBarChartFuture(containerId, items, days, color) {
+  const container = document.getElementById(containerId);
+  const buckets = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(); d.setDate(d.getDate() + i); d.setHours(0,0,0,0);
+    const next = new Date(d); next.setDate(next.getDate() + 1);
+    const count = items.filter(x => x._date && x._date >= d && x._date < next).length;
+    buckets.push({
+      label: d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }),
+      value: count
+    });
+  }
+  const max = Math.max(...buckets.map(b => b.value), 1);
+  container.innerHTML = buckets.map(b => {
+    const h = Math.max((b.value / max) * 130, 2);
+    return `<div class="bar-col"><div class="bar-value">${b.value}</div><div class="bar" style="height:${h}px;background:${color}"></div><div class="bar-label">${b.label}</div></div>`;
+  }).join('');
 }
 
 function renderAll(){
-  const turnos=filterByDays(_turnos,_days);
-  const despachos=filterByDays(_despachos,_days);
-  const gastos=filterByDays(_gastos,_days);
+  const turnos=filterByDaysPast(_turnos,_days);
+  const despachos=filterByDaysPast(_despachos,_days);
+  const gastos=filterByDaysPast(_gastos,_days);
   const entregados=despachos.filter(d=>d.estado==='entregado');
   const devueltos=despachos.filter(d=>d.estado==='devuelto');
   const totalGastos=gastos.reduce((s,g)=>s+(g.monto_clp||0),0);
@@ -248,34 +275,32 @@ function renderAll(){
   // KPIs
   document.getElementById('kpi-turnos').textContent=turnos.length;
   document.getElementById('kpi-entregas').textContent=entregados.length;
-  document.getElementById('kpi-otif').textContent=otifPct+'%';
+  const otifEl = document.getElementById('kpi-otif');
+  otifEl.textContent = otifRes.total > 0 ? otifPct + '%' : 'Sin datos';
+  otifEl.style.color = otifRes.total > 0 ? (otifPct >= 95 ? 'var(--success)' : otifPct >= 75 ? 'var(--warning)' : 'var(--danger)') : 'var(--text2)';
   document.getElementById('kpi-devol').textContent=devueltos.length;
   document.getElementById('kpi-gastos').textContent='$'+(totalGastos).toLocaleString('es-CL');
 
-  // Deltas (vs previous period)
-  const prevTurnos=filterByDays(_turnos,_days*2).length-turnos.length;
-  const prevEntregas=filterByDays(_despachos,_days*2).filter(d=>d.estado==='entregado').length-entregados.length;
-  setDelta('kd-turnos',turnos.length,prevTurnos);
-  setDelta('kd-entregas',entregados.length,prevEntregas);
+  // Deltas (vs previous period) — usar sólo el periodo ANTERIOR sin solapar el actual
+  const prevStart = new Date(); prevStart.setDate(prevStart.getDate() - _days * 2); prevStart.setHours(0,0,0,0);
+  const prevEnd = new Date(); prevEnd.setDate(prevEnd.getDate() - _days); prevEnd.setHours(23,59,59,999);
+  const prevTurnosArr = _turnos.filter(x => x._date && x._date >= prevStart && x._date <= prevEnd);
+  const prevDespacArr = _despachos.filter(x => x._date && x._date >= prevStart && x._date <= prevEnd);
+  const prevEntregasCount = prevDespacArr.filter(d => d.estado === 'entregado').length;
+  setDelta('kd-turnos', turnos.length, prevTurnosArr.length);
+  setDelta('kd-entregas', entregados.length, prevEntregasCount);
 
-  // OTIF Delta (vs previous period) in percentage points (ptos)
-  const turnosPrevFull = filterByDays(_turnos, _days * 2);
-  const despachosPrevFull = filterByDays(_despachos, _days * 2);
-  const cutoffCurrent = new Date();
-  cutoffCurrent.setDate(cutoffCurrent.getDate() - _days);
-  const turnosPrev = turnosPrevFull.filter(t => t._date && t._date < cutoffCurrent);
-  const despachosPrev = despachosPrevFull.filter(d => d._date && d._date < cutoffCurrent);
-  const otifResPrev = calculateOTIF(turnosPrev, despachosPrev);
+  // OTIF Delta: comparar periodo actual con periodo anterior (sin solapar)
+  const otifResPrev = calculateOTIF(prevTurnosArr, prevDespacArr);
   setOTIFDelta('kd-otif', otifPct, otifResPrev.pct);
 
-  // Charts
-  renderBarChart('chart-entregas',entregados,_days,'#10B981');
+  // Entregas por Día: usar renderBarChart (histórico real, no futuro)
+  renderBarChart('chart-entregas', filterByDaysPast(_despachos.filter(d => d.estado !== 'devuelto'), _days * 2), _days, '#10B981');
   renderBarChart('chart-gastos',gastos,_days,'#F47920',true);
   renderDonut(devueltos);
   renderOtifByVehicle(turnos, despachos);
   renderRankConductores(entregados);
   renderRankVehiculos(turnos,despachos,gastos);
-  renderKmChart(turnos);
 }
 
 function calculateOTIF(turnosList, despachosList) {
@@ -321,7 +346,8 @@ function calculateOTIF(turnosList, despachosList) {
     }
   });
   
-  const pct = totalClosed > 0 ? Math.round((otifCount / totalClosed) * 100) : 100;
+  // Sin datos: devolver 0 para mostrar 'Sin datos' en el KPI
+  const pct = totalClosed > 0 ? Math.round((otifCount / totalClosed) * 100) : 0;
   return { pct, count: otifCount, total: totalClosed };
 }
 
@@ -347,7 +373,7 @@ function setDelta(id,curr,prev){
 
 function renderBarChart(containerId,items,days,color,isMoney=false){
   const container=document.getElementById(containerId);
-  const numBars=Math.min(days,14);
+  const numBars=days;
   const buckets=[];
   for(let i=numBars-1;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);d.setHours(0,0,0,0);
@@ -416,10 +442,10 @@ function renderOtifByVehicle(turnosList, despachosList){
     }
   });
   
-  results.sort((a,b)=>b.total-a.total).slice(0,8);
-  if(!results.length){container.innerHTML='<div class="empty">Sin datos</div>';return;}
-  
-  container.innerHTML=results.map(r=>{
+  // Fix: sort+slice debe asignarse para que el resultado de slice sea usado
+  const topResults = results.sort((a,b) => b.total - a.total).slice(0, 8);
+  if(!topResults.length){container.innerHTML='<div class="empty">Sin datos</div>';return;}
+  container.innerHTML = topResults.map(r => {
     const pct=r.pct;
     const color=pct>=90?'var(--success)':pct>=70?'var(--warning)':'var(--danger)';
     return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px"><span><code style="color:var(--accent)">${sanitize(r.vehicle)}</code></span><span style="font-weight:700;color:${color}">${pct}% OTIF</span></div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div><div style="font-size:.68rem;color:var(--text2);margin-top:2px">${r.count}/${r.total} viajes cumplidos OTIF</div></div>`;
@@ -538,24 +564,9 @@ function renderRankVehiculos(turnos,despachos,gastos){
     `;
   }).join('');
 }
-
-function renderKmChart(turnos){
-  const container=document.getElementById('chart-km');
-  const byDay={};
-  turnos.forEach(t=>{
-    if(!t._date||!t.km_final||!t.km_inicial)return;
-    const key=t._date.toISOString().split('T')[0];
-    byDay[key]=(byDay[key]||0)+(t.km_final-t.km_inicial);
-  });
-  const sorted=Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14);
-  if(!sorted.length){container.innerHTML='<div class="empty">Sin datos de KM</div>';return;}
-  const max=Math.max(...sorted.map(([,v])=>v),1);
-  container.innerHTML=sorted.map(([day,km])=>{
-    const h=Math.max((km/max)*100,2);
-    const label=new Date(day+'T12:00:00').toLocaleDateString('es-CL',{day:'2-digit',month:'short'});
-    return`<div class="bar-col"><div class="bar-value">${km.toLocaleString('es-CL')}</div><div class="bar" style="height:${h}px;background:linear-gradient(180deg,#60A5FA,var(--primary))"></div><div class="bar-label">${label}</div></div>`;
-  }).join('');
-}
 </script>
 </body>
 </html>
+
+
+

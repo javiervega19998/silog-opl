@@ -114,12 +114,12 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/firebase-config.js?v=2"></script>
+<script src="js/auth.js?v=7"></script>
 <script>
 let _isAdmin=false;
 requireAuth(async(user,data)=>{
-  _isAdmin=isViewerRole(data.role);
+  _isAdmin=isViewerRole((data.rol||data.role));
   if(_isAdmin) document.getElementById('btn-add-v').style.display='block';
   loadVehicles();
 });
@@ -152,7 +152,7 @@ function ScCard(v, id, sc, emoji) {
         <span class="status-pill ${sc}">${v.estado||'—'}</span>
       </div>
       <div class="v-stats">
-        <div class="v-stat"><div class="val">${(v.kilometraje||0).toLocaleString('es-CL')}</div><div class="lbl">km actual</div></div>
+        <div class="v-stat"><div class="val">${(v.kilometraje||v.km||0).toLocaleString('es-CL')}</div><div class="lbl">km actual</div></div>
         <div class="v-stat"><div class="val">${v.capacidad_kg||0}</div><div class="lbl">cap. kg</div></div>
         <div class="v-stat"><div class="val">${v.capacidad_m_3||0}</div><div class="lbl">cap. m³</div></div>
       </div>
@@ -178,7 +178,7 @@ async function editVehicle(id){
   document.getElementById('m-patente').value=v.patente||'';
   document.getElementById('m-marca').value=v.marca||'';
   document.getElementById('m-modelo').value=v.modelo||'';
-  document.getElementById('m-km').value=v.kilometraje||'';
+  document.getElementById('m-km').value=v.kilometraje||v.km||'';
   document.getElementById('m-rev').value=v.proxima_revision||'';
   document.getElementById('m-kg').value=v.capacidad_kg||'';
   document.getElementById('m-m3').value=v.capacidad_m_3||'';
@@ -189,10 +189,12 @@ async function saveVehicle(){
   const patente=document.getElementById('m-patente').value.trim().toUpperCase();
   if(!patente){showToast('Ingresa la patente','error');return;}
   const docId=document.getElementById('doc-id').value;
+  const kmVal = parseFloat(document.getElementById('m-km').value)||0;
   const data={
     patente,marca:document.getElementById('m-marca').value.trim(),
     modelo:document.getElementById('m-modelo').value.trim(),
-    kilometraje:parseFloat(document.getElementById('m-km').value)||0,
+    kilometraje:kmVal,
+    km:kmVal,
     proxima_revision:parseFloat(document.getElementById('m-rev').value)||0,
     capacidad_kg:parseFloat(document.getElementById('m-kg').value)||0,
     capacidad_m_3:parseFloat(document.getElementById('m-m3').value)||0,
@@ -224,3 +226,6 @@ async function deleteVehicle(id, patente){
 </script>
 </body>
 </html>
+
+
+

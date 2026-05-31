@@ -159,10 +159,10 @@ textarea.field{resize:vertical;min-height:60px}
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/firebase-config.js?v=2"></script>
+<script src="js/auth.js?v=7"></script>
 <script>
-let _uid='',_all=[],_filter='all',_editingId=null;
+let _uid='',_all=[],_filter='all',_editingId=null,_limit=10,_saving=false;
 let _crmMap=null,_crmMarker=null,_crmLat=null,_crmLng=null;
 
 requireAdmin(async(user,data)=>{
@@ -192,7 +192,8 @@ async function loadAll(){
   }catch(e){console.warn(e);}
 }
 
-function filterList(){
+function filterList(resetLimit=true){
+  if(resetLimit)_limit=10;
   const q=(document.getElementById('search').value||'').toLowerCase();
   let filtered=_all;
   if(_filter!=='all')filtered=filtered.filter(c=>(c.tipo||'cliente')===_filter);
@@ -207,12 +208,19 @@ function filterList(){
   renderList(filtered);
 }
 
+function showMoreItems(){
+  _limit+=10;
+  filterList(false);
+}
+
 function renderList(items){
   const list=document.getElementById('client-list');
   const empty=document.getElementById('client-empty');
   if(!items.length){list.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
-  list.innerHTML=items.map(c=>{
+  
+  const visibleItems=items.slice(0,_limit);
+  let cardsHtml=visibleItems.map(c=>{
     const tipo=c.tipo||'cliente';
     const name=sanitize(c.nombre||c.empresa||'—');
     const rut=sanitize(c.rut||'');
@@ -245,6 +253,16 @@ function renderList(items){
       </div>
     </div>`;
   }).join('');
+
+  if(items.length>_limit){
+    cardsHtml+=`
+      <div style="text-align:center;margin:24px 0 10px" id="load-more-container">
+        <button class="filter-btn" style="background:var(--surface2);border-color:var(--border);color:var(--accent);padding:10px 24px;font-size:.85rem;border-radius:10px;font-weight:700;transition:.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'" onclick="showMoreItems()">👇 Mostrar más (${items.length - _limit} restantes)</button>
+      </div>
+    `;
+  }
+  
+  list.innerHTML=cardsHtml;
 }
 
 function openModal(){
@@ -358,41 +376,53 @@ function addTarifaRow(serv='',monto=0){
 }
 
 async function guardar(){
+  if(_saving)return;
+
   const nombre=document.getElementById('f-empresa').value.trim();
   if(!nombre){showToast('Ingresa el nombre','error');return;}
 
-  const contactos=[];
-  document.querySelectorAll('#f-contactos .contacto-row').forEach(r=>{
-    const n=r.querySelector('.ct-nom')?.value||'';
-    if(n)contactos.push({nombre:n,cargo:r.querySelector('.ct-cargo')?.value||'',telefono:r.querySelector('.ct-tel')?.value||''});
-  });
-
-  const tarifas=[];
-  document.querySelectorAll('#f-tarifas .tarifa-row').forEach(r=>{
-    const s=r.querySelector('.tf-serv')?.value||'';
-    if(s)tarifas.push({servicio:s,monto:parseInt(r.querySelector('.tf-monto')?.value)||0,fecha_desde:new Date().toISOString().split('T')[0]});
-  });
-
-  const data={
-    tipo:document.getElementById('f-tipo').value,
-    nombre,
-    rut:document.getElementById('f-rut').value.trim(),
-    razon_social:document.getElementById('f-razon').value.trim(),
-    giro:document.getElementById('f-giro').value.trim(),
-    direccion:document.getElementById('f-dir').value.trim(),
-    contacto:document.getElementById('f-tel').value.trim(),
-    email:document.getElementById('f-email').value.trim(),
-    contactos,tarifas_vigentes:tarifas,
-    sla:document.getElementById('f-sla').value.trim(),
-    notas:document.getElementById('f-notas').value.trim(),
-  };
-  // GPS coords
-  if(_crmLat&&_crmLng){
-    data.coords=new firebase.firestore.GeoPoint(_crmLat,_crmLng);
-    data.maps_url=`https://www.google.com/maps?q=${_crmLat},${_crmLng}`;
+  const btn=document.querySelector('.btn-save');
+  let originalHtml='';
+  if(btn){
+    originalHtml=btn.innerHTML;
+    btn.disabled=true;
+    btn.innerHTML='<span class="spinner"></span> Guardando...';
   }
+  _saving=true;
 
   try{
+    const contactos=[];
+    document.querySelectorAll('#f-contactos .contacto-row').forEach(r=>{
+      const n=r.querySelector('.ct-nom')?.value||'';
+      if(n)contactos.push({nombre:n,cargo:r.querySelector('.ct-cargo')?.value||'',telefono:r.querySelector('.ct-tel')?.value||''});
+    });
+
+    const tarifas=[];
+    document.querySelectorAll('#f-tarifas .tarifa-row').forEach(r=>{
+      const s=r.querySelector('.tf-serv')?.value||'';
+      if(s)tarifas.push({servicio:s,monto:parseInt(r.querySelector('.tf-monto')?.value)||0,fecha_desde:new Date().toISOString().split('T')[0]});
+    });
+
+    const data={
+      tipo:document.getElementById('f-tipo').value,
+      nombre,
+      rut:document.getElementById('f-rut').value.trim(),
+      razon_social:document.getElementById('f-razon').value.trim(),
+      giro:document.getElementById('f-giro').value.trim(),
+      direccion:document.getElementById('f-dir').value.trim(),
+      contacto:document.getElementById('f-tel').value.trim(),
+      email:document.getElementById('f-email').value.trim(),
+      contactos,tarifas_vigentes:tarifas,
+      sla:document.getElementById('f-sla').value.trim(),
+      notas:document.getElementById('f-notas').value.trim(),
+    };
+    
+    // GPS coords
+    if(_crmLat&&_crmLng){
+      data.coords=new firebase.firestore.GeoPoint(_crmLat,_crmLng);
+      data.maps_url=`https://www.google.com/maps?q=${_crmLat},${_crmLng}`;
+    }
+
     if(_editingId){
       await db.collection('clientes').doc(_editingId).update(data);
       showToast('✅ Registro actualizado','success');
@@ -403,7 +433,7 @@ async function guardar(){
         const check = await db.collection('clientes').where('rut', '==', rutVal).limit(1).get();
         if (!check.empty) {
           showToast('El RUT ya existe en la base de datos.', 'error');
-          return;
+          throw new Error('DUPLICATE_RUT');
         }
       }
       data.created_at=firebase.firestore.FieldValue.serverTimestamp();
@@ -411,7 +441,17 @@ async function guardar(){
       showToast('✅ Registro creado','success');
     }
     closeModal();await loadAll();
-  }catch(e){showToast('Error: '+e.message,'error');}
+  }catch(e){
+    if(e.message!=='DUPLICATE_RUT'){
+      showToast('Error: '+e.message,'error');
+    }
+  }finally{
+    _saving=false;
+    if(btn){
+      btn.disabled=false;
+      btn.innerHTML=originalHtml;
+    }
+  }
 }
 
 async function eliminar(id){
@@ -423,3 +463,6 @@ async function eliminar(id){
 </script>
 </body>
 </html>
+
+
+

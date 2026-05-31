@@ -200,9 +200,6 @@
       </select>
     </div>
     <button class="btn-primary" id="btn-register" onclick="doRegister()">Crear Cuenta</button>
-    <p style="text-align:center;font-size:.75rem;color:var(--text2);margin-top:12px">
-      Tu cuenta será activada tras revisión del administrador.
-    </p>
   </div>
 
   <div class="pwa-badge">📱 Disponible como app · <span>Silog SpA</span></div>
@@ -213,7 +210,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/auth.js?v=6"></script>
 <script>
   // Redirigir si ya hay sesión
   auth.onAuthStateChanged(u => { if (u) window.location.href = '/dashboard.html'; });
@@ -245,8 +242,9 @@
         'auth/wrong-password':  'Contraseña incorrecta.',
         'auth/too-many-requests':'Demasiados intentos. Intenta más tarde.',
         'auth/invalid-email':   'Correo inválido.',
+        'auth/invalid-credential': 'Correo o contraseña incorrectos.'
       };
-      showErr(errEl, msgs[e.code] || 'Error al iniciar sesión. Intenta nuevamente.');
+      showErr(errEl, (msgs[e.code] || 'Error al iniciar sesión: ') + e.code);
     }
   }
 
@@ -273,14 +271,6 @@
     if (pass !== pass2)  { showErr(errEl, 'Las contraseñas no coinciden.'); return; }
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Registrando…';
     try {
-      // 1. Check if RUT already exists to avoid orphaned Auth accounts and duplicates
-      const rutQuery = await db.collection('users').where('rut', '==', rut).limit(1).get();
-      if (!rutQuery.empty) {
-        btn.disabled = false; btn.innerHTML = 'Crear Cuenta';
-        showErr(errEl, 'El RUT ingresado ya está registrado en la base de datos.');
-        return;
-      }
-
       await registerUser(email, pass, { nombre, apellido, nombre_completo: (nombre + ' ' + apellido).trim(), rut, telefono: tel, area, rol, estado: 'Activo', roles: [rol] });
       btn.disabled = false; btn.innerHTML = 'Crear Cuenta';
       sucEl.textContent = '✅ Cuenta creada. Serás redirigido al dashboard.';
@@ -289,11 +279,11 @@
     } catch(e) {
       btn.disabled = false; btn.innerHTML = 'Crear Cuenta';
       const msgs = {
-        'auth/email-already-in-use': 'Este correo ya está registrado.',
+        'auth/email-already-in-use': 'El correo ya está registrado.',
         'auth/invalid-email': 'Correo inválido.',
-        'auth/weak-password': 'Contraseña muy débil (mínimo 6 caracteres).',
+        'auth/weak-password': 'La contraseña es muy débil.'
       };
-      showErr(errEl, msgs[e.code] || 'Error al registrar: ' + e.message);
+      showErr(errEl, e.message || (msgs[e.code] || 'Error al crear cuenta: ') + (e.code || ''));
     }
   }
 
@@ -333,3 +323,6 @@
 </script>
 </body>
 </html>
+
+
+

@@ -146,20 +146,14 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 <script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
-
+<script src="js/auth.js?v=6"></script>
 <script>
 let _recordatorios = [];
 let _draggedId = null;
 let _unsubscribe = null;
-
-// Requiere rol admin, administrativo u operaciones (via auth.js)
-// Usaremos _isViewer que incluye admin y administrativo.
-// Wait, isViewer() does not include operaciones.
-// If we need 'operaciones' to use this, they must be included. 
-// But in auth.js _isViewer is true for admin, administrativo, administrativo.conductor.
-// We will check if it's admin or administrativo or if the section ops uses it.
-// According to request: "común entre todo el personal administrativo"
+let _uid = null;
+let _name = null;
+let _email = null;
 
 function showToast(msg, type='success'){
   const t=document.createElement('div');
@@ -176,25 +170,30 @@ function formatDate(ts){
   return d.toLocaleString('es-CL', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    await requireAuth();
-    if(!_isAdmin && !_isViewer && !_userRole.includes('admin') && !_userRole.includes('operaciones')) {
-      // Allow if they have any administrative role
-      if(!_isViewer) {
+document.addEventListener('DOMContentLoaded', () => {
+  requireAuth(async (user, data) => {
+    try {
+      const role = (data.rol || data.role || 'conductor').toLowerCase();
+      const isViewer = isViewerRole(role);
+      
+      if(!isViewer) {
          window.location.href = 'dashboard.html';
          return;
       }
+      
+      _uid = user.uid;
+      _email = user.email;
+      _name = data.nombre ? (data.nombre + ' ' + (data.apellido || '')) : '';
+      
+      // Auto-cleanup cards in "finalizado" > 24h
+      await cleanupFinalizados();
+      
+      // Listen for changes
+      listenRecordatorios();
+    } catch(e) {
+      console.warn("Error en recordatorios", e);
     }
-    
-    // Auto-cleanup cards in "finalizado" > 24h
-    await cleanupFinalizados();
-    
-    // Listen for changes
-    listenRecordatorios();
-  } catch(e) {
-    console.warn("Auth error", e);
-  }
+  });
 });
 
 async function cleanupFinalizados() {
@@ -208,7 +207,8 @@ async function cleanupFinalizados() {
     let count = 0;
     snap.forEach(doc => {
       const data = doc.data();
-      if(data.updated_at && data.updated_at.toDate() < limitDate) {
+      const dateToCheck = data.updated_at || data.created_at || null;
+      if (!dateToCheck || dateToCheck.toDate() < limitDate) {
         batch.delete(doc.ref);
         count++;
       }
@@ -431,3 +431,6 @@ async function saveRecordatorio() {
 </script>
 </body>
 </html>
+
+
+

@@ -22,14 +22,16 @@ firebase.initializeApp(firebaseConfig);
 // Referencias globales
 const auth     = firebase.auth();
 const db       = firebase.firestore();
-const storage  = firebase.storage();
-// Functions apuntando a la región donde están desplegadas las Cloud Functions
-const functions = firebase.app().functions('us-central1');
+const storage  = typeof firebase.storage === 'function' ? firebase.storage() : null;
+// Functions apuntando a la región donde están desplegadas las Cloud Functions (si está disponible)
+const functions = typeof firebase.app().functions === 'function' ? firebase.app().functions('us-central1') : null;
 
 // Configuración regional (Chile)
-firebase.firestore().settings({ ignoreUndefinedProperties: true });
+firebase.firestore().settings({ ignoreUndefinedProperties: true, merge: true });
 
 // Habilitar Persistencia Offline en Firestore para Operaciones en Terreno
+// TEMPORALMENTE DESHABILITADO PARA PREVENIR BLOQUEOS EN NAVEGACIÓN PRIVADA / SAFARI
+/*
 db.enablePersistence({ synchronizeTabs: true })
   .catch(function(err) {
     if (err.code == 'failed-precondition') {
@@ -38,3 +40,4 @@ db.enablePersistence({ synchronizeTabs: true })
       console.warn("Firestore offline persistence unimplemented in browser.");
     }
   });
+*/

@@ -52,7 +52,7 @@ select.field{appearance:auto;cursor:pointer}
 .tab-btn{flex:1;padding:12px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:10px;cursor:pointer;font-size:.88rem;font-weight:600;font-family:'Inter',sans-serif;transition:.2s;text-align:center}
 .tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
 
-/* Monday gate */
+/* Daily checklist gate */
 .monday-gate{background:linear-gradient(135deg,rgba(244,121,32,.15),rgba(244,121,32,.05));border:2px solid var(--accent);border-radius:16px;padding:24px;text-align:center;margin-bottom:20px}
 .monday-gate h3{font-size:1.1rem;color:var(--accent);margin-bottom:8px}
 .monday-gate p{color:var(--text2);font-size:.88rem;margin-bottom:16px}
@@ -73,7 +73,7 @@ select.field{appearance:auto;cursor:pointer}
 </style>
 </head>
 <body>
-<!-- Overlay de carga inicial de alta gama (Navy & Orange Accent) -->
+<!-- Overlay de carga inicial -->
 <div id="loading-overlay" style="position:fixed; inset:0; background:#060D1F; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px; transition: opacity 0.3s ease;">
   <span class="spinner" style="width:40px; height:40px; border-width:3px; border-top-color:var(--accent);"></span>
   <span style="font-size:0.9rem; color:var(--text2); font-weight:500; font-family:'Inter',sans-serif; letter-spacing:0.5px;">Cargando jornada...</span>
@@ -94,10 +94,10 @@ select.field{appearance:auto;cursor:pointer}
     <p id="greeting-date"></p>
   </div>
 
-  <!-- Monday checklist gate (hidden by default) -->
-  <div id="monday-gate" class="monday-gate" style="display:none">
-    <h3>📋 Checklist Semanal Obligatorio</h3>
-    <p>Es lunes — debes completar el checklist operacional antes de iniciar tu jornada.</p>
+  <!-- Daily checklist gate (hidden by default) -->
+  <div id="daily-gate" class="monday-gate" style="display:none">
+    <h3>📋 Checklist Diario Obligatorio</h3>
+    <p>Debes completar el checklist operacional de hoy antes de iniciar tu jornada.</p>
     <button class="btn-checklist" onclick="window.location.href='checklist.html'">Ir al Checklist →</button>
   </div>
 
@@ -132,6 +132,7 @@ select.field{appearance:auto;cursor:pointer}
         <div class="form-group">
           <label>Kilometraje Inicial</label>
           <input class="field" type="number" id="km-inicial" placeholder="Ej: 61000" inputmode="numeric"/>
+          <div id="km-info-msg" style="font-size: 0.8rem; margin-top: 6px; display: none; padding: 6px 10px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border);"></div>
         </div>
         <button class="btn-xl btn-start" id="btn-iniciar" onclick="iniciarTurno()">
           🚛 Iniciar Jornada
@@ -202,31 +203,32 @@ select.field{appearance:auto;cursor:pointer}
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/firebase-config.js?v=2"></script>
+<script src="js/auth.js?v=7"></script>
 <script>
-let _uid='', _email='', _name='', _turnoActivo=null, _turnoDocId=null;
+let _uid='', _email='', _name='', _role='', _turnoActivo=null, _turnoDocId=null;
+let _lastTurnoCerrado=null, _lastVehicleKmRef=0;
 
 requireAuth(async(user,data)=>{
   _uid=user.uid;
   _email=data.correo_electronico||data.email||user.email;
-  _name=data.name||data.nombre||'';
+  _name=data.name||data.nombre||''; _role=(data.rol||data.role||'conductor').toLowerCase().trim();
   document.getElementById('user-name').textContent=_name;
   document.getElementById('greeting-text').textContent=`Hola, ${_name.split(' ')[0] || 'Conductor'}`;
   document.getElementById('greeting-date').textContent=new Date().toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
   try {
-    // Check Monday gate
-    const today = new Date();
-    if (today.getDay() === 1) { // Lunes
-      await checkMondayChecklist();
-    }
-
     // Load vehicles
     await loadVehicles();
 
     // Check active turno
     await checkActiveTurno();
+
+    // Add listeners for KM Continuity check
+    const selVeh = document.getElementById('sel-vehiculo');
+    const kmIniInput = document.getElementById('km-inicial');
+    if (selVeh) selVeh.addEventListener('change', onVehicleChange);
+    if (kmIniInput) kmIniInput.addEventListener('input', updateKmInfo);
   } catch (err) {
     console.error("Error durante la inicialización:", err);
   } finally {
@@ -238,25 +240,7 @@ requireAuth(async(user,data)=>{
   }
 });
 
-async function checkMondayChecklist() {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const monday = new Date(today);
-  // Find start of this week (Monday)
-  const day = monday.getDay();
-  const diff = day === 0 ? 6 : day - 1;
-  monday.setDate(monday.getDate() - diff);
-  const ts = firebase.firestore.Timestamp.fromDate(monday);
-  
-  const snap = await db.collection('chequeo_operacional')
-    .where('operador','==',_email)
-    .where('fecha_chequeo','>=',ts)
-    .get();
-  
-  if (snap.empty) {
-    document.getElementById('monday-gate').style.display='block';
-    document.getElementById('form-apertura').style.display='none';
-  }
-}
+// Se elimina la función checkDailyChecklist() global de carga, ya que ahora se valida por vehículo en onVehicleChange
 
 function getVehicleEmoji(marca, modelo) {
   const m = ((marca || '') + ' ' + (modelo || '')).toLowerCase();
@@ -266,28 +250,35 @@ function getVehicleEmoji(marca, modelo) {
   return '🚛';
 }
 
+let _vehiculosUnsub = null;
 async function loadVehicles() {
   const sel = document.getElementById('sel-vehiculo');
+  // Limpiar listener anterior si existe
+  if (_vehiculosUnsub) { _vehiculosUnsub(); _vehiculosUnsub = null; }
   try {
-    const snap = await db.collection('vehiculos').get();
-    snap.forEach(d => {
-      const v = d.data();
-      if (v.estado === 'Disponible' || v.conductor === _email) {
-        const emoji = getVehicleEmoji(v.marca, v.modelo);
-        const opt = document.createElement('option');
-        opt.value = v.patente || d.id;
-        opt.textContent = `${emoji} ${v.patente || d.id} — ${v.marca||''} ${v.modelo||''}`.trim();
-        if (v.conductor === _email) opt.selected = true;
-        sel.appendChild(opt);
+    _vehiculosUnsub = db.collection('vehiculos').onSnapshot(snap => {
+      const currentVal = sel.value;
+      sel.innerHTML = '<option value="" disabled>Seleccionar vehículo...</option>';
+      snap.forEach(d => {
+        const v = d.data();
+        if (v.estado && v.estado.trim() === 'Disponible') {
+          const emoji = getVehicleEmoji(v.marca, v.modelo);
+          const opt = document.createElement('option');
+          opt.value = v.patente || d.id;
+          opt.textContent = `${emoji} ${v.patente || d.id} - ${v.marca||''} ${v.modelo||''}`.trim();
+          sel.appendChild(opt);
+        }
+      });
+      if (currentVal) {
+        sel.value = currentVal;
+        if (!sel.value) sel.selectedIndex = 0;
       }
-    });
+    }, err => { console.error('Error onSnapshot vehiculos:', err); });
   } catch(e) { console.warn('Error loading vehicles:', e); }
 }
 
 async function checkActiveTurno() {
   try {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const ts = firebase.firestore.Timestamp.fromDate(today);
     const snap = await db.collection('turnos')
       .where('conductor_uid','==',_uid)
       .where('estado','==','abierto')
@@ -303,22 +294,17 @@ async function checkActiveTurno() {
 }
 
 function showTurnoActivo() {
-  // Show banner
   const banner = document.getElementById('turno-banner');
   banner.style.display = 'block';
   document.getElementById('tb-plate').textContent = _turnoActivo.patente || '—';
   document.getElementById('tb-km').textContent = _turnoActivo.km_inicial || '—';
   document.getElementById('tb-hora').textContent = formatTime(_turnoActivo.hora_apertura);
 
-  // Hide form, show nav
   document.getElementById('form-apertura').style.display = 'none';
   document.getElementById('turno-nav').style.display = 'block';
-
-  // Hide greeting, tabs when turno active (direct to menu)
   document.getElementById('greeting-wrap').style.display = 'none';
   document.querySelector('.tab-row').style.display = 'none';
 
-  // Enable cierre tab
   document.getElementById('cierre-empty').style.display = 'none';
   document.getElementById('form-cierre').style.display = 'block';
   document.getElementById('cierre-plate').textContent = _turnoActivo.patente;
@@ -333,12 +319,132 @@ function showTab(t) {
 }
 
 function showCierreForm() {
-  // Show cierre tab, hide apertura
   document.getElementById('tab-apertura').style.display = 'none';
   document.getElementById('tab-cierre').style.display = 'block';
-  // Scroll to cierre form
   document.getElementById('tab-cierre').scrollIntoView({behavior:'smooth'});
 }
+
+// ═══════════════════════════════════════════════════════
+// KM Continuity — Validación inteligente de kilometraje
+// ═══════════════════════════════════════════════════════
+
+async function onVehicleChange() {
+  const patente = document.getElementById('sel-vehiculo').value;
+  const kmInfoMsg = document.getElementById('km-info-msg');
+  if (!patente) {
+    kmInfoMsg.style.display = 'none';
+    _lastTurnoCerrado = null;
+    _lastVehicleKmRef = 0;
+    return;
+  }
+  
+  // ── VALIDACIÓN DEL CHECKLIST POR PAR (CONDUCTOR, VEHÍCULO) ──
+  if (isConductorRole(_role)) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const ts = firebase.firestore.Timestamp.fromDate(today);
+    try {
+      const snap = await db.collection('chequeo_operacional')
+        .where('operador', '==', _email)
+        .where('patente', '==', patente.toUpperCase())
+        .where('fecha_chequeo', '>=', ts)
+        .get();
+      
+      if (snap.empty) {
+        document.getElementById('daily-gate').style.display = 'block';
+        document.getElementById('btn-iniciar').disabled = true;
+        showToast('📋 Debes realizar el checklist de hoy para este vehículo antes de iniciar jornada.', 'warning');
+      } else {
+        document.getElementById('daily-gate').style.display = 'none';
+        document.getElementById('btn-iniciar').disabled = false;
+      }
+    } catch(err) {
+      console.warn("Error checking checklist for vehicle:", err);
+    }
+  }
+  
+  kmInfoMsg.style.display = 'block';
+  kmInfoMsg.style.color = 'var(--text2)';
+  kmInfoMsg.innerHTML = '🔍 Buscando último registro...';
+  
+  try {
+    const vSnap = await db.collection('vehiculos').where('patente', '==', patente.toUpperCase()).limit(1).get();
+    if (vSnap.empty) {
+      kmInfoMsg.innerHTML = '⚠️ Vehículo no encontrado';
+      return;
+    }
+    const vData = vSnap.docs[0].data();
+    _lastVehicleKmRef = vData.km || vData.kilometraje || 0;
+    
+    const lastTurnoSnap = await db.collection('turnos')
+      .where('patente', '==', patente.toUpperCase())
+      .where('estado', '==', 'cerrado')
+      .orderBy('hora_cierre', 'desc')
+      .limit(1).get();
+      
+    if (!lastTurnoSnap.empty) {
+      const doc = lastTurnoSnap.docs[0];
+      _lastTurnoCerrado = { id: doc.id, ...doc.data() };
+    } else {
+      _lastTurnoCerrado = null;
+    }
+    
+    updateKmInfo();
+  } catch (err) {
+    console.error("Error al obtener datos del vehículo:", err);
+    kmInfoMsg.innerHTML = '⚠️ Error al cargar el kilometraje de referencia';
+  }
+}
+
+function updateKmInfo() {
+  const kmInfoMsg = document.getElementById('km-info-msg');
+  const kmInput = document.getElementById('km-inicial');
+  const val = parseInt(kmInput.value);
+  
+  if (!kmInfoMsg) return;
+  
+  if (isNaN(val) || val <= 0) {
+    kmInfoMsg.style.display = 'block';
+    kmInfoMsg.style.color = 'var(--text2)';
+    if (_lastVehicleKmRef > 0) {
+      kmInfoMsg.innerHTML = `ℹ️ Último KM registrado: <strong>${_lastVehicleKmRef.toLocaleString('es-CL')} km</strong>. Ingresa el kilometraje actual del odómetro.`;
+    } else {
+      kmInfoMsg.innerHTML = `ℹ️ Sin registro previo de KM para este vehículo. Ingresa el kilometraje actual del odómetro.`;
+    }
+    return;
+  }
+  
+  kmInfoMsg.style.display = 'block';
+  
+  // Caso 1: No hay KM previo (vehículo nuevo o sin historial)
+  if (_lastVehicleKmRef === 0) {
+    kmInfoMsg.style.color = 'var(--accent)';
+    kmInfoMsg.innerHTML = `📝 Primer registro de KM para este vehículo: <strong>${val.toLocaleString('es-CL')} km</strong>. Se guardará como referencia inicial.`;
+    return;
+  }
+  
+  const diff = val - _lastVehicleKmRef;
+  
+  // Caso 2: Coincide exactamente
+  if (diff === 0) {
+    kmInfoMsg.style.color = 'var(--success)';
+    kmInfoMsg.innerHTML = `✅ ¡Coincide perfectamente! (${val.toLocaleString('es-CL')} km)`;
+  }
+  // Caso 3: Diferencia razonable (1 a 500 km por encima)
+  else if (diff > 0 && diff <= 500) {
+    kmInfoMsg.style.color = 'var(--success)';
+    kmInfoMsg.innerHTML = `✅ KM OK: +${diff} km respecto al último registro (${_lastVehicleKmRef.toLocaleString('es-CL')} → ${val.toLocaleString('es-CL')})`;
+  }
+  // Caso 4: Diferencia grande o retroceso
+  else {
+    const diffSign = diff > 0 ? `+${diff.toLocaleString('es-CL')}` : `${diff.toLocaleString('es-CL')}`;
+    kmInfoMsg.style.color = 'var(--warning)';
+    kmInfoMsg.innerHTML = `⚠️ Diferencia detectada: <strong>${diffSign} km</strong> (KM ingresado: ${val.toLocaleString('es-CL')} vs KM anterior: ${_lastVehicleKmRef.toLocaleString('es-CL')}). Se registrará esta diferencia.`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Iniciar Turno — con prevención de doble turno
+// ═══════════════════════════════════════════════════════
 
 async function iniciarTurno() {
   const patente = document.getElementById('sel-vehiculo').value;
@@ -348,6 +454,34 @@ async function iniciarTurno() {
   const btn = document.getElementById('btn-iniciar');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Verificando…';
   try {
+    // 1. Verificar checklist por par (Conductor, Vehículo)
+    if (isConductorRole(_role)) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const ts = firebase.firestore.Timestamp.fromDate(today);
+      const checklistSnap = await db.collection('chequeo_operacional')
+        .where('operador', '==', _email)
+        .where('patente', '==', patente.toUpperCase())
+        .where('fecha_chequeo', '>=', ts)
+        .limit(1)
+        .get();
+      
+      if (checklistSnap.empty) {
+        showToast('❌ Debes realizar el Checklist Operacional para este vehículo antes de iniciar el turno.', 'error');
+        btn.disabled = false; btn.innerHTML = '🚛 Iniciar Jornada';
+        return;
+      }
+    }
+
+    // 2. Verificar que este conductor NO tenga ya un turno abierto
+    const openCheck = await db.collection('turnos')
+      .where('conductor_uid','==',_uid)
+      .where('estado','==','abierto')
+      .get();
+    if (!openCheck.empty) {
+      showToast('⚠️ Ya tienes un turno activo. Ciérralo antes de iniciar uno nuevo.','error');
+      btn.disabled=false; btn.innerHTML='🚛 Iniciar Jornada'; return;
+    }
+
     const vSnap = await db.collection('vehiculos').where('patente','==',patente.toUpperCase()).limit(1).get();
     if (vSnap.empty) {
       showToast(`Vehículo ${patente} no encontrado`,'error');
@@ -355,16 +489,42 @@ async function iniciarTurno() {
     }
     const vehicleDocRef = vSnap.docs[0].ref;
 
+    let lastTurno = null;
+    let refKm = 0;
+    const lastTurnoSnap = await db.collection('turnos')
+      .where('patente', '==', patente.toUpperCase())
+      .where('estado', '==', 'cerrado')
+      .orderBy('hora_cierre', 'desc')
+      .limit(1).get();
+
+    if (!lastTurnoSnap.empty) {
+      const doc = lastTurnoSnap.docs[0];
+      lastTurno = { id: doc.id, ...doc.data() };
+      refKm = lastTurno.km_final || 0;
+    }
+
     btn.innerHTML='<span class="spinner"></span> Abriendo turno…';
     let newTurnoId = '';
+    let registrarDiscrepancia = false;
+    let warningKmMenor = false;
+    let diferencia = 0;
+
     await db.runTransaction(async (transaction) => {
       const vDoc = await transaction.get(vehicleDocRef);
       if (!vDoc.exists) throw new Error("El vehículo no existe en el sistema.");
       const vData = vDoc.data();
-      const lastKm = vData.km || vData.kilometraje || 0;
-      if (kmIni < lastKm) {
-        throw new Error(`KM Inicial (${kmIni}) no puede ser menor al último KM registrado (${lastKm})`);
+      
+      const lastKm = lastTurno ? refKm : (vData.km || vData.kilometraje || 0);
+      
+      if (lastKm > 0 && kmIni < lastKm) {
+        warningKmMenor = true;
       }
+      
+      if (lastKm > 0 && kmIni > lastKm) {
+        registrarDiscrepancia = true;
+        diferencia = kmIni - lastKm;
+      }
+      
       if (vData.estado === 'En Ruta' && vData.conductor !== _email) {
         throw new Error(`Vehículo ${patente} ya está en ruta con otro conductor`);
       }
@@ -379,8 +539,40 @@ async function iniciarTurno() {
         hora_cierre: null, fecha: firebase.firestore.FieldValue.serverTimestamp(),
         created_at: firebase.firestore.FieldValue.serverTimestamp(),
       });
-      transaction.update(vehicleDocRef, { estado: 'En Ruta', conductor: _email, km: kmIni });
+      transaction.update(vehicleDocRef, { estado: 'En Ruta', conductor: _email, km: kmIni, kilometraje: kmIni });
     });
+
+    // Advertencia visual si el Km es menor al último registrado (no se contabiliza discrepancia)
+    if (warningKmMenor) {
+      showToast('⚠️ Advertencia: El Kilometraje Inicial ingresado es menor al último registrado.', 'warning');
+      alert('⚠️ Advertencia: Has iniciado jornada con un kilometraje inicial menor al último registrado para este vehículo.');
+    }
+
+    // Registrar discrepancia de KM si corresponde (sólo excesos)
+    if (registrarDiscrepancia) {
+      try {
+        const lastKm = lastTurno ? refKm : 0;
+        await db.collection('km_discrepancias').add({
+          patente: patente.toUpperCase(),
+          conductor_email: _email,
+          conductor_nombre: _name,
+          fecha: firebase.firestore.FieldValue.serverTimestamp(),
+          turno_anterior_id: lastTurno ? lastTurno.id : null,
+          km_final_anterior: lastKm,
+          conductor_anterior: lastTurno ? (lastTurno.conductor_nombre || lastTurno.conductor_email) : 'Sistema/Registro Inicial',
+          fecha_cierre_anterior: lastTurno ? (lastTurno.hora_cierre || null) : null,
+          turno_nuevo_id: newTurnoId,
+          km_inicial_nuevo: kmIni,
+          diferencia_km: diferencia,
+          tipo: 'exceso',
+          estado: 'pendiente',
+          justificacion: null,
+          revisado_por: null,
+        });
+      } catch (discErr) {
+        console.error("Error al registrar discrepancia:", discErr);
+      }
+    }
 
     _turnoDocId = newTurnoId;
     _turnoActivo = { patente: patente.toUpperCase(), km_inicial: kmIni, hora_apertura: new Date() };
@@ -391,16 +583,39 @@ async function iniciarTurno() {
     btn.disabled=false; btn.innerHTML='🚛 Iniciar Jornada';
   }
 }
+
+// ═══════════════════════════════════════════════════════
+// Cerrar Turno — compila hoja de ruta para finanzas
+// ═══════════════════════════════════════════════════════
+
 async function cerrarTurno() {
   if (!_turnoDocId) { showToast('No hay turno activo','error'); return; }
   const kmFin = parseInt(document.getElementById('km-final').value);
   const kmIni = _turnoActivo.km_inicial;
   if (!kmFin || kmFin <= 0) { showToast('Ingresa el kilometraje final','error'); return; }
   if (kmFin <= kmIni) { showToast(`KM Final (${kmFin}) debe ser mayor al KM Inicial (${kmIni})`,'error'); return; }
-  if (!confirm(`¿Finalizar jornada?\nKM recorridos: ${kmFin - kmIni} km`)) return;
+  
   const btn = document.getElementById('btn-cerrar');
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Cerrando turno…';
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Verificando pendientes…';
   try {
+    // ── VALIDACIÓN DE PEDIDOS PENDIENTES ANTES DE CERRAR ──
+    const pendingSnap = await db.collection('despachos')
+      .where('turno_id', '==', _turnoDocId)
+      .where('estado', '==', 'pendiente')
+      .get();
+    
+    if (!pendingSnap.empty) {
+      showToast('❌ Tienes pedidos pendientes en tu ruta. Regístralos como entregados o devueltos antes de finalizar la jornada.', 'error');
+      btn.disabled = false; btn.innerHTML = '🔴 Finalizar Jornada';
+      return;
+    }
+
+    if (!confirm(`¿Finalizar jornada?\nKM recorridos: ${kmFin - kmIni} km`)) {
+      btn.disabled = false; btn.innerHTML = '🔴 Finalizar Jornada';
+      return;
+    }
+    btn.innerHTML='<span class="spinner"></span> Cerrando turno…';
+
     const vSnap = await db.collection('vehiculos').where('patente','==',_turnoActivo.patente).limit(1).get();
     if (vSnap.empty) {
       throw new Error(`Vehículo ${_turnoActivo.patente} no encontrado`);
@@ -411,10 +626,12 @@ async function cerrarTurno() {
     // ═══ Compilar Viaje / Hoja de Ruta para Finanzas ═══
     const despSnap = await db.collection('despachos').where('turno_id','==',_turnoDocId).get();
     const entregas = []; let devoluciones = 0, distribuidor = '';
+    const clientes_despacho = [];
     despSnap.forEach(d => {
       const dd = d.data();
       if (!distribuidor && dd.distribuidor) distribuidor = dd.distribuidor;
       if (dd.estado === 'devuelto') devoluciones++;
+      if (dd.estado === 'entregado' && dd.cliente_nombre) clientes_despacho.push(dd.cliente_nombre);
       entregas.push({
         correlativo: dd.correlativo || 0,
         documento: dd.guia_numero || dd.factura_numero || '',
@@ -427,13 +644,14 @@ async function cerrarTurno() {
     entregas.sort((a,b) => a.correlativo - b.correlativo);
 
     // Gastos del turno
-    let combustible = 0, peaje = 0;
+    let combustible = 0, peaje = 0, litros_combustible = 0;
     try {
       const gSnap = await db.collection('gastos_ruta').where('turno_id','==',_turnoDocId).get();
       gSnap.forEach(g => {
         const gd = g.data();
         if (gd.tipo === 'combustible') {
           combustible += gd.monto_clp || gd.monto || 0;
+          litros_combustible += gd.litros || 0;
         } else if (gd.tipo === 'peaje') {
           peaje += gd.monto_clp || gd.monto || 0;
         }
@@ -443,15 +661,15 @@ async function cerrarTurno() {
     }
 
     const fecha = new Date().toISOString().split('T')[0];
-    const hojaId = `${fecha}_${_name.replace(/\s+/g,'_')}`;
-    const hojaDocRef = db.collection('hojas_ruta').doc(hojaId);
+    // Use turno_id as the document ID to guarantee uniqueness
+    const hojaDocRef = db.collection('hojas_ruta').doc(_turnoDocId);
 
     await db.runTransaction(async (transaction) => {
       transaction.update(turnoDocRef, {
         km_final: kmFin, estado: 'cerrado',
         hora_cierre: firebase.firestore.FieldValue.serverTimestamp(),
       });
-      transaction.update(vehicleDocRef, { km: kmFin, kilometraje: kmFin, estado: 'Disponible' });
+      transaction.update(vehicleDocRef, { km: kmFin, kilometraje: kmFin, estado: 'Disponible', conductor: null });
       transaction.set(hojaDocRef, {
         turno_id: _turnoDocId, conductor_uid: _uid, conductor_email: _email,
         conductor_nombre: _name, distribuidor: distribuidor,
@@ -459,11 +677,12 @@ async function cerrarTurno() {
         hora_inicio: _turnoActivo.hora_apertura || null,
         hora_termino: firebase.firestore.FieldValue.serverTimestamp(),
         km_inicial: kmIni, km_final: kmFin, km_recorridos: kmFin - kmIni,
-        entregas: entregas, total_entregas: entregas.length,
+        entregas: entregas, total_entregas: entregas.length - devoluciones,
         total_devoluciones: devoluciones, combustible: combustible, peaje: peaje,
-        n_guias: '', estado: 'pendiente_revision', revisado_por: null,
+        litros_combustible: litros_combustible, clientes_despacho: clientes_despacho,
+        n_guias: entregas.length, estado: 'pendiente_revision', revisado_por: null,
         created_at: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+      }, { merge: true });
     });
 
     showToast('✅ Jornada finalizada. KM recorridos: '+(kmFin - kmIni),'success');

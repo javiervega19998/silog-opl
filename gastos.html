@@ -122,22 +122,147 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/firebase-config.js?v=2"></script>
+<script src="js/auth.js?v=7"></script>
 <script>
 let _uid='',_email='',_name='',_turnoId='',_gastos=[];
 let _fuelFile=null, _tollFile=null;
+let _isViewer = false;
 
 requireAuth(async(user,data)=>{
   _uid=user.uid;
   _email=data.correo_electronico||data.email||user.email;
   _name=data.name||data.nombre||'';
+  _isViewer = isViewerRole(data.rol||data.role);
 
+  // Verificamos primero si hay un turno activo
   const tSnap=await db.collection('turnos').where('conductor_uid','==',_uid).where('estado','==','abierto').get();
-  if(tSnap.empty){showToast('No hay turno activo','error');setTimeout(()=>location.href='turno.html',1500);return;}
-  _turnoId=tSnap.docs[0].id;
-  await loadGastos();
+  
+  if(!tSnap.empty) {
+    // Tiene turno activo: permitimos registrar gastos como conductor
+    _turnoId=tSnap.docs[0].id;
+    
+    // Si además es admin, le agregamos un botón para ver el historial global opcionalmente
+    if(_isViewer) {
+      const tabRow = document.querySelector('.tab-row');
+      if (tabRow) {
+        const btnAdmin = document.createElement('button');
+        btnAdmin.className = 'tab-btn';
+        btnAdmin.id = 'tb-admin';
+        btnAdmin.innerHTML = '<span class="tab-icon">📊</span>Global';
+        btnAdmin.onclick = () => {
+          document.getElementById('form-fuel').style.display='none';
+          document.getElementById('form-toll').style.display='none';
+          document.querySelector('.total-bar').style.display='none';
+          document.getElementById('tb-fuel').classList.remove('active');
+          document.getElementById('tb-toll').classList.remove('active');
+          btnAdmin.classList.add('active');
+          
+          let header = document.getElementById('admin-header');
+          if(!header) {
+            header = document.createElement('div');
+            header.id = 'admin-header';
+            header.className = 'page-header';
+            header.style.marginBottom = '20px';
+            header.innerHTML = `<h2>💰 Historial Global</h2><p style="color:var(--text2);font-size:.8rem;margin-top:4px">Auditoría global de comprobantes</p>`;
+            document.querySelector('.main').prepend(header);
+          } else {
+            header.style.display = 'block';
+          }
+          loadAllGastosAdmin();
+        };
+        tabRow.appendChild(btnAdmin);
+      }
+      
+      // Override showType to hide admin header when switching back to forms
+      const originalShowType = window.showType;
+      window.showType = (t) => {
+        originalShowType(t);
+        const header = document.getElementById('admin-header');
+        if(header) header.style.display = 'none';
+        document.querySelector('.total-bar').style.display='flex';
+        const tbAdmin = document.getElementById('tb-admin');
+        if(tbAdmin) tbAdmin.classList.remove('active');
+        if(t==='fuel') { document.getElementById('tb-fuel').classList.add('active'); document.getElementById('tb-toll').classList.remove('active'); }
+        if(t==='toll') { document.getElementById('tb-toll').classList.add('active'); document.getElementById('tb-fuel').classList.remove('active'); }
+        loadGastos();
+      };
+    }
+    
+    await loadGastos();
+  } else if (_isViewer) {
+    // Es admin y no tiene turno activo: solo historial global
+    const tabRow = document.querySelector('.tab-row'); if(tabRow) tabRow.style.display='none';
+    const formFuel = document.getElementById('form-fuel'); if(formFuel) formFuel.style.display='none';
+    const formToll = document.getElementById('form-toll'); if(formToll) formToll.style.display='none';
+    const totalBar = document.querySelector('.total-bar'); if(totalBar) totalBar.style.display='none';
+    
+    const btnBack = document.querySelector('.btn-back');
+    if(btnBack) {
+      btnBack.textContent = '← Dashboard';
+      btnBack.onclick = () => location.href = 'dashboard.html';
+    }
+    
+    const mainDiv = document.querySelector('.main');
+    const header = document.createElement('div');
+    header.className = 'page-header';
+    header.style.marginBottom = '20px';
+    header.innerHTML = `<h2>💰 Historial de Gastos en Ruta</h2><p style="color:var(--text2);font-size:.8rem;margin-top:4px">Auditoría global de todos los comprobantes ingresados por la flota (Haz clic en un gasto para ver su boleta)</p>`;
+    mainDiv.prepend(header);
+    
+    await loadAllGastosAdmin();
+  } else {
+    // Conductor sin turno activo
+    showToast('No hay turno activo','error');
+    setTimeout(()=>location.href='turno.html',1500);
+  }
 });
+
+function viewBoleta(url) {
+  if (url) window.open(url, '_blank');
+  else showToast('No hay boleta adjunta', 'error');
+}
+
+async function loadAllGastosAdmin() {
+  const list = document.getElementById('gasto-list');
+  const empty = document.getElementById('gasto-empty');
+  list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px">Cargando gastos…</div>';
+  try {
+    const snap = await db.collection('gastos_ruta').get();
+    _gastos = [];
+    snap.forEach(d => { _gastos.push({ id: d.id, ...d.data() }); });
+    _gastos.sort((a,b) => {
+      const ta = a.fecha?.toDate ? a.fecha.toDate() : new Date(0);
+      const tb = b.fecha?.toDate ? b.fecha.toDate() : new Date(0);
+      return tb - ta;
+    });
+    
+    if(!_gastos.length) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      empty.textContent = 'Sin gastos registrados en el sistema.';
+      return;
+    }
+    empty.style.display = 'none';
+    
+    list.innerHTML = _gastos.map(g => {
+      const isFuel = g.tipo === 'combustible';
+      const dateVal = g.fecha ? formatDate(g.fecha) + ' ' + formatTime(g.fecha) : '—';
+      return `<div class="gasto-item" style="cursor:pointer" onclick="viewBoleta('${g.foto_boleta_url || ''}')">
+        <div class="gi-left">
+          <div class="gi-icon ${isFuel?'gi-fuel':'gi-toll'}">${isFuel?'⛽':'🛣️'}</div>
+          <div class="gi-info">
+            <div class="gi-type">${isFuel?'Combustible':'Peaje'}${isFuel&&g.litros?' · '+g.litros+'L':''}</div>
+            <div class="gi-date">${sanitize(g.conductor_email || 'Sistema')} · ${dateVal}</div>
+          </div>
+        </div>
+        <div class="gi-amount">$${(g.monto_clp||0).toLocaleString('es-CL')}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = `<div class="empty">Error al cargar: ${e.message}</div>`;
+  }
+}
 
 function showType(t){
   document.getElementById('form-fuel').style.display=t==='fuel'?'block':'none';
@@ -239,3 +364,6 @@ function renderGastos(){
 </script>
 </body>
 </html>
+
+
+

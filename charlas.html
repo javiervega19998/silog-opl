@@ -96,7 +96,7 @@
       <div class="pdf-fallback" id="pdf-fallback">
         <div style="font-size:3rem">📄</div>
         <p style="font-size:.9rem;font-weight:600" id="pdf-fallback-title"></p>
-        <p style="color:var(--text2);font-size:.82rem">Si el PDF no carga, ábrelo directamente con el botón de abajo.</p>
+        <p style="color:var(--text2);font-size:.82rem" id="pdf-fallback-text">Si el PDF no carga, ábrelo directamente con el botón de abajo.</p>
       </div>
       <iframe id="pdf-iframe" src="" allow="autoplay" style="position:relative;z-index:2"></iframe>
     </div>
@@ -113,7 +113,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/auth.js?v=6"></script>
 <script src="js/charlas-calendario.js"></script>
 <script>
 // ── Helpers de Drive ────────────────────────────────────────────
@@ -124,12 +124,20 @@ function driveView(fileId){ return `https://drive.google.com/file/d/${fileId}/vi
 function toDateStr(d){ return d.toISOString().split('T')[0]; }
 function parseDate(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
 
-let _email='', _isAdmin=false, _readIds=new Set(), _currentEntry=null, _userName='', _submittingCharla=false;
+let _email='', _isAdmin=false, _readIds=new Set(), _currentEntry=null, _userName='', _submittingCharla=false, _charlaTimer=null;
 
 requireAuth(async(user,data)=>{
   _email=data.correo_electronico||data.email||user.email;
   _userName=data.nombre||data.name||_email;
-  _isAdmin=isViewerRole(data.role||data.rol||'conductor');
+  _isAdmin=isViewerRole(data.rol||data.role||'conductor');
+
+  // Ocultar botón de Drive si es conductor (debe verse directo en app web)
+  if(!_isAdmin){
+    const driveBtn=document.getElementById('btn-drive-open');
+    if(driveBtn) driveBtn.style.display='none';
+    const fallbackText=document.getElementById('pdf-fallback-text');
+    if(fallbackText) fallbackText.style.display='none';
+  }
 
   // Cargar charlas leídas
   const snap=await db.collection('charlas_leidas').where('operador','==',_email).get();
@@ -195,7 +203,6 @@ function renderCharlas(){
         <div class="charla-title">${sanitize(c.tema)}</div>
         <div class="charla-status">
           <span class="${read?'badge-read':'badge-unread'}">${read?'✅ Completada':'⏳ Pendiente'}</span>
-          ${!read?`<button class="btn-quick-done" onclick="event.stopPropagation();markRead('${c.date}', this)">✓ Listo</button>`:''}
         </div>
       </div>`;
     }
@@ -214,13 +221,36 @@ function openCharla(dateKey){
   document.getElementById('pdf-iframe').src=driveEmbed(_currentEntry.fileId);
   document.getElementById('btn-drive-open').onclick=()=>window.open(driveView(_currentEntry.fileId),'_blank');
   const btnDone=document.getElementById('btn-mark-done');
-  btnDone.disabled=_readIds.has(dateKey);
-  btnDone.textContent=_readIds.has(dateKey)?'✅ Ya Completada':'✅ Marcar Completada';
+  
+  if (_charlaTimer) {
+    clearTimeout(_charlaTimer);
+    _charlaTimer = null;
+  }
+  
+  const isRead = _readIds.has(dateKey);
+  if (isRead) {
+    btnDone.disabled = true;
+    btnDone.textContent = '✅ Ya Completada';
+  } else {
+    btnDone.disabled = true;
+    btnDone.textContent = '⏳ Leyendo charla...';
+    
+    _charlaTimer = setTimeout(() => {
+      btnDone.disabled = false;
+      btnDone.textContent = '✅ Marcar Completada';
+      _charlaTimer = null;
+    }, 60000); // 60 segundos
+  }
+  
   btnDone.onclick=()=>markRead(dateKey, btnDone);
   document.getElementById('modal-charla').classList.add('open');
 }
 
 function closeModal(){
+  if (_charlaTimer) {
+    clearTimeout(_charlaTimer);
+    _charlaTimer = null;
+  }
   document.getElementById('modal-charla').classList.remove('open');
   document.getElementById('pdf-iframe').src='';
 }
@@ -282,7 +312,7 @@ async function markRead(dateKey, btn){
         tipo: 'tarea_completada',
         operador: _email,
         nombre_operador: _userName,
-        mensaje: `${_userName} leyó la charla de seguridad: ${c?.tema || dateKey}`,
+        mensaje: `La tarea ${c?.tema || dateKey} ha sido completada/Leida por el conductor ${_userName}`,
         fecha: firebase.firestore.FieldValue.serverTimestamp(),
         leida: false
       });
@@ -313,3 +343,6 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape') closeModal();});
 </script>
 </body>
 </html>
+
+
+

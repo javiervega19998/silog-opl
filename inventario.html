@@ -150,7 +150,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/auth.js?v=6"></script>
 <script src="js/inventory-helpers.js"></script>
 <script>
 
@@ -215,7 +215,7 @@
 
   requireAuth((user, userData) => {
     renderNavbar(userData);
-    userRole = userData.role;
+    userRole = userData.rol || userData.role;
     loadInventory();
     // Check low stock
     checkLowStock();
@@ -246,3 +246,6 @@
 </style>
 </body>
 </html>
+
+
+

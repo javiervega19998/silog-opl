@@ -387,13 +387,19 @@ async function exportConsolidado() {
     desps.forEach(d => {
       const docNum = d.guia_numero || d.n_documento || d.referencia;
       if (!docNum) return;
+      
+      // Filtrar por cualquier formato de TotalEnergies (ej: Total, TOTALENERGIES, Total Energies)
+      const trip = hrMap[d.turno_id] || {};
+      const dist = (trip.nombre_distribuidor || trip.distribuidor || d.nombre_distribuidor || d.distribuidor || '').trim().toLowerCase();
+      if (!dist.includes('total')) return;
+
       const key = getDocKey(docNum);
       if (!docGroup[key]) {
         docGroup[key] = {
           docNum, fechaRecepcion: '', cliente: d.cliente_nombre || '',
           bultos: 0, litros: 0, kg: 0, fechaEntrega: '', status: '',
           movil: '', conductor: '', comuna: d.cliente_comuna || '',
-          region: d.cliente_region || d.region || 'Metropolitana',
+          region: d.cliente_region || d.region || '',
           _desps: [], _movs: []
         };
       }
@@ -410,8 +416,14 @@ async function exportConsolidado() {
       g.litros += parseFloat(d.litros) || parseFloat(d.litros_total) || 0;
       g.kg += parseFloat(d.kg) || parseFloat(d.kg_total) || 0;
       
-      const trip = hrMap[d.turno_id] || {};
-      if(trip.fecha) g.fechaEntrega = trip.fecha;
+      let tripDate = trip.fecha_despacho || trip.fecha || '';
+      if (tripDate) {
+        if (tripDate.includes('-')) {
+          const parts = tripDate.split('-');
+          if (parts[0].length === 4) tripDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        g.fechaEntrega = tripDate;
+      }
       if(trip.patente) g.movil = trip.patente;
       if(trip.conductor_nombre) g.conductor = trip.conductor_nombre;
     });
@@ -425,7 +437,7 @@ async function exportConsolidado() {
           docNum, fechaRecepcion: '', cliente: m.producto_nombre || '',
           bultos: 0, litros: 0, kg: 0, fechaEntrega: m._date ? m._date.toLocaleDateString('es-CL') : '',
           status: '', movil: '', conductor: m.operario_nombre || '',
-          comuna: m.ubicacion || '', region: 'Metropolitana',
+          comuna: m.ubicacion || '', region: '',
           _desps: [], _movs: []
         };
       }
@@ -446,25 +458,31 @@ async function exportConsolidado() {
     ];
 
     Object.values(docGroup).forEach(g => {
-      let finalStatus = '';
-      if(g._desps.length > 0){
-        const hasDev = g._desps.some(d => d.estado === 'devuelto');
-        const allEnt = g._desps.every(d => d.estado === 'entregado');
-        if(allEnt) {
-          finalStatus = 'ENTREGADO';
-        } else if(hasDev) {
-          const hasRechazo = g._desps.some(d => {
-            const mot = (d.devolucion_motivo || '').toLowerCase();
-            return mot.includes('rechazo') || mot.includes('rechazado');
-          });
-          finalStatus = hasRechazo ? 'RECHAZADO' : 'DEVOLUCION';
-        } else {
-          finalStatus = 'PENDIENTE';
+      if (g._desps.length === 0) return; // Omitir documentos de bodega generales que no tienen despachos de TotalEnergies
+
+      let totalSalidaBodega = 0;
+      g._movs.forEach(m => {
+        if (m.tipo === 'salida') {
+          totalSalidaBodega += parseInt(m.cantidad) || 0;
         }
+      });
+      if (totalSalidaBodega > 0) {
+        g.bultos = totalSalidaBodega;
+      }
+
+      let finalStatus = '';
+      const hasDev = g._desps.some(d => d.estado === 'devuelto');
+      const allEnt = g._desps.every(d => d.estado === 'entregado');
+      if(allEnt) {
+        finalStatus = 'ENTREGADO';
+      } else if(hasDev) {
+        const hasRechazo = g._desps.some(d => {
+          const mot = (d.devolucion_motivo || '').toLowerCase();
+          return mot.includes('rechazo') || mot.includes('rechazado');
+        });
+        finalStatus = hasRechazo ? 'RECHAZADO' : 'DEVOLUCION';
       } else {
-        const hasIng = g._movs.some(m => ['ingreso', 'devolucion', 'abastecimiento'].includes(m.tipo));
-        if (hasIng) finalStatus = '';
-        else finalStatus = 'EGRESO';
+        finalStatus = 'PENDIENTE';
       }
       h3.push([g.docNum, g.fechaRecepcion, g.cliente, g.bultos, g.litros, g.kg, g.fechaEntrega, finalStatus, g.movil, g.conductor, g.comuna, g.region]);
     });

@@ -1,86 +1,24 @@
-// ══════════════════════════════════════════════
-// AUTH HELPERS — SILOG SpA v3
-// ══════════════════════════════════════════════
+// ============================================================
+// auth.js -- SILOG SpA | v5
+// auth, db, storage, functions vienen de firebase-config.js
+// ============================================================
+
 let currentUser     = null;
 let currentUserData = null;
 
-// ── Sanitización XSS ─────────────────────────────────────────
-// Escapa caracteres peligrosos antes de insertar en innerHTML
+// -- Sanitiza HTML para prevenir XSS -------------------------
 function sanitize(str) {
-  if (str === null || str === undefined) return '';
+  if (str == null) return '';
   return String(str)
-    .replace(/&/g,  '&amp;')
-    .replace(/</g,  '&lt;')
-    .replace(/>/g,  '&gt;')
-    .replace(/"/g,  '&quot;')
-    .replace(/'/g,  '&#39;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-// ── Loading global ────────────────────────────────────────────
-function showLoading(msg = 'Cargando…') {
-  let el = document.getElementById('global-loader');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'global-loader';
-    el.style.cssText = [
-      'position:fixed;inset:0;background:rgba(6,13,31,.85)',
-      'backdrop-filter:blur(6px);z-index:9998',
-      'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px'
-    ].join(';');
-    el.innerHTML = `
-      <div style="width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#F47920;border-radius:50%;animation:spin .7s linear infinite"></div>
-      <span id="loader-msg" style="color:#E8EEF8;font-family:'Inter',sans-serif;font-size:.9rem">${sanitize(msg)}</span>
-    `;
-    document.body.appendChild(el);
-  } else {
-    document.getElementById('loader-msg').textContent = msg;
-    el.style.display = 'flex';
-  }
-}
-function hideLoading() {
-  const el = document.getElementById('global-loader');
-  if (el) el.style.display = 'none';
-}
 
-// ── Banner offline / online ───────────────────────────────────
-(function initOfflineBanner() {
-  function createBanner() {
-    let b = document.getElementById('offline-banner');
-    if (b) return b;
-    b = document.createElement('div');
-    b.id = 'offline-banner';
-    b.style.cssText = [
-      'position:fixed;bottom:0;left:0;right:0;z-index:9997',
-      'background:#D97706;color:#fff;text-align:center',
-      'padding:10px 16px;font-family:Inter,sans-serif;font-size:.83rem',
-      'font-weight:600;display:none;align-items:center;justify-content:center;gap:8px'
-    ].join(';');
-    b.innerHTML = '⚠️ Sin conexión — los datos se guardarán al reconectar';
-    document.body.appendChild(b);
-    return b;
-  }
-  function update() {
-    const b = createBanner();
-    if (!navigator.onLine) {
-      b.style.display = 'flex';
-    } else {
-      if (b.style.display !== 'none') {
-        showToast('✅ Conexión restaurada', 'success');
-      }
-      b.style.display = 'none';
-    }
-  }
-  window.addEventListener('offline', update);
-  window.addEventListener('online',  update);
-  // Chequeo inicial después de que el DOM esté listo
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', update);
-  } else {
-    update();
-  }
-})();
-
-// ── Normaliza campos Firestore → formato interno ──────────────
+// -- Normalizar datos del usuario ----------------------------
 function normalizeUserData(raw) {
   const nombre_completo = raw.nombre_completo || ((raw.nombre || '') + ' ' + (raw.apellido || '')).trim() || raw.nombre || raw.name || '';
   return {
@@ -95,23 +33,11 @@ function normalizeUserData(raw) {
   };
 }
 
-// ── Obtiene datos del usuario desde Firestore ─────────────────
+// -- Obtiene datos del usuario desde Firestore ---------------
 async function getUserData(user) {
   try {
     const cacheKey = 'silog_user_' + user.uid;
-    let cached = sessionStorage.getItem(cacheKey);
-    if (!cached) {
-      cached = localStorage.getItem('silog_last_user');
-    }
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && parsed._ts && (Date.now() - parsed._ts) < 300000) { // 5 min cache
-          return normalizeUserData(parsed);
-        }
-      } catch(e) {}
-    }
-    // 1) Por UID (principal — más rápido)
+    // 1) Por UID
     let snap = await db.collection('users').doc(user.uid).get();
     if (snap.exists) {
       const data = snap.data();
@@ -141,137 +67,98 @@ async function getUserData(user) {
 async function checkAndAssignDailyChecklistTask(email) {
   try {
     const chileParts = new Intl.DateTimeFormat('es-CL', {
-      timeZone: 'America/Santiago',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      weekday: 'short'
+      timeZone: 'America/Santiago', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
     }).formatToParts(new Date());
-
-    const year = chileParts.find(p => p.type === 'year').value;
-    const month = chileParts.find(p => p.type === 'month').value;
-    const day = chileParts.find(p => p.type === 'day').value;
+    const year    = chileParts.find(p => p.type === 'year').value;
+    const month   = chileParts.find(p => p.type === 'month').value;
+    const day     = chileParts.find(p => p.type === 'day').value;
     const weekday = chileParts.find(p => p.type === 'weekday').value.toLowerCase();
-    
-    // Si es fin de semana (sábado o domingo), no se asigna la tarea
-    const isWeekend = weekday.includes('sáb') || weekday.includes('sab') || weekday.includes('dom');
-    
-    const currentDateStr = `${day}-${month}-${year}`;
+    const isWeekend = weekday.includes('s') && (weekday.includes('b') || weekday.includes('dom'));
+    const currentDateStr = day + '-' + month + '-' + year;
     const feriadosChile = [
-      // 2025
-      "01-01-2025", "18-04-2025", "19-04-2025", "01-05-2025", "21-05-2025", "20-06-2025",
-      "29-06-2025", "16-07-2025", "15-08-2025", "18-09-2025", "19-09-2025", "12-10-2025",
-      "31-10-2025", "01-11-2025", "08-12-2025", "25-12-2025",
-      // 2026
-      "01-01-2026", "03-04-2026", "04-04-2026", "01-05-2026", "21-05-2026", "29-06-2026",
-      "16-07-2026", "15-08-2026", "18-09-2026", "19-09-2026", "12-10-2026", "31-10-2026",
-      "01-11-2026", "08-12-2026", "25-12-2026"
+      "01-01-2025","18-04-2025","19-04-2025","01-05-2025","21-05-2025","20-06-2025",
+      "29-06-2025","16-07-2025","15-08-2025","18-09-2025","19-09-2025","12-10-2025",
+      "31-10-2025","01-11-2025","08-12-2025","25-12-2025",
+      "01-01-2026","03-04-2026","04-04-2026","01-05-2026","21-05-2026","29-06-2026",
+      "16-07-2026","15-08-2026","18-09-2026","19-09-2026","12-10-2026","31-10-2026"
     ];
-    
-    const isHoliday = feriadosChile.includes(currentDateStr);
-    
-    if (isWeekend || isHoliday) {
-      return;
-    }
-    
-    // Evitar llamadas redundantes a Firestore durante la misma sesión de navegación diaria
-    const cacheKey = `silog_checklist_task_checked_${email}_${currentDateStr}`;
-    if (sessionStorage.getItem(cacheKey)) {
-      return;
-    }
-    
-    // Consultar tareas asignadas al conductor de forma index-safe
-    const snap = await db.collection('tareas')
-      .where('asignado_a', '==', email)
-      .get();
-      
+    if (isWeekend || feriadosChile.includes(day + '-' + month + '-' + year)) return;
+    const cacheKey = 'silog_checklist_task_' + email + '_' + currentDateStr;
+    if (sessionStorage.getItem(cacheKey)) return;
+    const snap = await db.collection('tareas').where('asignado_a', '==', email).where('tipo', '==', 'checklist').get();
     let yaAsignadaHoy = false;
     snap.forEach(doc => {
       const task = doc.data();
-      if (task.tipo === 'checklist' && task.titulo === 'Realizar todos los días un Checklist Operativo' && task.fecha_creacion) {
+      if (task.tipo === 'checklist' && task.titulo === 'Realizar todos los dias un Checklist Operativo' && task.fecha_creacion) {
         const taskDate = task.fecha_creacion.toDate ? task.fecha_creacion.toDate() : new Date(task.fecha_creacion);
-        const taskChileDate = new Intl.DateTimeFormat('es-CL', {
-          timeZone: 'America/Santiago',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        }).format(taskDate).replace(/\//g, '-');
-        
-        if (taskChileDate === currentDateStr) {
-          yaAsignadaHoy = true;
-        }
+        const taskChileDate = new Intl.DateTimeFormat('es-CL', { timeZone: 'America/Santiago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(taskDate).replace(/\//g, '-');
+        if (taskChileDate === currentDateStr) yaAsignadaHoy = true;
       }
     });
-    
     if (!yaAsignadaHoy) {
-      // Crear la tarea en Firestore
       await db.collection('tareas').add({
-        titulo: 'Realizar todos los días un Checklist Operativo',
-        descripcion: 'Realizar el chequeo diario del vehículo y reportar el estado operativo para iniciar tu jornada.',
-        tipo: 'checklist',
-        prioridad: 'alta',
-        asignado_a: email,
-        asignado_por: 'sistema',
-        estado: 'pendiente',
+        titulo: 'Realizar todos los dias un Checklist Operativo',
+        descripcion: 'Realizar el chequeo diario del vehiculo y reportar el estado operativo para iniciar tu jornada.',
+        tipo: 'checklist', prioridad: 'alta', asignado_a: email, asignado_por: 'sistema', estado: 'pendiente',
         fecha_creacion: firebase.firestore.FieldValue.serverTimestamp(),
-        // Vencimiento al final del día de hoy en hora local (23:59:59)
         fecha_vencimiento: firebase.firestore.Timestamp.fromDate(new Date(new Date().setHours(23, 59, 59, 999))),
       });
-      
-      showToast('📋 Nueva tarea diaria: Realizar Checklist Operativo', 'info');
+      showToast('Nueva tarea diaria: Realizar Checklist Operativo', 'info');
     }
-    
-    // Guardar en el sessionStorage para no volver a consultar hoy
     sessionStorage.setItem(cacheKey, 'true');
   } catch (e) {
-    console.warn('[auth] Error en asignación de tarea diaria:', e.message);
+    console.warn('[auth] Error en asignacion de tarea diaria:', e.message);
   }
 }
 
-// ── Requiere sesión activa ────────────────────────────────────
-function requireAuth(callback) {
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) { window.location.href = '/index.html'; return; }
-    currentUser     = user;
-    currentUserData = await getUserData(user);
-    
-    // Asignar automáticamente tarea de checklist al conductor si corresponde
-    if (currentUserData && isConductorRole(currentUserData.role)) {
-      await checkAndAssignDailyChecklistTask(currentUserData.email);
-    }
-    
-    if (callback) callback(user, currentUserData);
-  });
-}
+  // -- Requiere sesion activa ----------------------------------
+  function requireAuth(callback) {
+            auth.onAuthStateChanged(async (user) => {
+            if (!user) { window.location.href = '/index.html'; return; }
+      currentUser     = user;
+            try {
+        currentUserData = await getUserData(user);
+              } catch(e) {
+              }
+      if (currentUserData && (currentUserData.rol || currentUserData.role || '').toLowerCase() === 'conductor') {
+                try {
+          await checkAndAssignDailyChecklistTask(currentUserData.email);
+        } catch(e) {
+                  }
+      }
+            if (callback) callback(user, currentUserData);
+    });
+  }
 
-// ── Helpers de rol ────────────────────────────────────────────
-function isAdminRole(role) {
-  return (role || '').toLowerCase() === 'admin';
-}
+// -- isViewerRole -------------------------------------------
 function isViewerRole(role) {
-  return ['admin','administrativo','administrativo.conductor'].includes((role||'').toLowerCase());
+  const r = (role || '').toLowerCase();
+  if (['admin', 'administrativo', 'administrativo.conductor'].includes(r)) return true;
+  if (r.includes('admin') || r.includes('finanz') || r.includes('gestion')) return true;
+  if (r !== 'conductor' && r !== 'bodeguero' && r !== '') return true;
+  return false;
 }
 function isConductorRole(role) {
-  return ['conductor','administrativo.conductor'].includes((role||'').toLowerCase());
+  return ['conductor', 'administrativo.conductor'].includes((role || '').toLowerCase());
 }
 function isBodegueroRole(role) {
-  return ['bodeguero','admin'].includes((role||'').toLowerCase());
+  return ['bodeguero', 'admin'].includes((role || '').toLowerCase());
 }
 
-// ── Panel admin/administrativo ────────────────────────────────
+// -- Panel admin/administrativo ------------------------------
 function requireAdmin(callback) {
   requireAuth((user, data) => {
-    if (!isViewerRole(data.role)) { window.location.href = '/dashboard.html'; return; }
+    if (!isViewerRole(data.rol || data.role)) { window.location.href = '/dashboard.html'; return; }
     if (callback) callback(user, data);
   });
 }
 
-// ── Registro de nuevo usuario ────────────────────────────────
+// -- Registro de nuevo usuario -------------------------------
 async function registerUser(email, password, userData) {
   const cred = await auth.createUserWithEmailAndPassword(email, password);
-  const uid  = cred.user.uid;
+  const user = cred.user;
   const nombre_completo = ((userData.nombre || '') + ' ' + (userData.apellido || '')).trim();
-  await db.collection('users').doc(uid).set({
+  await db.collection('users').doc(user.uid).set({
     correo_electronico: email,
     nombre:    userData.nombre    || '',
     apellido:  userData.apellido  || '',
@@ -283,235 +170,198 @@ async function registerUser(email, password, userData) {
     roles:     userData.roles     || [userData.rol || 'conductor'],
     estado:    'Activo',
     Fecha_registro: firebase.firestore.FieldValue.serverTimestamp(),
+    auth_uid: user.uid,
   });
-  return cred.user;
+  return cred;
 }
 
-// ── Contar tareas pendientes del usuario ─────────────────────
-async function getPendingTaskCount(email) {
-  try {
-    const snap = await db.collection('tareas')
-      .where('asignado_a', '==', email)
-      .where('estado', '==', 'pendiente').get();
-    return snap.size;
-  } catch { return 0; }
+// -- Actualizar perfil ----------------------------------------
+async function updateUserProfile(uid, updates) {
+  await db.collection('users').doc(uid).update(updates);
+  if (currentUserData && currentUser && currentUser.uid === uid) {
+    currentUserData = { ...currentUserData, ...updates };
+    sessionStorage.setItem('silog_user_' + uid, JSON.stringify(currentUserData));
+    localStorage.setItem('silog_last_user', JSON.stringify(currentUserData));
+  }
 }
 
-// ── Renderiza navbar ──────────────────────────────────────────
+// -- Render navbar de perfil ---------------------------------
 function renderNavbar(userData) {
-  const avatarEl = document.getElementById('user-avatar');
   const nameEl   = document.getElementById('user-name');
   const roleEl   = document.getElementById('user-role');
-  if (!userData) return;
-  const displayName = userData.name || userData.email || 'Usuario';
-  const initials    = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  if (avatarEl) {
-    if (userData.foto_perfil) {
-      avatarEl.innerHTML = `<img src="${userData.foto_perfil}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;
-      avatarEl.style.overflow = 'hidden';
-    } else {
-      avatarEl.textContent = initials;
-      avatarEl.style.overflow = '';
-    }
+  const avatarEl = document.getElementById('user-avatar');
+  if (nameEl) {
+    const nombre = userData.nombre || userData.name || (userData.correo_electronico || userData.email || '').split('@')[0];
+    nameEl.textContent = nombre;
   }
-  if (nameEl)   nameEl.textContent   = displayName;
-  if (roleEl)   roleEl.textContent   = isViewerRole(userData.role)
-    ? `Administrador · ${userData.area}`
-    : `Conductor · ${userData.area}`;
+  if (avatarEl && (userData.foto_url || userData.photoURL)) {
+    avatarEl.src = userData.foto_url || userData.photoURL;
+    avatarEl.style.display = 'block';
+  }
+  if (roleEl) {
+    const rawRole = (userData.rol || userData.role || 'conductor').toLowerCase();
+    const roleStr = { 'admin': 'Administrador', 'administrativo': 'Administrativo', 'administrativo.conductor': 'Admin/Conductor', 'conductor': 'Conductor', 'bodeguero': 'Bodeguero' }[rawRole] || 'Operador';
+    roleEl.textContent = roleStr + ' - ' + (userData.area || 'Sin area');
+  }
 }
 
-// ── Cerrar sesión (con confirmación) ─────────────────────────
+// -- Cerrar sesion -------------------------------------------
 function logout() {
-  if (!confirm('¿Cerrar sesión? Asegúrate de haber guardado tu trabajo.')) return;
-  // Clear cache
+  if (!confirm('Cerrar sesion? Asegurate de haber guardado tu trabajo.')) return;
   if (currentUser) sessionStorage.removeItem('silog_user_' + currentUser.uid);
   localStorage.removeItem('silog_last_user');
   localStorage.removeItem('silog_dashboard_cache');
   auth.signOut().then(() => { window.location.href = '/index.html'; });
 }
 
-// ── Toast ─────────────────────────────────────────────────────
-function showToast(msg, type = 'info') {
-  let container = document.getElementById('toast-container');
+// -- Toast ---------------------------------------------------
+function showToast(msg, type) {
+  type = type || 'info';
+  var container = document.getElementById('toast-container');
   if (!container) {
     container = document.createElement('div');
     container.id = 'toast-container';
     container.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:320px;';
     document.body.appendChild(container);
   }
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
+  var toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
   toast.textContent = msg;
   container.appendChild(toast);
-  setTimeout(() => toast.classList.add('show'), 10);
-  setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
+  setTimeout(function() { toast.classList.add('show'); }, 10);
+  setTimeout(function() { toast.classList.remove('show'); setTimeout(function() { toast.remove(); }, 300); }, 3500);
 }
 
-// ── Exportar a CSV ────────────────────────────────────────────
-function exportCSV(docs, nombreArchivo = 'reporte') {
+// -- Exportar a CSV ------------------------------------------
+function exportCSV(docs, nombreArchivo) {
+  nombreArchivo = nombreArchivo || 'reporte';
   if (!docs || !docs.length) { showToast('Sin datos para exportar', 'info'); return; }
-  // Aplana objetos anidados y excluye campos internos de Firestore
-  const exclude = ['id'];
-  const flatten = (obj, prefix = '') => {
-    return Object.keys(obj).reduce((acc, k) => {
+  var exclude = ['id'];
+  var flatten = function(obj, prefix) {
+    prefix = prefix || '';
+    return Object.keys(obj).reduce(function(acc, k) {
       if (exclude.includes(k)) return acc;
-      const val = obj[k];
-      const key = prefix ? `${prefix}_${k}` : k;
+      var val = obj[k];
+      var key = prefix ? prefix + '_' + k : k;
       if (val && typeof val === 'object' && val.toDate) {
-        // Timestamp de Firestore
         acc[key] = formatDate(val);
       } else if (Array.isArray(val)) {
         acc[key] = val.join(' | ');
       } else if (val && typeof val === 'object') {
         Object.assign(acc, flatten(val, key));
       } else {
-        acc[key] = val ?? '';
+        acc[key] = val != null ? val : '';
       }
       return acc;
     }, {});
   };
-  const flat = docs.map(d => flatten(d));
-  const keys = [...new Set(flat.flatMap(Object.keys))];
-  const header = keys.join(';');
-  const rows   = flat.map(r => keys.map(k => {
-    const v = String(r[k] ?? '').replace(/;/g, ',').replace(/\n/g, ' ');
-    return `"${v}"`;
-  }).join(';'));
-  const csv = '\uFEFF' + [header, ...rows].join('\n'); // BOM para Excel
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `${nombreArchivo}_${new Date().toISOString().split('T')[0]}.csv`;
+  var flat = docs.map(function(d) { return flatten(d); });
+  var keys = Array.from(new Set(flat.flatMap(Object.keys)));
+  var header = keys.join(';');
+  var rows = flat.map(function(r) {
+    return keys.map(function(k) {
+      var v = String(r[k] != null ? r[k] : '').replace(/;/g, ',').replace(/\n/g, ' ');
+      return '"' + v + '"';
+    }).join(';');
+  });
+  var csv = '\uFEFF' + [header].concat(rows).join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url;
+  a.download = nombreArchivo + '_' + new Date().toISOString().split('T')[0] + '.csv';
   a.click();
   URL.revokeObjectURL(url);
-  showToast('📥 CSV descargado', 'success');
+  showToast('CSV descargado', 'success');
 }
 
-// ── Utilidades de fecha ───────────────────────────────────────
+// -- Utilidades de fecha ------------------------------------
 function formatDate(ts) {
-  if (!ts) return '—';
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  if (!ts) return '-';
+  var d = ts.toDate ? ts.toDate() : new Date(ts);
   return d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 function formatTime(ts) {
   if (!ts) return '';
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  var d = ts.toDate ? ts.toDate() : new Date(ts);
   return d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 }
 function formatDateTime(ts) {
-  if (!ts) return '—';
-  return `${formatDate(ts)} ${formatTime(ts)}`;
+  if (!ts) return '-';
+  return formatDate(ts) + ' ' + formatTime(ts);
 }
 
-// ── Badges ────────────────────────────────────────────────────
+// -- Badges -------------------------------------------------
 function statusBadge(status) {
-  const map = {
-    pendiente:   ['badge-pending',  '⏳ Pendiente'],
-    en_progreso: ['badge-active',   '🔵 En Progreso'],
-    completada:  ['badge-done',     '✅ Completada'],
-    cancelada:   ['badge-danger',   '❌ Cancelada'],
+  var map = {
+    pendiente:   ['badge-pending',  'Pendiente'],
+    en_progreso: ['badge-active',   'En Progreso'],
+    completada:  ['badge-done',     'Completada'],
+    cancelada:   ['badge-danger',   'Cancelada'],
   };
-  const [cls, label] = map[(status||'').toLowerCase()] || ['badge-pending', status];
-  return `<span class="badge ${cls}">${label}</span>`;
+  var pair = map[(status || '').toLowerCase()] || ['badge-pending', status];
+  return '<span class="badge ' + pair[0] + '">' + pair[1] + '</span>';
 }
 function priorityBadge(p) {
-  const map = { alta: 'badge-danger', media: 'badge-pending', baja: 'badge-active' };
-  return `<span class="badge ${map[p] || 'badge-active'}">${p || 'media'}</span>`;
+  var map = { alta: 'badge-danger', media: 'badge-pending', baja: 'badge-active' };
+  return '<span class="badge ' + (map[p] || 'badge-active') + '">' + (p || 'media') + '</span>';
 }
 
-// ── SISTEMA DE NAVEGACIÓN DINÁMICO (BACK BUTTONS) ─────────────
+// -- Navegacion dinamica ------------------------------------
 (function initNavigationHistory() {
-  const currentPath = window.location.pathname;
-  const cleanUrl = (url) => {
-    return url.split('?')[0].split('#')[0];
-  };
-  const pageFilename = cleanUrl(currentPath.split('/').pop() || 'dashboard.html');
-
+  var currentPath = window.location.pathname;
+  var cleanUrl = function(url) { return url.split('?')[0].split('#')[0]; };
+  var pageFilename = cleanUrl(currentPath.split('/').pop() || 'dashboard.html');
   if (pageFilename === 'index.html' || currentPath === '/' || currentPath === '') return;
-
-  const getPageName = (path) => {
-    const filename = cleanUrl(path.split('/').pop() || 'dashboard.html');
-    const mapping = {
-      'dashboard.html': 'Dashboard',
-      'inventario.html': 'Inventario',
-      'bodega.html': 'WMS Bodega',
-      'planillas.html': 'Planillas',
-      'formularios.html': 'Seguridad',
-      'correos.html': 'Correos',
-      'admin.html': 'Usuarios',
-      'analytics.html': 'Analytics',
-      'charlas.html': 'Charlas',
-      'checklist.html': 'Checklist',
-      'crm.html': 'CRM',
-      'finanzas.html': 'Finanzas',
-      'gastos.html': 'Gastos',
-      'ruta.html': 'Ruta',
-      'tareas.html': 'Tareas',
-      'turno.html': 'Jornada',
-      'vehiculos.html': 'Flota',
-      'viajes.html': 'Viajes'
+  var getPageName = function(path) {
+    var filename = cleanUrl(path.split('/').pop() || 'dashboard.html');
+    var mapping = {
+      'dashboard.html':'Dashboard','inventario.html':'Inventario','bodega.html':'WMS Bodega',
+      'planillas.html':'Planillas','formularios.html':'Seguridad','correos.html':'Correos',
+      'admin.html':'Usuarios','analytics.html':'Analytics','charlas.html':'Charlas',
+      'checklist.html':'Checklist','crm.html':'CRM','finanzas.html':'Finanzas',
+      'gastos.html':'Gastos','ruta.html':'Ruta','tareas.html':'Tareas',
+      'turno.html':'Jornada','vehiculos.html':'Flota','viajes.html':'Viajes'
     };
     return mapping[filename] || 'Dashboard';
   };
-
-  let stack = [];
-  try {
-    stack = JSON.parse(sessionStorage.getItem('silog_nav_stack')) || [];
-  } catch (e) {}
-
+  var stack = [];
+  try { stack = JSON.parse(sessionStorage.getItem('silog_nav_stack')) || []; } catch(e) {}
   if (pageFilename === 'dashboard.html') {
     stack = [{ url: 'dashboard.html', name: 'Dashboard' }];
     sessionStorage.setItem('silog_nav_stack', JSON.stringify(stack));
     return;
   }
-
-  const index = stack.findIndex(p => cleanUrl(p.url) === pageFilename);
+  var index = stack.findIndex(function(p) { return cleanUrl(p.url) === pageFilename; });
   if (index !== -1) {
     stack = stack.slice(0, index + 1);
   } else {
-    if (stack.length === 0) {
-      stack.push({ url: 'dashboard.html', name: 'Dashboard' });
-    }
+    if (stack.length === 0) stack.push({ url: 'dashboard.html', name: 'Dashboard' });
     stack.push({ url: pageFilename, name: getPageName(pageFilename) });
   }
   sessionStorage.setItem('silog_nav_stack', JSON.stringify(stack));
-
-  let prevPage = { url: 'dashboard.html', name: 'Dashboard' };
-  if (stack.length > 1) {
-    prevPage = stack[stack.length - 2];
-  }
-
-  const configureBackButton = () => {
-    let backBtn = document.querySelector('.btn-back');
-
+  var prevPage = stack.length > 1 ? stack[stack.length - 2] : { url: 'dashboard.html', name: 'Dashboard' };
+  var configureBackButton = function() {
+    var backBtn = document.querySelector('.btn-back');
     if (!backBtn) {
-      const navbar = document.querySelector('.navbar');
+      var navbar = document.querySelector('.navbar');
       if (navbar) {
         backBtn = document.createElement('button');
         backBtn.className = 'btn-back';
-        const logo = navbar.querySelector('.navbar-logo');
-        if (logo) {
-          logo.after(backBtn);
-        } else {
-          navbar.prepend(backBtn);
-        }
+        var logo = navbar.querySelector('.navbar-logo');
+        if (logo) logo.after(backBtn); else navbar.prepend(backBtn);
       }
     }
-
     if (backBtn) {
       backBtn.removeAttribute('onclick');
-      backBtn.innerHTML = `← Volver a ${prevPage.name}`;
-      backBtn.onclick = (e) => {
-        e.preventDefault();
-        window.location.href = prevPage.url;
-      };
+      backBtn.innerHTML = 'Volver a ' + prevPage.name;
+      backBtn.onclick = function(e) { e.preventDefault(); window.location.href = prevPage.url; };
     }
   };
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', configureBackButton);
   } else {
     configureBackButton();
   }
 })();
+

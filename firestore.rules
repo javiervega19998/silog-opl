@@ -2,19 +2,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Helpers ──────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function isAuth() {
       return request.auth != null;
     }
     function userEmail() {
       return request.auth.token.email;
     }
-    function userRol() {
-      return request.auth.token.get('rol', 'conductor').lower();
+function userRol() {
+      let uidPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      let r = exists(uidPath) ? get(uidPath).data.rol : "conductor";
+      return r != null ? r.lower() : "conductor";
     }
-    // Admin + Administrativo + Administrativo.Conductor
+
+    // Admin + Administrativo + Administrativo.Conductor + Finanzas + Gestion
     function isViewer() {
-      return userRol() in ['admin', 'administrativo', 'administrativo.conductor'];
+      let r = userRol();
+      return r != 'conductor' && r != 'bodeguero' && r != '';
     }
     function isAdmin() {
       return userRol() == 'admin';
@@ -28,32 +32,30 @@ service cloud.firestore {
       return userRol() in ['admin', 'administrativo', 'administrativo.conductor'];
     }
 
-    // ── Usuarios ──────────────────────────────────────────────────
-    // Todos pueden leer (necesario para autocompletar)
-    // Admin y Administrativo pueden crear/editar usuarios
-    // Solo admin puede eliminar
+    // â”€â”€ Usuarios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Admin y Administrativo pueden crear/editar/eliminar usuarios; lectura solo para usuarios autenticados
     match /users/{uid} {
       allow read:   if isAuth();
-      allow create: if isAuth() && (isAdmin() || request.auth.uid == uid);
-      allow update: if isAuth() && (canManageUsers() || request.auth.uid == uid);
-      allow delete: if isAuth() && isAdmin();
+      allow create: if isAuth() && (request.auth.uid == uid || canManageUsers());
+      allow update: if isAuth() && (canManageUsers() || (request.auth.uid == uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['rol', 'roles', 'estado'])));
+      allow delete: if isAuth() && canManageUsers();
     }
 
-    // ── Viajes ────────────────────────────────────────────────────
+    // â”€â”€ Viajes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /viajes/{id} {
-      allow create: if isAuth();
+      allow create: if isAuth() && (isViewer() || request.resource.data.correo_conductor == userEmail());
       allow read:   if isAuth() && (isViewer() || resource.data.correo_conductor == userEmail());
-      allow update, delete: if isAuth() && isViewer();
+      allow update, delete: if isAuth() && (isViewer() || resource.data.correo_conductor == userEmail());
     }
 
-    // ── Checklists ────────────────────────────────────────────────
+    // â”€â”€ Checklists â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /chequeo_operacional/{id} {
-      allow create: if isAuth();
+      allow create: if isAuth() && (isViewer() || request.resource.data.operador == userEmail());
       allow read:   if isAuth() && (isViewer() || resource.data.operador == userEmail());
       allow update, delete: if isAuth() && isViewer();
     }
 
-    // ── Tareas ────────────────────────────────────────────────────
+    // â”€â”€ Tareas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /tareas/{id} {
       allow create: if isAuth() && (isViewer() || request.resource.data.asignado_a == userEmail());
       allow read:   if isAuth() && (isViewer() || resource.data.asignado_a == userEmail());
@@ -61,7 +63,7 @@ service cloud.firestore {
       allow delete: if isAuth() && isViewer();
     }
 
-    // ── Charlas leídas ────────────────────────────────────────────
+    // â”€â”€ Charlas leÃ­das â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /charlas_leidas/{id} {
       allow create: if isAuth() && request.resource.data.operador == userEmail();
       allow read:   if isAuth() && (isViewer() || resource.data.operador == userEmail());
@@ -69,62 +71,74 @@ service cloud.firestore {
       allow delete: if isAuth() && isViewer();
     }
 
-    // ── Notificaciones ────────────────────────────────────────────
+    // â”€â”€ Notificaciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /notificaciones/{id} {
       allow create: if isAuth();
       allow read, update, delete: if isAuth() && isViewer();
     }
 
-    // ── Vehículos ─────────────────────────────────────────────────
-    // Solo admin/administrativo puede escribir (conductor NO edita)
+    // â”€â”€ VehÃ­culos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Solo admin/administrativo puede crear/eliminar; conductores pueden actualizar km, estado y conductor
     match /vehiculos/{id} {
       allow read:  if isAuth();
-      allow write: if isAuth() && isViewer();
+      allow create, delete: if isAuth() && isViewer();
+      allow update: if isAuth() && (
+        isViewer() || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'conductor', 'km', 'kilometraje']))
+      );
     }
 
-    // ── Inventario ────────────────────────────────────────────────
+    // â”€â”€ KM Discrepancias â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    match /km_discrepancias/{id} {
+      allow create: if isAuth();
+      allow read:   if isAuth() && (isViewer() || resource.data.conductor_email == userEmail());
+      allow update: if isAuth() && isViewer();
+      allow delete: if isAuth() && isViewer();
+    }
+
+    // â”€â”€ Inventario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Bodeguero + Viewer pueden escribir
     match /inventory/{id} {
       allow read:  if isAuth();
       allow write: if isAuth() && (isViewer() || isBodeguero());
     }
 
-    // ── Correos / Formularios / Planillas ─────────────────────────
+    // â”€â”€ Correos / Formularios / Planillas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /correos/{id}     { allow read, write: if isAuth() && isViewer(); }
     match /formularios/{id} { allow read, write: if isAuth() && isViewer(); }
     match /planillas/{id}   { allow read, write: if isAuth() && isViewer(); }
 
-    // ── Turnos (Apertura/Cierre de Jornada) ──────────────────────
+    // â”€â”€ Turnos (Apertura/Cierre de Jornada) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /turnos/{id} {
-      allow create: if isAuth();
-      allow read:   if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
-      allow update: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
-      allow delete: if isAuth() && isViewer();
-    }
-
-    // ── Despachos (Entregas por turno) ────────────────────────────
-    match /despachos/{id} {
-      allow create: if isAuth();
+      allow create: if isAuth() && (isViewer() || request.resource.data.conductor_uid == request.auth.uid);
       allow read:   if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
       allow update: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
       allow delete: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
     }
 
-    // ── Gastos en Ruta ───────────────────────────────────────────
-    match /gastos_ruta/{id} {
-      allow create: if isAuth();
+    // â”€â”€ Despachos (Entregas por turno) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    match /despachos/{id} {
+      allow create: if isAuth() && (isViewer() || request.resource.data.conductor_uid == request.auth.uid);
       allow read:   if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
-      allow update, delete: if isAuth() && isViewer();
+      allow update: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
+      allow delete: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
     }
 
-    // ── Clientes (Directorio) ────────────────────────────────────
+    // â”€â”€ Gastos en Ruta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    match /gastos_ruta/{id} {
+      allow create: if isAuth() && (isViewer() || request.resource.data.conductor_uid == request.auth.uid);
+      allow read:   if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
+      allow update, delete: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
+    }
+
+    // â”€â”€ Clientes (Directorio) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /clientes/{id} {
       allow read:  if isAuth();
       allow create: if isAuth();
       allow update, delete: if isAuth() && isViewer();
     }
 
-    // ── Logística Inversa (Devoluciones → Bodega) ────────────────
+    // â”€â”€ LogÃ­stica Inversa (Devoluciones â†’ Bodega) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /logistica_inversa/{id} {
       allow create: if isAuth();
       allow read:   if isAuth();
@@ -132,42 +146,56 @@ service cloud.firestore {
       allow delete: if isAuth() && isViewer();
     }
 
-    // ── Movimientos de Bodega ─────────────────────────────────────
+    // â”€â”€ Movimientos de Bodega â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /movimientos_bodega/{id} {
       allow create: if isAuth() && (isViewer() || isBodeguero());
       allow read:   if isAuth();
       allow update, delete: if isAuth() && (isViewer() || isBodeguero());
     }
 
-    // ── Productos (Stock extendido) ──────────────────────────────
+    // â”€â”€ Productos (Stock extendido) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /productos/{id} {
       allow read:  if isAuth();
       allow write: if isAuth() && (isViewer() || isBodeguero());
     }
 
-    // ── Pre-Facturas (ERP Finanzas) ──────────────────────────────
+    // â”€â”€ Pre-Facturas (ERP Finanzas) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /prefacturas/{id} {
       allow read:  if isAuth() && isViewer();
       allow create: if isAuth() && isViewer();
       allow update, delete: if isAuth() && isViewer();
     }
 
-    // ── Hojas de Ruta (Finanzas + Conductor) ────────────────────
+    // â”€â”€ Hojas de Ruta (Finanzas + Conductor) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /hojas_ruta/{id} {
-      allow create: if isAuth();
+      allow create: if isAuth() && (isViewer() || request.resource.data.conductor_uid == request.auth.uid);
       allow read:   if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
-      allow update: if isAuth() && isViewer();
-      allow delete: if isAuth() && isAdmin();
+      allow update: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
+      allow delete: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
     }
 
-    // ── Ingresos Bodega (Finanzas) ───────────────────────────────
+    // â”€â”€ Ingresos Bodega (Finanzas) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /ingresos_bodega/{id} {
       allow read:  if isAuth() && isViewer();
       allow create: if isAuth() && isViewer();
       allow update, delete: if isAuth() && isViewer();
     }
 
-    // ── Recordatorios (Kanban Admin) ──────────────────────────────
+    // â”€â”€ Gastos Contabilidad (Manual ERP Finanzas) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    match /gastos_contabilidad/{id} {
+      allow read:  if isAuth() && isViewer();
+      allow create: if isAuth() && isViewer();
+      allow update, delete: if isAuth() && isViewer();
+    }
+
+    // â”€â”€ Distribuidores (Lista dinÃ¡mica) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    match /distribuidores/{id} {
+      allow read:   if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && isViewer();
+    }
+
+    // â”€â”€ Recordatorios (Kanban Admin) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /recordatorios/{id} {
       allow create: if isAuth() && isViewer();
       allow read:   if isAuth() && isViewer();

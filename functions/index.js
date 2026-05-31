@@ -323,3 +323,74 @@ exports.onGastoDeleted = onDocumentDeleted(
     }
   }
 );
+// -- 5. FIX: Corregir perfil de usuario por email ------------------
+// Callable desde el Panel Admin. Arregla rol/area buscando por email.
+// -----------------------------------------------------------------
+exports.fixUserProfile = onCall(
+  { region: 'us-central1' },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesion.');
+
+    const db   = getFirestore();
+    const auth = getAuth();
+
+    // Verificar que caller es admin
+    let callerDoc = await db.collection('users').doc(request.auth.uid).get();
+    if (!callerDoc.exists) {
+      const q = await db.collection('users').where('correo_electronico', '==', request.auth.token.email).limit(1).get();
+      if (!q.empty) callerDoc = q.docs[0];
+    }
+    if (!callerDoc.exists) throw new HttpsError('permission-denied', 'Caller no encontrado.');
+    if ((callerDoc.data().rol || '').toLowerCase() !== 'admin')
+      throw new HttpsError('permission-denied', 'Se requiere rol admin.');
+
+    const { targetEmail, newRol, newArea } = request.data;
+    if (!targetEmail) throw new HttpsError('invalid-argument', 'targetEmail requerido.');
+
+    const results = { found: [], updated: [] };
+
+    const q1 = await db.collection('users').where('correo_electronico', '==', targetEmail).get();
+    q1.forEach(doc => results.found.push({ id: doc.id, data: doc.data() }));
+
+    const legacyDoc = await db.collection('users').doc(targetEmail).get();
+    if (legacyDoc.exists && !results.found.find(f => f.id === targetEmail))
+      results.found.push({ id: targetEmail, data: legacyDoc.data() });
+
+    let uid = null;
+    try {
+      const authUser = await auth.getUserByEmail(targetEmail);
+      uid = authUser.uid;
+      const uidDoc = await db.collection('users').doc(uid).get();
+      if (uidDoc.exists && !results.found.find(f => f.id === uid))
+        results.found.push({ id: uid, data: uidDoc.data() });
+    } catch(e) { results.authError = e.message; }
+
+    const updateData = {
+      rol:  newRol  || 'administrativo',
+      role: newRol  || 'administrativo',
+      area: newArea || 'Administracion & Finanzas',
+      correo_electronico: targetEmail,
+    };
+
+    for (const found of results.found) {
+      await db.collection('users').doc(found.id).update(updateData);
+      results.updated.push(found.id);
+    }
+
+    if (uid) {
+      const uidRef = db.collection('users').doc(uid);
+      const uidSnap = await uidRef.get();
+      if (!uidSnap.exists) {
+        const src = results.found[0] ? results.found[0].data : {};
+        await uidRef.set({ ...src, ...updateData, auth_uid: uid });
+        results.updated.push('created:' + uid);
+      }
+      try {
+        await auth.setCustomUserClaims(uid, { rol: updateData.rol, area: updateData.area });
+        results.claimsSynced = true;
+      } catch(e) { results.claimsError = e.message; }
+    }
+
+    return { success: true, email: targetEmail, uid, results };
+  }
+);
