@@ -1554,7 +1554,7 @@ async function loadHojasRuta(isMore = false){
   if(!isMore) {
     _lastHRDoc = null;
     _hasMoreHR = true;
-    document.getElementById('hr-body').innerHTML = '<tr><td colspan="11" class="txt-c" style="color:var(--text2);padding:20px">Cargandoâ¦</td></tr>';
+    document.getElementById('hr-body').innerHTML = '<tr><td colspan="9" class="txt-c" style="color:var(--text2);padding:20px">Cargandoâ¦</td></tr>';
   } else {
     _loadingMoreHR = true;
     const loadBtn = document.getElementById('btn-load-more-hr');
@@ -1644,7 +1644,7 @@ async function loadHojasRuta(isMore = false){
   } finally {
     _loadingMoreHR = false;
     const loadBtn = document.getElementById('btn-load-more-hr');
-    if(loadBtn) loadBtn.innerHTML = '➕ Cargar más hojas de ruta';
+    if(loadBtn) loadBtn.innerHTML = 'â Cargar mÃ¡s hojas de ruta';
     updateLoadMoreBtnVisibility();
   }
   renderHojasRuta();
@@ -1699,6 +1699,7 @@ function openHoja(id){
   </tr>`).join('');
   document.getElementById('modal-hoja').classList.add('open');
 }
+
 function closeHojaModal(){document.getElementById('modal-hoja').classList.remove('open');_hojaActual=null;}
 
 function agregarClienteHoja(){
@@ -1714,7 +1715,16 @@ function agregarClienteHoja(){
         <option value="entregado" selected style="color:var(--text);background:var(--bg);">🟢 Entregado</option>
         <option value="devuelto" style="color:var(--text);background:var(--bg);">🔴 Rechazado</option>
       </select>
-    </td>async function guardarHoja(){
+    </td>
+    <td><input class="field he-obs" placeholder="Obs..." style="width:120px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td><input class="field he-comuna" placeholder="Comuna" style="width:90px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td><input class="field he-valor" type="number" placeholder="0" style="width:80px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+  `;
+  tbody.appendChild(tr);
+  const modalContent = document.querySelector('#modal-hoja .modal-content');
+  if (modalContent) modalContent.scrollTo({ top: modalContent.scrollHeight, behavior: 'smooth' });
+}
+async function guardarHoja(){
   const id=document.getElementById('hoja-id').value;if(!id)return;
   
   const btn = document.querySelector('#modal-hoja .btn-save');
@@ -1792,17 +1802,96 @@ function agregarClienteHoja(){
     const batch = db.batch();
     const hrRef = db.collection('hojas_ruta').doc(id);
     
+    // Identify deleted clients
+    const originalEntregas = _hojaActual.entregas || [];
+    const deletedEntregas = originalEntregas.filter(orig => 
+      !entregas.some(newE => newE.documento === orig.documento || (newE.cliente === orig.cliente && newE.direccion === orig.direccion))
+    );
+
+    // Revert inventory and clean up storage files for deleted clients
+    for (const del of deletedEntregas) {
+      if (distribuidorEditado.toLowerCase().includes('total') && del.documento) {
+        const docNum = del.documento;
+        const movs = [];
+        const s1 = await db.collection('movimientos_bodega').where('numero_documento', '==', docNum).get();
+        s1.forEach(d => movs.push({ id: d.id, ref: d.ref, ...d.data() }));
+        
+        const s2 = await db.collection('movimientos_bodega').where('referencia', '==', docNum).get();
+        s2.forEach(d => { if (!movs.some(m => m.id === d.id)) movs.push({ id: d.id, ref: d.ref, ...d.data() }); });
+        
+        for (const mov of movs) {
+          if (mov.tipo === 'salida' || mov.tipo === 'despacho' || mov.cantidad > 0) {
+            const prodId = mov.producto_id;
+            const cant = parseFloat(mov.cantidad) || 0;
+            if (prodId && cant > 0) {
+              const prodRef = db.collection('inventory').doc(prodId);
+              const prodDoc = await prodRef.get();
+              if (prodDoc.exists) {
+                const currentStock = parseFloat(prodDoc.data().stock || prodDoc.data().cantidad || 0);
+                const currentDisp = parseFloat(prodDoc.data().stock_disponible || prodDoc.data().disponible || currentStock);
+                batch.update(prodRef, {
+                  stock: currentStock + cant,
+                  stock_disponible: currentDisp + cant,
+                  cantidad: currentStock + cant,
+                  disponible: currentDisp + cant
+                });
+              }
+            }
+          }
+          batch.delete(mov.ref);
+        }
+      }
+
+      const fileUrls = [del.devolucion_foto_url, del.firma_url, del.foto_url];
+      for (const url of fileUrls) {
+        if (url && url.startsWith('http')) {
+          try {
+            const ref = storage.refFromURL(url);
+            await ref.delete();
+          } catch(err) {
+            console.warn("Storage cleanup failed for deleted client file:", url, err.message);
+          }
+        }
+      }
+    }
+
+    // Save recalculated totals and new client collection to the Master Sheet
+    const clientesDespacho = entregas.map(e => e.cliente || e.direccion || '');
+    const documentosWms = entregas.map(e => e.documento).filter(Boolean);
+    const nDocumento = documentosWms.join(', ');
+
+    let condUid = _hojaActual ? (_hojaActual.conductor_uid || '') : '';
+    if (condEmail) {
+      try {
+        const uQuery = await db.collection('users').where('correo_electronico', '==', condEmail).limit(1).get();
+        if (!uQuery.empty) {
+          condUid = uQuery.docs[0].id;
+        } else {
+          const uQuery2 = await db.collection('users').where('email', '==', condEmail).limit(1).get();
+          if (!uQuery2.empty) condUid = uQuery2.docs[0].id;
+        }
+      } catch(err) {
+        console.warn("UID lookup failed:", err);
+      }
+    }
+
     batch.update(hrRef, {
       entregas,
       n_guias: totalGuias,
-      total_entregas: entregas.length,
+      cant_guias: totalGuias,
+      total_entregas: entregas.length - devueltasCount,
       total_devoluciones: devueltasCount,
+      clientes_despacho: clientesDespacho,
+      documentos_wms: documentosWms,
+      n_documento: nDocumento,
+      conductor_uid: condUid,
       conductor_email: condEmail,
       conductor_nombre: condNombre,
       patente: patenteEditada,
       distribuidor: distribuidorEditado,
       nombre_distribuidor: distribuidorEditado,
       fecha: fechaEditada,
+      fecha_despacho: fechaEditada,
       hora_inicio: horaInicioEditada,
       hora_termino: horaTerminoEditada,
       km_inicial: kmInicialEditado,
@@ -1862,6 +1951,11 @@ function agregarClienteHoja(){
           });
         }
       });
+
+      // Delete any despachos that are no longer in the edited list!
+      Object.keys(existingDespachos).forEach(k => {
+        batch.delete(existingDespachos[k].ref);
+      });
     }
 
     await batch.commit();
@@ -1890,19 +1984,8 @@ function agregarClienteHoja(){
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = prevHtml; }
   }
-      });
-    }
-
-    await batch.commit();
-    showToast('â Hoja de ruta actualizada','success');
-    closeHojaModal();
-    loadHojasRuta();
-  }catch(e){
-    showToast('Error al guardar: '+e.message,'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = prevHtml; }
-  }
 }
+
 function exportHojaExcelById(id){
   const h=_hojasRuta.find(x=>x.id===id);if(!h)return;
   _hojaActual=h;exportHojaExcel();

@@ -1695,17 +1695,42 @@ async function guardarHoja(){
     }
 
     // Save recalculated totals and new client collection to the Master Sheet
+    const clientesDespacho = entregas.map(e => e.cliente || e.direccion || '');
+    const documentosWms = entregas.map(e => e.documento).filter(Boolean);
+    const nDocumento = documentosWms.join(', ');
+
+    let condUid = _hojaActual ? (_hojaActual.conductor_uid || '') : '';
+    if (condEmail) {
+      try {
+        const uQuery = await db.collection('users').where('correo_electronico', '==', condEmail).limit(1).get();
+        if (!uQuery.empty) {
+          condUid = uQuery.docs[0].id;
+        } else {
+          const uQuery2 = await db.collection('users').where('email', '==', condEmail).limit(1).get();
+          if (!uQuery2.empty) condUid = uQuery2.docs[0].id;
+        }
+      } catch(err) {
+        console.warn("UID lookup failed:", err);
+      }
+    }
+
     batch.update(hrRef, {
       entregas,
       n_guias: totalGuias,
+      cant_guias: totalGuias,
       total_entregas: entregas.length - devueltasCount,
       total_devoluciones: devueltasCount,
+      clientes_despacho: clientesDespacho,
+      documentos_wms: documentosWms,
+      n_documento: nDocumento,
+      conductor_uid: condUid,
       conductor_email: condEmail,
       conductor_nombre: condNombre,
       patente: patenteEditada,
       distribuidor: distribuidorEditado,
       nombre_distribuidor: distribuidorEditado,
       fecha: fechaEditada,
+      fecha_despacho: fechaEditada,
       hora_inicio: horaInicioEditada,
       hora_termino: horaTerminoEditada,
       km_inicial: kmInicialEditado,
