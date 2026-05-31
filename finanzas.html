@@ -1287,9 +1287,54 @@ function openHoja(id){
   _hojaActual=_hojasRuta.find(h=>h.id===id);if(!_hojaActual)return;
   document.getElementById('hoja-id').value=id;
   
-  if(document.getElementById('hoja-conductor-select')) document.getElementById('hoja-conductor-select').value = _hojaActual.conductor_email || '';
-  if(document.getElementById('hoja-patente-select')) document.getElementById('hoja-patente-select').value = _hojaActual.patente || '';
-  if(document.getElementById('hoja-distribuidor-select')) document.getElementById('hoja-distribuidor-select').value = _hojaActual.distribuidor || _hojaActual.nombre_distribuidor || 'SIN DISTRIBUIDOR';
+  const currentCond = _hojaActual.conductor_email || '';
+  const condSelect = document.getElementById('hoja-conductor-select');
+  if (condSelect && currentCond) {
+    let exists = false;
+    for (let i = 0; i < condSelect.options.length; i++) {
+      if (condSelect.options[i].value === currentCond) { exists = true; break; }
+    }
+    if (!exists) {
+      const o = document.createElement('option');
+      o.value = currentCond;
+      const condName = _hojaActual.conductor_nombre || currentCond;
+      o.textContent = `${condName} (${currentCond})`;
+      condSelect.appendChild(o);
+    }
+    condSelect.value = currentCond;
+  }
+
+  const currentPatente = _hojaActual.patente || '';
+  const patenteSelect = document.getElementById('hoja-patente-select');
+  if (patenteSelect && currentPatente) {
+    let exists = false;
+    for (let i = 0; i < patenteSelect.options.length; i++) {
+      if (patenteSelect.options[i].value === currentPatente) { exists = true; break; }
+    }
+    if (!exists) {
+      const o = document.createElement('option');
+      o.value = currentPatente;
+      o.textContent = currentPatente;
+      patenteSelect.appendChild(o);
+    }
+    patenteSelect.value = currentPatente;
+  }
+
+  const currentDist = _hojaActual.distribuidor || _hojaActual.nombre_distribuidor || 'SIN DISTRIBUIDOR';
+  const distSelect = document.getElementById('hoja-distribuidor-select');
+  if (distSelect) {
+    let exists = false;
+    for (let i = 0; i < distSelect.options.length; i++) {
+      if (distSelect.options[i].value === currentDist) { exists = true; break; }
+    }
+    if (!exists && currentDist) {
+      const o = document.createElement('option');
+      o.value = currentDist;
+      o.textContent = currentDist;
+      distSelect.appendChild(o);
+    }
+    distSelect.value = currentDist;
+  }
   if(document.getElementById('hoja-fecha-input')) document.getElementById('hoja-fecha-input').value = _hojaActual.fecha || '';
   if(document.getElementById('hoja-hora-inicio-input')) document.getElementById('hoja-hora-inicio-input').value = formatTimeForInput(_hojaActual.hora_inicio);
   if(document.getElementById('hoja-hora-termino-input')) document.getElementById('hoja-hora-termino-input').value = formatTimeForInput(_hojaActual.hora_termino);
