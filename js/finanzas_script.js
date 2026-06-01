@@ -2620,7 +2620,7 @@ function updateBodegaStats(){
 }
 async function guardarMovBodega(){
   const monto=parseInt(document.getElementById('bg-monto').value);
-  if(!monto||monto<=0){showToast('Ingresa un monto vÃ¡lido','error');return;}
+  if(!monto||monto<=0){showToast('Ingresa un monto válido','error');return;}
   const data={
     concepto:document.getElementById('bg-concepto').value,
     monto,
@@ -2633,7 +2633,7 @@ async function guardarMovBodega(){
   };
   try{
     await db.collection('ingresos_bodega').add(data);
-    showToast('â Movimiento registrado','success');
+    showToast('✅ Movimiento registrado','success');
     document.getElementById('bg-monto').value='';
     document.getElementById('bg-cliente').value='';
     document.getElementById('bg-m2-val').value='';
@@ -2642,8 +2642,8 @@ async function guardarMovBodega(){
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 async function deleteMovBodega(id){
-  if(!confirm('Â¿Eliminar este movimiento?'))return;
-  try{await db.collection('ingresos_bodega').doc(id).delete();showToast('ðï¸ Eliminado','success');loadIngresosBodega();}
+  if(!confirm('¿Eliminar este movimiento?'))return;
+  try{await db.collection('ingresos_bodega').doc(id).delete();showToast('🗑️ Eliminado','success');loadIngresosBodega();}
   catch(e){showToast('Error: '+e.message,'error');}
 }
 // Set default date for bodega form
@@ -2669,10 +2669,10 @@ function showComprobantesSubTab(sub) {
 
 async function loadComprobantes() {
   const list = document.getElementById('comprobantes-list');
-  list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px">Cargando comprobantesâ¦</div>';
+  list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px">Cargando comprobantes…</div>';
   
   try {
-    cleanOldComprobantes();
+    await cleanOldComprobantes();
     const snap = await db.collection('hojas_ruta').orderBy('fecha', 'desc').limit(15).get();
     if(snap.empty) {
       list.innerHTML = '<div class="empty">No hay viajes registrados en el sistema.</div>';
@@ -2682,9 +2682,11 @@ async function loadComprobantes() {
     let html = '';
     for(const d of snap.docs) {
       const h = d.data();
+      const turnoId = h.turno_id || '';
+      
       let gastosHTML = '';
-      if(h.turno_id) {
-        const gSnap = await db.collection('gastos_ruta').where('turno_id', '==', h.turno_id).get();
+      if(turnoId) {
+        const gSnap = await db.collection('gastos_ruta').where('turno_id', '==', turnoId).get();
         gSnap.forEach(gdDoc => {
           const gd = gdDoc.data();
           const imgUrl = gd.foto_boleta_url || gd.foto_url || '';
@@ -2692,50 +2694,104 @@ async function loadComprobantes() {
           gastosHTML += `
             <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;align-items:center;gap:10px;margin-bottom:6px">
               <div style="width:40px;height:40px;background:var(--bg);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;overflow:hidden">
-                ${hasImg ? `<img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${imgUrl}','_blank')"/>` : 'â½'}
+                ${hasImg ? `<img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${imgUrl}','_blank')"/>` : '⛽'}
               </div>
               <div style="flex:1">
                 <div style="font-weight:600;font-size:.8rem">${gd.tipo === 'combustible' ? 'Combustible' : 'Peaje'}</div>
                 <div style="font-size:.7rem;color:var(--text2)">Monto: ${fmt(gd.monto_clp || gd.monto)}</div>
               </div>
-              ${hasImg ? `<a href="${imgUrl}" target="_blank" download class="btn-sm" style="text-decoration:none;font-size:.7rem;background:var(--primary);color:#fff">Descargar</a>
+              ${hasImg ? `<a href="${imgUrl}" target="_blank" download class="btn-sm download-link" style="text-decoration:none;font-size:.7rem;background:var(--primary);color:#fff">Descargar</a>
                            <button onclick="deleteComprobanteManual('gasto', '${gdDoc.id}', '${imgUrl}')" class="btn-sm danger" style="padding:4px 8px;font-size:.7rem;margin-left:4px">Eliminar</button>` : `<span style="font-size:.7rem;color:var(--text2)">${imgUrl || 'Sin imagen'}</span>`}
             </div>
           `;
         });
       }
-      
       if(!gastosHTML) {
         gastosHTML = '<div style="color:var(--text2);font-size:.75rem">Sin comprobantes de peaje/combustible registrados en ruta.</div>';
+      }
+
+      // Fetch despachos for Delivered (POD) and Returned (Devolucion)
+      let despachosHTML = '';
+      if(turnoId) {
+        const dSnap = await db.collection('despachos').where('turno_id', '==', turnoId).get();
+        dSnap.forEach(dpDoc => {
+          const dp = dpDoc.data();
+          const hasPod = dp.pod_foto_url && !dp.pod_foto_url.includes('Eliminado');
+          const hasDev = dp.devolucion_foto_url && !dp.devolucion_foto_url.includes('Eliminado');
+          
+          if(hasPod) {
+            despachosHTML += `
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                <div style="width:40px;height:40px;background:var(--bg);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;overflow:hidden">
+                  <img src="${dp.pod_foto_url}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${dp.pod_foto_url}','_blank')"/>
+                </div>
+                <div style="flex:1">
+                  <div style="font-weight:600;font-size:.8rem;color:var(--success)">📦 Entrega Conforme (POD)</div>
+                  <div style="font-size:.7rem;color:var(--text2)">Doc: ${dp.guia_numero || dp.factura_numero || dp.n_documento || '—'} · Cliente: ${dp.cliente_nombre || '—'}</div>
+                </div>
+                <a href="${dp.pod_foto_url}" target="_blank" download class="btn-sm download-link" style="text-decoration:none;font-size:.7rem;background:var(--primary);color:#fff">Descargar</a>
+                <button onclick="deleteComprobanteManual('pod', '${dpDoc.id}', '${dp.pod_foto_url}')" class="btn-sm danger" style="padding:4px 8px;font-size:.7rem;margin-left:4px">Eliminar</button>
+              </div>
+            `;
+          }
+          if(hasDev) {
+            despachosHTML += `
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                <div style="width:40px;height:40px;background:var(--bg);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;overflow:hidden">
+                  <img src="${dp.devolucion_foto_url}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${dp.devolucion_foto_url}','_blank')"/>
+                </div>
+                <div style="flex:1">
+                  <div style="font-weight:600;font-size:.8rem;color:var(--danger)">🔄 Devolución / Rechazo</div>
+                  <div style="font-size:.7rem;color:var(--text2)">Doc: ${dp.guia_numero || dp.factura_numero || dp.n_documento || '—'} · Motivo: ${dp.devolucion_motivo || '—'}</div>
+                </div>
+                <a href="${dp.devolucion_foto_url}" target="_blank" download class="btn-sm download-link" style="text-decoration:none;font-size:.7rem;background:var(--primary);color:#fff">Descargar</a>
+                <button onclick="deleteComprobanteManual('devolucion', '${dpDoc.id}', '${dp.devolucion_foto_url}')" class="btn-sm danger" style="padding:4px 8px;font-size:.7rem;margin-left:4px">Eliminar</button>
+              </div>
+            `;
+          }
+        });
+      }
+      if(!despachosHTML) {
+        despachosHTML = '<div style="color:var(--text2);font-size:.75rem">Sin imágenes de entrega/devolución registradas en ruta.</div>';
       }
       
       const hasFactura = h.foto_combustible_url && !h.foto_combustible_url.includes('Eliminado');
       html += `
-        <div class="card" style="border-left: 3px solid var(--primary);margin-bottom:14px;padding:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h4 style="font-size:.85rem;font-weight:700">ð Viaje: ${sanitize(h.patente)} Â· ${sanitize(h.conductor_nombre)}</h4>
-            <span style="font-size:.75rem;color:var(--text2)">ð ${h.fecha}</span>
+        <div class="card" id="card-turno-${turnoId}" style="border-left: 3px solid var(--primary);margin-bottom:14px;padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <h4 style="font-size:.85rem;font-weight:700">🚛 Viaje: ${sanitize(h.patente)} · ${sanitize(h.conductor_nombre)}</h4>
+            <div style="display:flex;align-items:center;gap:10px">
+              <button onclick="descargarTodasLasFacturas('${turnoId}')" class="btn-sm" style="background:var(--accent);border-color:var(--accent);color:#fff;padding:4px 8px;font-size:.7rem">📥 Descargar Todo</button>
+              <span style="font-size:.75rem;color:var(--text2)">📅 ${h.fecha}</span>
+            </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr;gap:14px">
             <div style="background:rgba(27,75,155,.1);border:1px solid rgba(27,75,155,.2);border-radius:12px;padding:12px">
-              <h5 style="font-size:.75rem;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">ð Factura Combustible (Hoja de Ruta)</h5>
+              <h5 style="font-size:.75rem;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">📄 Factura Combustible (Hoja de Ruta)</h5>
               <div style="display:flex;align-items:center;gap:10px">
                 <div style="width:40px;height:40px;background:var(--bg);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;overflow:hidden">
-                  ${hasFactura ? `<img src="${h.foto_combustible_url}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${h.foto_combustible_url}','_blank')"/>` : 'ð'}
+                  ${hasFactura ? `<img src="${h.foto_combustible_url}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${h.foto_combustible_url}','_blank')"/>` : '📄'}
                 </div>
                 <div style="flex:1">
                   <div style="font-weight:600;font-size:.8rem">${h.nombre_distribuidor || 'Carga combustible'}</div>
-                  <div style="font-size:.7rem;color:var(--text2)">KM Cierre: ${h.km_final || 'â'} Â· Peaje: ${fmt(h.peaje || 0)}</div>
+                  <div style="font-size:.7rem;color:var(--text2)">KM Cierre: ${h.km_final || '—'} · Peaje: ${fmt(h.peaje || 0)}</div>
                 </div>
-                ${hasFactura ? `<a href="${h.foto_combustible_url}" target="_blank" download class="btn-sm" style="text-decoration:none;font-size:.7rem;background:var(--accent);color:#fff">Descargar</a>
+                ${hasFactura ? `<a href="${h.foto_combustible_url}" target="_blank" download class="btn-sm download-link" style="text-decoration:none;font-size:.7rem;background:var(--accent);color:#fff">Descargar</a>
                                  <button onclick="deleteComprobanteManual('factura', '${d.id}', '${h.foto_combustible_url}')" class="btn-sm danger" style="padding:4px 8px;font-size:.7rem;margin-left:4px">Eliminar</button>` : `<span style="font-size:.7rem;color:var(--text2)">${h.foto_combustible_url || 'Sin factura'}</span>`}
               </div>
             </div>
             
             <div>
-              <h5 style="font-size:.75rem;color:var(--success);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">â½ Comprobantes de Gastos (Mi Jornada)</h5>
-              <div style="display:flex;flex-direction:column;gap:4px">
+              <h5 style="font-size:.75rem;color:var(--success);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">⛽ Comprobantes de Gastos (Mi Jornada)</h5>
+              <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
                 ${gastosHTML}
+              </div>
+            </div>
+
+            <div>
+              <h5 style="font-size:.75rem;color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">📦 Comprobantes de Despachos (Entregas y Devoluciones)</h5>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                ${despachosHTML}
               </div>
             </div>
           </div>

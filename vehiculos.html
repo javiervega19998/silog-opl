@@ -195,6 +195,8 @@ async function saveVehicle(){
     modelo:document.getElementById('m-modelo').value.trim(),
     kilometraje:kmVal,
     km:kmVal,
+    base_km:kmVal,
+    base_edited_at:firebase.firestore.FieldValue.serverTimestamp(),
     proxima_revision:parseFloat(document.getElementById('m-rev').value)||0,
     capacidad_kg:parseFloat(document.getElementById('m-kg').value)||0,
     capacidad_m_3:parseFloat(document.getElementById('m-m3').value)||0,

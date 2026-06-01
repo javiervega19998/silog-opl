@@ -506,7 +506,6 @@ async function iniciarTurno() {
     btn.innerHTML='<span class="spinner"></span> Abriendo turno…';
     let newTurnoId = '';
     let registrarDiscrepancia = false;
-    let warningKmMenor = false;
     let diferencia = 0;
 
     await db.runTransaction(async (transaction) => {
@@ -517,7 +516,7 @@ async function iniciarTurno() {
       const lastKm = lastTurno ? refKm : (vData.km || vData.kilometraje || 0);
       
       if (lastKm > 0 && kmIni < lastKm) {
-        warningKmMenor = true;
+        throw new Error(`El kilometraje inicial (${kmIni} km) no puede ser menor al último registrado (${lastKm} km)`);
       }
       
       if (lastKm > 0 && kmIni > lastKm) {
@@ -542,12 +541,6 @@ async function iniciarTurno() {
       transaction.update(vehicleDocRef, { estado: 'En Ruta', conductor: _email, km: kmIni, kilometraje: kmIni });
     });
 
-    // Advertencia visual si el Km es menor al último registrado (no se contabiliza discrepancia)
-    if (warningKmMenor) {
-      showToast('⚠️ Advertencia: El Kilometraje Inicial ingresado es menor al último registrado.', 'warning');
-      alert('⚠️ Advertencia: Has iniciado jornada con un kilometraje inicial menor al último registrado para este vehículo.');
-    }
-
     // Registrar discrepancia de KM si corresponde (sólo excesos)
     if (registrarDiscrepancia) {
       try {
@@ -569,8 +562,20 @@ async function iniciarTurno() {
           justificacion: null,
           revisado_por: null,
         });
+
+        // Registrar notificación para personal administrativo
+        await db.collection('notificaciones').add({
+          tipo: 'discrepancia_km',
+          patente: patente.toUpperCase(),
+          mensaje: `Discrepancia de kilometraje detectada para el vehículo ${patente.toUpperCase()}: Conductor ${_name} ingresó ${kmIni} km, el kilometraje anterior era ${lastKm} km (Exceso de +${diferencia} km).`,
+          fecha: firebase.firestore.FieldValue.serverTimestamp(),
+          leida: false,
+          turno_id: newTurnoId,
+          conductor: _name,
+          diferencia_km: diferencia
+        });
       } catch (discErr) {
-        console.error("Error al registrar discrepancia:", discErr);
+        console.error("Error al registrar discrepancia o notificación:", discErr);
       }
     }
 
@@ -686,6 +691,7 @@ async function cerrarTurno() {
     });
 
     showToast('✅ Jornada finalizada. KM recorridos: '+(kmFin - kmIni),'success');
+    alert(`Jornada finalizada exitosamente.\nKilómetros recorridos en este turno: ${kmFin - kmIni} km.`);
     setTimeout(()=>window.location.href='dashboard.html',1500);
   } catch(e) {
     showToast('Error: '+e.message,'error');

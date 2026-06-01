@@ -149,7 +149,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
 <script>
-let _days=7,_turnos=[],_despachos=[],_gastos=[],_vehiculos=[];
+let _days=7,_turnos=[],_despachos=[],_gastos=[],_vehiculos=[],_discrepancias=[];
 
 requireAdmin(async(user,data)=>{
   await loadData();
@@ -168,7 +168,7 @@ async function loadData(){
     cutoff.setDate(cutoff.getDate()-365);
     const ts=firebase.firestore.Timestamp.fromDate(cutoff);
 
-    let tSnap, dSnap, gSnap, vSnap, hrSnap;
+    let tSnap, dSnap, gSnap, vSnap, hrSnap, discSnap;
     try {
       const results = await Promise.all([
         db.collection('turnos').where('fecha','>=',ts).get().catch(e => {
@@ -190,6 +190,10 @@ async function loadData(){
         db.collection('hojas_ruta').get().catch(e => {
           console.warn("Hojas query failed:", e);
           return null;
+        }),
+        db.collection('km_discrepancias').get().catch(e => {
+          console.warn("km_discrepancias query failed:", e);
+          return null;
         })
       ]);
       tSnap = results[0];
@@ -197,6 +201,7 @@ async function loadData(){
       gSnap = results[2];
       vSnap = results[3];
       hrSnap = results[4];
+      discSnap = results[5];
     } catch(err) {
       console.warn("Parallel fetch failed, fallback sequential:", err);
       tSnap = await db.collection('turnos').get();
@@ -204,6 +209,7 @@ async function loadData(){
       gSnap = await db.collection('gastos_ruta').get();
       vSnap = await db.collection('vehiculos').get();
       hrSnap = await db.collection('hojas_ruta').get();
+      discSnap = await db.collection('km_discrepancias').get().catch(() => null);
     }
 
     const hojasByTurnoId = {};
@@ -313,6 +319,16 @@ async function loadData(){
     if(vSnap) {
       vSnap.forEach(d=>{
         _vehiculos.push({ id: d.id, ...d.data() });
+      });
+    }
+
+    _discrepancias=[];
+    if(discSnap) {
+      discSnap.forEach(d=>{
+        const dc=d.data();
+        dc._id=d.id;
+        dc._date=dc.fecha?.toDate?dc.fecha.toDate():null;
+        _discrepancias.push(dc);
       });
     }
     
@@ -584,10 +600,24 @@ function getVehicleEmoji(marca, modelo) {
 function renderRankVehiculos(turnos,despachos,gastos){
   const container=document.getElementById('rank-vehiculos');
   
-  // Agrupar km por patente
+  // Agrupar datos por patente
   const vehData={};
   _vehiculos.forEach(v=>{
-    vehData[v.patente]={km:0,litros:0,turnos:0,marca:v.marca||'',modelo:v.modelo||''};
+    const base_km = v.base_km !== undefined ? v.base_km : (v.km || v.kilometraje || 0);
+    const base_edited_at = v.base_edited_at ? (v.base_edited_at.toDate ? v.base_edited_at.toDate() : new Date(v.base_edited_at)) : new Date(0);
+    
+    vehData[v.patente]={
+      base_km,
+      base_edited_at,
+      marca:v.marca||'',
+      modelo:v.modelo||'',
+      overall_recorridos:0,
+      overall_discrepancias:0,
+      period_recorridos:0,
+      period_discrepancias:0,
+      period_litros:0,
+      turnos_count:0
+    };
   });
 
   // Si no hay vehículos cargados en memoria, mostrar mensaje de vacío
@@ -596,25 +626,67 @@ function renderRankVehiculos(turnos,despachos,gastos){
     return;
   }
 
-  // Sumar km de los turnos en el periodo
-  turnos.forEach(t=>{
+  // 1) Calcular totales HISTÓRICOS (overall) desde base_edited_at para Odómetro Total
+  _turnos.forEach(t=>{
     const v=t.patente;
     if(v && vehData[v]){
-      vehData[v].turnos++;
-      if(t.km_final&&t.km_inicial){
-        const diff = t.km_final-t.km_inicial;
-        if(diff > 0) vehData[v].km += diff;
+      const tDate = t._date || (t.fecha?.toDate ? t.fecha.toDate() : (t.hora_apertura?.toDate ? t.hora_apertura.toDate() : null));
+      if(tDate && tDate >= vehData[v].base_edited_at){
+        if(t.km_final&&t.km_inicial){
+          const diff = t.km_final-t.km_inicial;
+          if(diff > 0) vehData[v].overall_recorridos += diff;
+        }
       }
     }
   });
 
-  // Sumar litros de gastos en el periodo
+  _discrepancias.forEach(d=>{
+    const v=d.patente;
+    if(v && vehData[v]){
+      const dDate = d._date || (d.fecha?.toDate ? d.fecha.toDate() : null);
+      if(dDate && dDate >= vehData[v].base_edited_at){
+        const diff = d.diferencia_km || 0;
+        if(diff > 0) vehData[v].overall_discrepancias += diff;
+      }
+    }
+  });
+
+  // 2) Calcular totales del PERÍODO FILTRADO
+  turnos.forEach(t=>{
+    const v=t.patente;
+    if(v && vehData[v]){
+      const tDate = t._date;
+      if(tDate && tDate >= vehData[v].base_edited_at){
+        vehData[v].turnos_count++;
+        if(t.km_final&&t.km_inicial){
+          const diff = t.km_final-t.km_inicial;
+          if(diff > 0) vehData[v].period_recorridos += diff;
+        }
+      }
+    }
+  });
+
+  const periodDiscrepancias = filterByDaysPast(_discrepancias, _days);
+  periodDiscrepancias.forEach(d=>{
+    const v=d.patente;
+    if(v && vehData[v]){
+      const dDate = d._date;
+      if(dDate && dDate >= vehData[v].base_edited_at){
+        const diff = d.diferencia_km || 0;
+        if(diff > 0) vehData[v].period_discrepancias += diff;
+      }
+    }
+  });
+
   gastos.forEach(g=>{
     if(g.tipo==='combustible' && g.litros){
-      const t = turnos.find(x=>x._id===g.turno_id);
+      const t = _turnos.find(x=>x._id===g.turno_id);
       const v = t ? t.patente : g.patente;
       if(v && vehData[v]){
-        vehData[v].litros += parseFloat(g.litros)||0;
+        const gDate = g._date;
+        if(gDate && gDate >= vehData[v].base_edited_at){
+          vehData[v].period_litros += parseFloat(g.litros)||0;
+        }
       }
     }
   });
@@ -622,17 +694,21 @@ function renderRankVehiculos(turnos,despachos,gastos){
   // Crear resultados
   const results=[];
   Object.entries(vehData).forEach(([patente,d])=>{
+    const odometer_total = d.base_km + d.overall_discrepancias + d.overall_recorridos;
+    const period_km = d.period_recorridos + d.period_discrepancias;
+    
     let rendimiento = 0;
-    if(d.litros > 0){
-      rendimiento = d.km / d.litros;
+    if(d.period_litros > 0){
+      rendimiento = period_km / d.period_litros;
     }
 
     results.push({
       patente,
       marca:d.marca,
       modelo:d.modelo,
-      km: d.km,
-      litros: d.litros,
+      period_km,
+      odometer_total,
+      litros: d.period_litros,
       rendimiento: parseFloat(rendimiento.toFixed(1))
     });
   });
@@ -653,7 +729,7 @@ function renderRankVehiculos(turnos,despachos,gastos){
             <div class="rank-pos ${posCls}">${i+1}</div>
             <div>
               <span style="font-family:monospace; font-weight:700; color:var(--text); font-size:0.9rem;">${emoji} ${sanitize(r.patente)}</span>
-              <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:6px;">${sanitize(r.marca)} ${sanitize(r.modelo)}</span>
+              <span style="font-size:0.75rem; color:var(--text2); margin-left:6px;">${sanitize(r.marca)} ${sanitize(r.modelo)}</span>
             </div>
           </div>
           <div style="text-align:right;">
@@ -661,8 +737,9 @@ function renderRankVehiculos(turnos,despachos,gastos){
           </div>
         </div>
         
-        <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">
-          <span>Recorrido: <b>${r.km.toLocaleString('es-CL')} km</b></span>
+        <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text2); margin-top:2px;">
+          <span>Período: <b>${r.period_km.toLocaleString('es-CL')} km</b></span>
+          <span>Odómetro Total: <b>${r.odometer_total.toLocaleString('es-CL')} km</b></span>
           <span>Consumo: <b>${Math.round(r.litros)} L</b></span>
         </div>
 
