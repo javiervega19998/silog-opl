@@ -72,6 +72,11 @@ document.getElementById('greeting-date').textContent=new Date().toLocaleDateStri
           const fleetEl = document.getElementById('global-fleet-summary'); if (fleetEl) fleetEl.style.display = 'block';
         } else if (role === 'conductor' || role === 'administrativo.conductor') {
           showSec('sec-conductor');
+          const email = (data.correo_electronico || data.email || '').toLowerCase().trim();
+          if (email === 'juliocmartinezt21@gmail.com') {
+            const el = document.getElementById('module-charlas-conductor');
+            if (el) el.style.display = 'flex';
+          }
           if (role === 'administrativo.conductor') {
             showSec('sec-operaciones'); showSec('sec-gestion'); showSec('sec-finanzas');
             document.querySelectorAll('.admin-section').forEach(el => el.style.display = 'block');
@@ -120,6 +125,7 @@ document.getElementById('greeting-date').textContent=new Date().toLocaleDateStri
         });
         setDisplay('badge-checklist', c.badge_checklist_display);
         setDisplay('badge-charla', c.badge_charla_display);
+        setDisplay('badge-charla-cond', c.badge_charla_cond_display);
         setDisplay('badge-bodega', c.badge_bodega_display);
         setTxt('badge-bodega', c.badge_bodega_text);
 
@@ -171,6 +177,7 @@ function saveDashboardCache() {
       badge_tareas_text: getTxt('badge-tareas'),
       badge_checklist_display: getDisplay('badge-checklist'),
       badge_charla_display: getDisplay('badge-charla'),
+      badge_charla_cond_display: getDisplay('badge-charla-cond'),
       badge_bodega_display: getDisplay('badge-bodega'),
       badge_bodega_text: getTxt('badge-bodega'),
       turno_banner_display: getDisplay('turno-banner'),
@@ -417,6 +424,10 @@ requireAuth(async(user,data)=>{
     const fleetEl = document.getElementById('global-fleet-summary'); if (fleetEl) fleetEl.style.display = 'block';
   } else if(role==='conductor' || role==='administrativo.conductor'){
     showSec('sec-conductor');
+    if (email === 'juliocmartinezt21@gmail.com') {
+      const el = document.getElementById('module-charlas-conductor');
+      if (el) el.style.display = 'flex';
+    }
     if(role==='administrativo.conductor'){
       showSec('sec-operaciones'); showSec('sec-gestion'); showSec('sec-finanzas');
       document.querySelectorAll('.admin-section').forEach(el=>el.style.display='block');
@@ -660,7 +671,17 @@ requireAuth(async(user,data)=>{
         const charlas=['ch1','ch2','ch3','ch4','ch5','ch6'];
         const charlaHoyId=charlas[dayOfYear%charlas.length];
         const yaLeyo=([...charlaLeida.docs]).some(d=>d.data().charla_id===charlaHoyId);
-        if(!yaLeyo){document.getElementById('badge-charla').style.display='block';}
+        if(!yaLeyo){
+          const b1 = document.getElementById('badge-charla');
+          if(b1) b1.style.display='block';
+          const b2 = document.getElementById('badge-charla-cond');
+          if(b2) b2.style.display='block';
+        } else {
+          const b1 = document.getElementById('badge-charla');
+          if(b1) b1.style.display='none';
+          const b2 = document.getElementById('badge-charla-cond');
+          if(b2) b2.style.display='none';
+        }
       }
     } catch(e) { console.warn('Charla check:', e); }
   })();
