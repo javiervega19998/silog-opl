@@ -348,11 +348,15 @@ async function onVehicleChange() {
     try {
       const snap = await db.collection('chequeo_operacional')
         .where('operador', '==', _email)
-        .where('patente_chequeo', '==', patente.toUpperCase())
         .where('fecha_chequeo', '>=', ts)
         .get();
       
-      if (snap.empty) {
+      const filtered = snap.docs.filter(doc => {
+        const d = doc.data();
+        return (d.patente_chequeo || '').toUpperCase() === patente.toUpperCase();
+      });
+      
+      if (filtered.length === 0) {
         document.getElementById('daily-gate').style.display = 'block';
         document.getElementById('btn-iniciar').disabled = true;
         showToast('📋 Debes realizar el checklist de hoy para este vehículo antes de iniciar jornada.', 'warning');
@@ -467,12 +471,15 @@ async function iniciarTurno() {
       const ts = firebase.firestore.Timestamp.fromDate(today);
       const checklistSnap = await db.collection('chequeo_operacional')
         .where('operador', '==', _email)
-        .where('patente_chequeo', '==', patente.toUpperCase())
         .where('fecha_chequeo', '>=', ts)
-        .limit(1)
         .get();
       
-      if (checklistSnap.empty) {
+      const hasChecklist = checklistSnap.docs.some(doc => {
+        const d = doc.data();
+        return (d.patente_chequeo || '').toUpperCase() === patente.toUpperCase();
+      });
+      
+      if (!hasChecklist) {
         showToast('❌ Debes realizar el Checklist Operacional para este vehículo antes de iniciar el turno.', 'error');
         btn.disabled = false; btn.innerHTML = '🚛 Iniciar Jornada';
         return;
