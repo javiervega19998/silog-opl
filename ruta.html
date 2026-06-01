@@ -86,7 +86,10 @@ textarea.field{resize:vertical;min-height:60px}
 <body>
 <nav class="nav">
   <div class="nav-brand"><span>SILOG</span> Mi Ruta</div>
-  <button class="btn-back" onclick="window.location.href='turno.html'">← Turno</button>
+  <div style="display:flex;gap:6px">
+    <button class="btn-back" id="btn-cambiar-vehiculo" onclick="openCambioVehiculoModal()" style="border-color:var(--accent);color:var(--accent);font-size:.75rem;padding:5px 10px">🔄 Cambiar Vehículo</button>
+    <button class="btn-back" onclick="window.location.href='turno.html'">← Turno</button>
+  </div>
 </nav>
 
 <div class="main">
@@ -232,6 +235,42 @@ textarea.field{resize:vertical;min-height:60px}
     <img id="devolucion-preview" class="pod-preview" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px; display:none;"/>
 
     <button class="btn-save" style="background:linear-gradient(135deg,var(--danger),#DC2626);margin-top:8px" onclick="confirmarDevolucion()">🔴 Confirmar Devolución</button>
+  </div>
+</div>
+
+<!-- MODAL: Cambiar Vehículo -->
+<div class="modal-overlay" id="modal-cambio-vehiculo">
+  <div class="modal" style="position:relative; max-height:90vh;">
+    <div class="modal-title">🔄 Cambiar Vehículo <button class="modal-close" onclick="closeModal('cambio-vehiculo')">✕</button></div>
+    
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:14px;font-size:0.85rem">
+      <div style="color:var(--text2)">Vehículo Actual: <strong id="cambio-veh-actual" style="color:var(--accent)">—</strong></div>
+      <div style="color:var(--text2);margin-top:4px">KM Inicial de este vehículo: <strong id="cambio-veh-km-ini">—</strong></div>
+    </div>
+
+    <!-- Paso 1: KM Final del actual -->
+    <div class="form-group">
+      <label>Kilometraje Final (Vehículo Actual)</label>
+      <input class="field" type="number" id="cambio-km-final-actual" placeholder="Ej: 161800" inputmode="numeric" oninput="onCambioKmFinalActualInput()"/>
+      <div id="cambio-km-final-msg" style="font-size: 0.78rem; margin-top: 6px; display: none; padding: 6px 10px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border);"></div>
+    </div>
+
+    <!-- Paso 2: Selección de nuevo vehículo -->
+    <div class="form-group">
+      <label>Nuevo Vehículo Asignado</label>
+      <select class="field" id="cambio-sel-vehiculo" onchange="onCambioVehiculoSelectChange()">
+        <option value="" disabled selected>Seleccionar nuevo vehículo…</option>
+      </select>
+    </div>
+
+    <!-- Paso 3: KM Inicial del nuevo -->
+    <div class="form-group">
+      <label>Kilometraje Inicial (Nuevo Vehículo)</label>
+      <input class="field" type="number" id="cambio-km-inicial-nuevo" placeholder="Ej: 609" inputmode="numeric" oninput="onCambioKmInicialNuevoInput()"/>
+      <div id="cambio-km-inicial-msg" style="font-size: 0.78rem; margin-top: 6px; display: none; padding: 6px 10px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border);"></div>
+    </div>
+
+    <button class="btn-save" style="background:linear-gradient(135deg,var(--accent),#E86B10)" onclick="confirmarCambioVehiculo()">💾 Confirmar Cambio de Vehículo</button>
   </div>
 </div>
 
@@ -472,6 +511,13 @@ function closeModal(id){
     document.getElementById('dev-obs').value='';
     document.getElementById('dev-otro-text').value='';
     document.getElementById('dev-otro-group').style.display='none';
+  }
+  if(id==='cambio-vehiculo'){
+    document.getElementById('cambio-km-final-actual').value='';
+    document.getElementById('cambio-sel-vehiculo').value='';
+    document.getElementById('cambio-km-inicial-nuevo').value='';
+    document.getElementById('cambio-km-final-msg').style.display='none';
+    document.getElementById('cambio-km-inicial-msg').style.display='none';
   }
 }
 
@@ -879,6 +925,286 @@ async function confirmarDevolucion(){
   }finally{
     if(btn){
       btn.disabled=false; btn.innerHTML='🔴 Confirmar Devolución';
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// CAMBIO DE VEHÍCULO — EN RUTA
+// ═══════════════════════════════════════════════════════
+
+async function openCambioVehiculoModal() {
+  const vehActual = _turnoData.vehiculo_actual || _turnoData.patente || '';
+  const kmIniActual = _turnoData.km_inicial_actual || _turnoData.km_inicial || 0;
+  
+  document.getElementById('cambio-veh-actual').textContent = vehActual;
+  document.getElementById('cambio-veh-km-ini').textContent = typeof kmIniActual === 'number' ? kmIniActual.toLocaleString('es-CL') + ' km' : kmIniActual;
+  
+  document.getElementById('cambio-km-final-actual').value = '';
+  document.getElementById('cambio-km-inicial-nuevo').value = '';
+  document.getElementById('cambio-km-final-msg').style.display = 'none';
+  document.getElementById('cambio-km-inicial-msg').style.display = 'none';
+  
+  await populateAvailableVehicles();
+  openModal('cambio-vehiculo');
+}
+
+let _availableVehicles = [];
+async function populateAvailableVehicles() {
+  const sel = document.getElementById('cambio-sel-vehiculo');
+  sel.innerHTML = '<option value="" disabled selected>Cargando vehículos disponibles…</option>';
+  try {
+    const snap = await db.collection('vehiculos').where('estado', '==', 'Disponible').get();
+    _availableVehicles = [];
+    sel.innerHTML = '<option value="" disabled selected>Seleccionar nuevo vehículo…</option>';
+    snap.forEach(d => {
+      const v = d.data();
+      const vehActual = _turnoData.vehiculo_actual || _turnoData.patente || '';
+      if (v.patente !== vehActual.toUpperCase()) {
+        _availableVehicles.push({ id: d.id, ...v });
+        const emoji = getVehicleEmoji(v.marca, v.modelo);
+        const opt = document.createElement('option');
+        opt.value = v.patente;
+        opt.textContent = `${emoji} ${v.patente} - ${v.marca||''} ${v.modelo||''}`.trim();
+        sel.appendChild(opt);
+      }
+    });
+    if (_availableVehicles.length === 0) {
+      sel.innerHTML = '<option value="" disabled>No hay otros vehículos disponibles</option>';
+    }
+  } catch(e) {
+    console.error("Error loading available vehicles for change:", e);
+    sel.innerHTML = '<option value="" disabled>Error al cargar vehículos</option>';
+  }
+}
+
+let _selectedNuevoVehRefKm = 0;
+
+function onCambioKmFinalActualInput() {
+  const msg = document.getElementById('cambio-km-final-msg');
+  const val = parseInt(document.getElementById('cambio-km-final-actual').value);
+  const kmIniActual = _turnoData.km_inicial_actual || _turnoData.km_inicial || 0;
+  
+  if (isNaN(val) || val <= 0) {
+    msg.style.display = 'none';
+    return;
+  }
+  
+  msg.style.display = 'block';
+  if (val < kmIniActual) {
+    msg.style.color = 'var(--danger)';
+    msg.innerHTML = `❌ El kilometraje final (${val.toLocaleString('es-CL')} km) no puede ser menor al inicial (${kmIniActual.toLocaleString('es-CL')} km).`;
+  } else {
+    const diff = val - kmIniActual;
+    msg.style.color = 'var(--success)';
+    msg.innerHTML = `✅ Recorrido con este vehículo: <strong>+${diff.toLocaleString('es-CL')} km</strong>.`;
+  }
+}
+
+function onCambioVehiculoSelectChange() {
+  const patente = document.getElementById('cambio-sel-vehiculo').value;
+  const msg = document.getElementById('cambio-km-inicial-msg');
+  const vInput = document.getElementById('cambio-km-inicial-nuevo');
+  
+  msg.style.display = 'none';
+  vInput.value = '';
+  
+  const v = _availableVehicles.find(x => x.patente === patente);
+  if (v) {
+    _selectedNuevoVehRefKm = v.kilometraje || v.km || 0;
+    msg.style.display = 'block';
+    msg.style.color = 'var(--text2)';
+    msg.innerHTML = `ℹ️ Odómetro actual del vehículo seleccionado: <strong>${_selectedNuevoVehRefKm.toLocaleString('es-CL')} km</strong>.`;
+  }
+}
+
+function onCambioKmInicialNuevoInput() {
+  const msg = document.getElementById('cambio-km-inicial-msg');
+  const val = parseInt(document.getElementById('cambio-km-inicial-nuevo').value);
+  
+  if (isNaN(val) || val <= 0) {
+    if (_selectedNuevoVehRefKm > 0) {
+      msg.style.display = 'block';
+      msg.style.color = 'var(--text2)';
+      msg.innerHTML = `ℹ️ Odómetro actual del vehículo seleccionado: <strong>${_selectedNuevoVehRefKm.toLocaleString('es-CL')} km</strong>.`;
+    } else {
+      msg.style.display = 'none';
+    }
+    return;
+  }
+  
+  msg.style.display = 'block';
+  if (_selectedNuevoVehRefKm === 0) {
+    msg.style.color = 'var(--accent)';
+    msg.innerHTML = `📝 Primer registro de KM para este vehículo: <strong>${val.toLocaleString('es-CL')} km</strong>. Se guardará como referencia inicial.`;
+    return;
+  }
+  
+  const diff = val - _selectedNuevoVehRefKm;
+  if (diff === 0) {
+    msg.style.color = 'var(--success)';
+    msg.innerHTML = `✅ ¡Coincide perfectamente! (${val.toLocaleString('es-CL')} km)`;
+  } else if (diff > 0 && diff <= 500) {
+    msg.style.color = 'var(--success)';
+    msg.innerHTML = `✅ KM OK: +${diff} km respecto al último registro (${_selectedNuevoVehRefKm.toLocaleString('es-CL')} → ${val.toLocaleString('es-CL')})`;
+  } else {
+    const diffSign = diff > 0 ? `+${diff.toLocaleString('es-CL')}` : `${diff.toLocaleString('es-CL')}`;
+    msg.style.color = 'var(--warning)';
+    msg.innerHTML = `⚠️ Diferencia detectada: <strong>${diffSign} km</strong> (KM ingresado: ${val.toLocaleString('es-CL')} vs anterior: ${_selectedNuevoVehRefKm.toLocaleString('es-CL')}). Se registrará esta diferencia.`;
+  }
+}
+
+async function confirmarCambioVehiculo() {
+  const vehActual = _turnoData.vehiculo_actual || _turnoData.patente || '';
+  const kmIniActual = _turnoData.km_inicial_actual || _turnoData.km_inicial || 0;
+  
+  const kmFinActual = parseInt(document.getElementById('cambio-km-final-actual').value);
+  const patenteNueva = document.getElementById('cambio-sel-vehiculo').value;
+  const kmIniNuevo = parseInt(document.getElementById('cambio-km-inicial-nuevo').value);
+  
+  if (isNaN(kmFinActual) || kmFinActual <= 0) {
+    showToast('Ingresa el kilometraje final del vehículo actual', 'error');
+    return;
+  }
+  if (kmFinActual < kmIniActual) {
+    showToast('El kilometraje final no puede ser menor al inicial', 'error');
+    return;
+  }
+  if (!patenteNueva) {
+    showToast('Selecciona el nuevo vehículo', 'error');
+    return;
+  }
+  if (isNaN(kmIniNuevo) || kmIniNuevo <= 0) {
+    showToast('Ingresa el kilometraje inicial del nuevo vehículo', 'error');
+    return;
+  }
+  if (_selectedNuevoVehRefKm > 0 && kmIniNuevo < _selectedNuevoVehRefKm) {
+    showToast(`El kilometraje inicial (${kmIniNuevo} km) no puede ser menor al último registrado (${_selectedNuevoVehRefKm} km)`, 'error');
+    return;
+  }
+
+  const btn = document.querySelector('#modal-cambio-vehiculo .btn-save');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Procesando cambio…';
+  }
+
+  try {
+    const vSnapActual = await db.collection('vehiculos').where('patente', '==', vehActual.toUpperCase()).limit(1).get();
+    const vSnapNuevo = await db.collection('vehiculos').where('patente', '==', patenteNueva.toUpperCase()).limit(1).get();
+    
+    if (vSnapActual.empty || vSnapNuevo.empty) {
+      throw new Error("No se pudo encontrar uno de los vehículos en el sistema.");
+    }
+    
+    const vRefActual = vSnapActual.docs[0].ref;
+    const vRefNuevo = vSnapNuevo.docs[0].ref;
+    
+    const diffActual = kmFinActual - kmIniActual;
+    const shiftRef = db.collection('turnos').doc(_turnoId);
+    
+    let registrarDiscrepanciaNueva = false;
+    let diferenciaNueva = 0;
+    if (_selectedNuevoVehRefKm > 0 && kmIniNuevo > _selectedNuevoVehRefKm) {
+      registrarDiscrepanciaNueva = true;
+      diferenciaNueva = kmIniNuevo - _selectedNuevoVehRefKm;
+    }
+
+    await db.runTransaction(async (transaction) => {
+      // Liberar vehículo actual
+      transaction.update(vRefActual, {
+        estado: 'Disponible',
+        conductor: null,
+        km: kmFinActual,
+        kilometraje: kmFinActual
+      });
+      
+      // Asignar nuevo vehículo
+      transaction.update(vRefNuevo, {
+        estado: 'En Ruta',
+        conductor: _email,
+        km: kmIniNuevo,
+        kilometraje: kmIniNuevo
+      });
+      
+      // Guardar cambio en el turno del conductor
+      const histCambio = {
+        vehiculo_anterior: vehActual,
+        km_inicial_anterior: kmIniActual,
+        km_final_anterior: kmFinActual,
+        km_recorridos_anterior: diffActual,
+        vehiculo_nuevo: patenteNueva,
+        km_inicial_nuevo: kmIniNuevo,
+        timestamp: new Date()
+      };
+      
+      const newRecorridosAcum = (_turnoData.km_recorridos_acumulados || 0) + diffActual;
+      
+      transaction.update(shiftRef, {
+        vehiculo_actual: patenteNueva,
+        km_inicial_actual: kmIniNuevo,
+        km_recorridos_acumulados: newRecorridosAcum,
+        cambios_vehiculo: firebase.firestore.FieldValue.arrayUnion(histCambio)
+      });
+    });
+
+    if (registrarDiscrepanciaNueva) {
+      try {
+        await db.collection('km_discrepancias').add({
+          patente: patenteNueva.toUpperCase(),
+          conductor_email: _email,
+          conductor_nombre: _name,
+          fecha: firebase.firestore.FieldValue.serverTimestamp(),
+          turno_anterior_id: null,
+          km_final_anterior: _selectedNuevoVehRefKm,
+          conductor_anterior: 'Sistema/Cambio de Vehículo',
+          turno_nuevo_id: _turnoId,
+          km_inicial_nuevo: kmIniNuevo,
+          diferencia_km: diferenciaNueva,
+          tipo: 'exceso',
+          estado: 'pendiente',
+          justificacion: null,
+          revisado_por: null,
+        });
+
+        await db.collection('notificaciones').add({
+          tipo: 'discrepancia_km',
+          patente: patenteNueva.toUpperCase(),
+          mensaje: `Discrepancia de kilometraje detectada al cambiar de vehículo a ${patenteNueva.toUpperCase()}: Conductor ${_name} ingresó ${kmIniNuevo} km, el kilometraje anterior era ${_selectedNuevoVehRefKm} km (Exceso de +${diferenciaNueva} km).`,
+          fecha: firebase.firestore.FieldValue.serverTimestamp(),
+          leida: false,
+          turno_id: _turnoId,
+          conductor: _name,
+          diferencia_km: diferenciaNueva
+        });
+      } catch (discErr) {
+        console.error("Error al registrar discrepancia del nuevo vehículo:", discErr);
+      }
+    }
+
+    _turnoData.vehiculo_actual = patenteNueva;
+    _turnoData.km_inicial_actual = kmIniNuevo;
+    _turnoData.km_recorridos_acumulados = (_turnoData.km_recorridos_acumulados || 0) + diffActual;
+    if (!_turnoData.cambios_vehiculo) _turnoData.cambios_vehiculo = [];
+    _turnoData.cambios_vehiculo.push({
+      vehiculo_anterior: vehActual,
+      km_inicial_anterior: kmIniActual,
+      km_final_anterior: kmFinActual,
+      km_recorridos_anterior: diffActual,
+      vehiculo_nuevo: patenteNueva,
+      km_inicial_nuevo: kmIniNuevo,
+      timestamp: new Date()
+    });
+
+    showToast('✅ Cambio de vehículo realizado con éxito', 'success');
+    closeModal('cambio-vehiculo');
+    await loadDespachos();
+  } catch(e) {
+    showToast('Error al cambiar de vehículo: ' + e.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '💾 Confirmar Cambio de Vehículo';
     }
   }
 }

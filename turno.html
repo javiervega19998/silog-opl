@@ -296,8 +296,11 @@ async function checkActiveTurno() {
 function showTurnoActivo() {
   const banner = document.getElementById('turno-banner');
   banner.style.display = 'block';
-  document.getElementById('tb-plate').textContent = _turnoActivo.patente || '—';
-  document.getElementById('tb-km').textContent = _turnoActivo.km_inicial || '—';
+  const activeVeh = _turnoActivo.vehiculo_actual || _turnoActivo.patente || '—';
+  const kmIniActual = _turnoActivo.km_inicial_actual || _turnoActivo.km_inicial || '—';
+  
+  document.getElementById('tb-plate').textContent = activeVeh;
+  document.getElementById('tb-km').textContent = typeof kmIniActual === 'number' ? kmIniActual.toLocaleString('es-CL') : kmIniActual;
   document.getElementById('tb-hora').textContent = formatTime(_turnoActivo.hora_apertura);
 
   document.getElementById('form-apertura').style.display = 'none';
@@ -307,8 +310,8 @@ function showTurnoActivo() {
 
   document.getElementById('cierre-empty').style.display = 'none';
   document.getElementById('form-cierre').style.display = 'block';
-  document.getElementById('cierre-plate').textContent = _turnoActivo.patente;
-  document.getElementById('cierre-km-ini').textContent = _turnoActivo.km_inicial;
+  document.getElementById('cierre-plate').textContent = activeVeh;
+  document.getElementById('cierre-km-ini').textContent = kmIniActual;
 }
 
 function showTab(t) {
@@ -603,10 +606,23 @@ async function iniciarTurno() {
 
 async function cerrarTurno() {
   if (!_turnoDocId) { showToast('No hay turno activo','error'); return; }
+  
+  let tSnap;
+  try {
+    tSnap = await db.collection('turnos').doc(_turnoDocId).get();
+  } catch(err) {
+    showToast('Error al verificar turno: ' + err.message, 'error');
+    return;
+  }
+  if (!tSnap.exists) { showToast('El turno no existe', 'error'); return; }
+  const tData = tSnap.data();
+
   const kmFin = parseInt(document.getElementById('km-final').value);
-  const kmIni = _turnoActivo.km_inicial;
+  const activeVeh = tData.vehiculo_actual || tData.patente || '';
+  const kmIniActual = tData.km_inicial_actual || tData.km_inicial || 0;
+  
   if (!kmFin || kmFin <= 0) { showToast('Ingresa el kilometraje final','error'); return; }
-  if (kmFin <= kmIni) { showToast(`KM Final (${kmFin}) debe ser mayor al KM Inicial (${kmIni})`,'error'); return; }
+  if (kmFin <= kmIniActual) { showToast(`KM Final (${kmFin} km) debe ser mayor al KM Inicial de este vehículo (${kmIniActual} km)`,'error'); return; }
   
   const btn = document.getElementById('btn-cerrar');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Verificando pendientes…';
@@ -623,15 +639,17 @@ async function cerrarTurno() {
       return;
     }
 
-    if (!confirm(`¿Finalizar jornada?\nKM recorridos: ${kmFin - kmIni} km`)) {
+    const totalKmRecorridos = (tData.km_recorridos_acumulados || 0) + (kmFin - kmIniActual);
+
+    if (!confirm(`¿Finalizar jornada?\nKM recorridos en este vehículo: ${kmFin - kmIniActual} km\nTotal KM acumulados: ${totalKmRecorridos} km`)) {
       btn.disabled = false; btn.innerHTML = '🔴 Finalizar Jornada';
       return;
     }
     btn.innerHTML='<span class="spinner"></span> Cerrando turno…';
 
-    const vSnap = await db.collection('vehiculos').where('patente','==',_turnoActivo.patente).limit(1).get();
+    const vSnap = await db.collection('vehiculos').where('patente','==',activeVeh.toUpperCase()).limit(1).get();
     if (vSnap.empty) {
-      throw new Error(`Vehículo ${_turnoActivo.patente} no encontrado`);
+      throw new Error(`Vehículo ${activeVeh} no encontrado`);
     }
     const vehicleDocRef = vSnap.docs[0].ref;
     const turnoDocRef = db.collection('turnos').doc(_turnoDocId);
@@ -677,6 +695,9 @@ async function cerrarTurno() {
     // Use turno_id as the document ID to guarantee uniqueness
     const hojaDocRef = db.collection('hojas_ruta').doc(_turnoDocId);
 
+    const firstVehKmIni = tData.km_inicial || 0;
+    const firstVehKmFin = firstVehKmIni + totalKmRecorridos;
+
     await db.runTransaction(async (transaction) => {
       transaction.update(turnoDocRef, {
         km_final: kmFin, estado: 'cerrado',
@@ -686,20 +707,21 @@ async function cerrarTurno() {
       transaction.set(hojaDocRef, {
         turno_id: _turnoDocId, conductor_uid: _uid, conductor_email: _email,
         conductor_nombre: _name, distribuidor: distribuidor,
-        patente: _turnoActivo.patente, fecha: fecha,
-        hora_inicio: _turnoActivo.hora_apertura || null,
+        patente: tData.patente, fecha: fecha,
+        hora_inicio: tData.hora_apertura || null,
         hora_termino: firebase.firestore.FieldValue.serverTimestamp(),
-        km_inicial: kmIni, km_final: kmFin, km_recorridos: kmFin - kmIni,
+        km_inicial: firstVehKmIni, km_final: firstVehKmFin, km_recorridos: totalKmRecorridos,
         entregas: entregas, total_entregas: entregas.length - devoluciones,
         total_devoluciones: devoluciones, combustible: combustible, peaje: peaje,
         litros_combustible: litros_combustible, clientes_despacho: clientes_despacho,
         n_guias: entregas.length, estado: 'pendiente_revision', revisado_por: null,
         created_at: firebase.firestore.FieldValue.serverTimestamp(),
+        cambios_vehiculo: tData.cambios_vehiculo || null
       }, { merge: true });
     });
 
-    showToast('✅ Jornada finalizada. KM recorridos: '+(kmFin - kmIni),'success');
-    alert(`Jornada finalizada exitosamente.\nKilómetros recorridos en este turno: ${kmFin - kmIni} km.`);
+    showToast('✅ Jornada finalizada con éxito','success');
+    alert(`Jornada finalizada exitosamente.\nKilómetros recorridos en este vehículo: ${kmFin - kmIniActual} km.\nTotal kilómetros acumulados: ${totalKmRecorridos} km.`);
     setTimeout(()=>window.location.href='dashboard.html',1500);
   } catch(e) {
     showToast('Error: '+e.message,'error');
