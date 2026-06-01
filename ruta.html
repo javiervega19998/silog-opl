@@ -282,7 +282,7 @@ textarea.field{resize:vertical;min-height:60px}
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
 <script>
-let _uid='',_email='',_name='',_turnoId='',_turnoData=null,_despachos=[],_clientes=[];
+let _uid='',_email='',_name='',_turnoId='',_turnoData=null,_despachos=[],_clientes=[],_isViewer=false;
 let _currentPodDespacho=null, _podFile=null, _devFile=null;
 let _distribuidoresInversa = ['DISTRIBUIDOR TOTAL'];
 let _selectedClienteId = '';
@@ -292,6 +292,7 @@ requireAuth(async(user,data)=>{
   _uid=user.uid;
   _email=data.correo_electronico||data.email||user.email;
   _name=data.name||data.nombre||'';
+  _isViewer=isViewerRole(data.rol||data.role);
 
   // Find active turno
   const tSnap=await db.collection('turnos').where('conductor_uid','==',_uid).where('estado','==','abierto').get();
@@ -401,7 +402,11 @@ function showNewClientFields() {
 
 async function loadDespachos(){
   try{
-    const s=await db.collection('despachos').where('turno_id','==',_turnoId).get();
+    let q = db.collection('despachos').where('turno_id','==',_turnoId);
+    if (!_isViewer) {
+      q = q.where('conductor_uid', '==', _uid);
+    }
+    const s=await q.get();
     _despachos=[];
     s.forEach(d=>{_despachos.push({id:d.id,...d.data()});});
     _despachos.sort((a,b)=>(a.correlativo||0)-(b.correlativo||0));

@@ -768,12 +768,16 @@ async function loadHistory(isMore = false){
   
   const filterDate = document.getElementById('filter-date-history').value;
   try{
-    let snap;
-    if(filterDate) {
-      snap = await db.collection('hojas_ruta').where('fecha','==',filterDate).get();
+    let q = db.collection('hojas_ruta');
+    if (!_isViewer) {
+      q = q.where('conductor_uid', '==', _uid);
     } else {
-      snap = await db.collection('hojas_ruta').where('conductor_email','==',_email).get();
+      q = q.where('conductor_email', '==', _email);
     }
+    if (filterDate) {
+      q = q.where('fecha', '==', filterDate);
+    }
+    const snap = await q.get();
     
     if(snap.empty){
       list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';
@@ -783,7 +787,6 @@ async function loadHistory(isMore = false){
     let docs=[];
     snap.forEach(d=>{
       const data = d.data();
-      if(filterDate && data.conductor_email !== _email) return;
       docs.push({id: d.id, ...data});
     });
     

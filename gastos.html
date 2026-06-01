@@ -329,7 +329,11 @@ async function registrarGasto(tipo){
 
 async function loadGastos(){
   try{
-    const s=await db.collection('gastos_ruta').where('turno_id','==',_turnoId).get();
+    let q = db.collection('gastos_ruta').where('turno_id','==',_turnoId);
+    if (!_isViewer) {
+      q = q.where('conductor_uid', '==', _uid);
+    }
+    const s=await q.get();
     _gastos=[];s.forEach(d=>{_gastos.push({id:d.id,...d.data()});});
     _gastos.sort((a,b)=>{const ta=a.fecha?.toDate?a.fecha.toDate():new Date(0);const tb=b.fecha?.toDate?b.fecha.toDate():new Date(0);return tb-ta;});
     renderGastos();
