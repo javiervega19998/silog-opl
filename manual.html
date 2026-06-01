@@ -858,15 +858,39 @@ a:hover{color:#ffae6b}
 
     <h4 id="admin-finanzas">Finanzas</h4>
     <div class="card card-accent">
-      <h5 style="margin-bottom:12px;font-weight:700">Centro de Costos</h5>
-      <p>Visualización y gestión de los centros de costo de la operación. Permite categorizar y controlar los gastos por área, proyecto o cliente.</p>
+      <h5 style="margin-bottom:12px;font-weight:700">Centro de Costos Consolidado</h5>
+      <p>
+        El Centro de Costos actúa como un **libro contable consolidado** en tiempo real que unifica múltiples flujos operativos y administrativos:
+      </p>
+      <ul class="feature-list" style="margin-top:10px">
+        <li><strong>Filtro de Gastos Operacionales:</strong> La tabla de viajes se filtra de forma estricta para mostrar únicamente los viajes con gastos operacionales registrados (`total_gastos > 0`).</li>
+        <li><strong>Fusión de Flujos Financieros:</strong> Integra viajes operativos, pre-facturas, egresos por arriendo de bodega, movimientos e ingresos de bodega por M2 extra, egresos por servicios de administración y los nuevos ingresos manuales de servicios especiales.</li>
+        <li><strong>Rediseño de Columnas:</strong> Se implementa la estructura `Fecha | Vehículo | Conductor | Distribuidor | Descripción | Ingresos | Combustible | Peajes | Total`.</li>
+        <li><strong>Formateo de Utilidad Neta:</strong> La columna *Total* calcula automáticamente `Ingresos - (Combustible + Peajes)` (o `Ingresos - Egresos`). Si el saldo neto es negativo se destaca en **Rojo**, y si es positivo o cero se destaca en **Verde**.</li>
+        <li><strong>KPIs Unificados:</strong> La tarjeta *Ingresos* reemplaza a "Facturado", y la tarjeta *Margen* calcula el balance neto global (`Ingresos - Egresos`) del período seleccionado.</li>
+      </ul>
     </div>
 
     <div class="card card-primary" style="margin-top:16px">
-      <h5 style="margin-bottom:12px;font-weight:700">Pre-Facturas SII</h5>
+      <h5 style="margin-bottom:12px;font-weight:700">Registros Rápidos en Centro de Costos</h5>
+      <p>Permite registrar transacciones financieras manuales directamente desde la pestaña del Centro de Costos:</p>
+      <ul class="feature-list" style="margin-top:10px">
+        <li><strong>Gasto por Servicio (Egreso):</strong> Formulario para ingresar egresos rápidos de servicios administrativos (Luz, Agua, Gas, Arriendo), guardándose en `gastos_contabilidad` con tipo `servicio`.</li>
+        <li><strong>Servicio Especial / Flete (Ingreso):</strong> Formulario para ingresar servicios manuales o fletes no vinculados a hojas de ruta ordinarias, guardándose en `servicios_especiales` con cálculo automático bidireccional de IVA (19%) y bruto/neto.</li>
+      </ul>
+    </div>
+
+    <div class="card card-accent" style="margin-top:16px">
+      <h5 style="margin-bottom:12px;font-weight:700">Pre-Facturas SII y Subtablas Anidadas</h5>
       <p>
-        Generación de pre-facturas compatibles con el <strong>Servicio de Impuestos Internos (SII)</strong> de Chile. El sistema estructura los documentos según la normativa vigente para facilitar la emisión de Documentos Tributarios Electrónicos (DTE).
+        Módulo de facturación profesional alineado al formato tributario de Chile con el RUT de emisor de SILOG SpA fijado en `76.932.962-5`:
       </p>
+      <ul class="feature-list" style="margin-top:10px">
+        <li><strong>Autocompletado de RUT:</strong> Al escribir el RUT en el modal de nueva pre-factura, el sistema realiza una consulta reactiva con el CRM local (`clientes`) y completa de forma automática la Razón Social, Dirección y Giro del cliente.</li>
+        <li><strong>Desglose de Sub-detalles Anidados:</strong> Cada ítem de la pre-factura contiene una subtabla interactiva con `Descripción detalle`, `Cantidad` (soporta decimales), `Unidad de Medida` (dropdown interactivo con opción "+ Agregar" para registrar nuevas unidades en caliente), `Valor Neto`, `IVA` (19% autocalculado) y `Total`.</li>
+        <li><strong>Propagación en Caliente:</strong> Al modificar los valores del subdetalle, la suma de los valores netos se propaga en tiempo real para rellenar de forma exacta el precio unitario y subtotal del ítem principal, recalculando también los totales consolidados del documento.</li>
+        <li><strong>Eliminación Permanente:</strong> Incorpora un botón rojo de papelera (`🗑️`) para borrar físicamente y de forma permanente la pre-factura en Firestore.</li>
+      </ul>
     </div>
 
     <div class="card card-accent" style="margin-top:16px">

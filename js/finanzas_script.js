@@ -127,7 +127,20 @@ function onClienteSelect(){
   }
 }
 
-// â• â• â•  CENTRO DE COSTOS â• â• â• 
+function onRutInput() {
+  const rutVal = document.getElementById('f-rut').value.trim();
+  if (!rutVal) return;
+  const clean = (s) => (s || '').replace(/[\.\-]/g, '').toLowerCase().trim();
+  const cleanInput = clean(rutVal);
+  const match = _clientes.find(c => clean(c.rut) === cleanInput);
+  if (match) {
+    document.getElementById('f-cliente').value = match.id;
+    document.getElementById('f-giro').value = match.giro || '';
+    document.getElementById('f-dir').value = match.direccion || '';
+  }
+}
+
+// ═══ CENTRO DE COSTOS ═══
 async function loadCentroCostos(){
   const periodo=document.getElementById('cc-periodo').value;
   const vehiculo=document.getElementById('cc-vehiculo').value;
@@ -135,107 +148,244 @@ async function loadCentroCostos(){
 
   try{
     // Reload raw loaders to match the period for export files
-    await Promise.all([loadGastosRaw(), loadMovBodega(), loadGastosContabilidad()]);
+    await Promise.all([loadGastosRaw(), loadMovBodega()]);
 
-    // Load gastos (optimized by period)
+    // 1. Load gastos operacionales de rutas (Combustible y Peajes)
     let qGastos = db.collection('gastos_ruta');
-    let qDespachos = db.collection('despachos');
     let qHojas = db.collection('hojas_ruta');
     if(periodo){
       const year = parseInt(periodo.split('-')[0]);
       const month = parseInt(periodo.split('-')[1]);
       const start = new Date(year, month - 1, 1);
       const end = new Date(year, month, 1);
-      const startTS = firebase.firestore.Timestamp.fromDate(start);
-      const endTS = firebase.firestore.Timestamp.fromDate(end);
-      qGastos = qGastos.where('fecha', '>=', startTS).where('fecha', '<', endTS);
-      qDespachos = qDespachos.where('fecha', '>=', startTS).where('fecha', '<', endTS);
+      qGastos = qGastos.where('fecha', '>=', firebase.firestore.Timestamp.fromDate(start))
+                       .where('fecha', '<', firebase.firestore.Timestamp.fromDate(end));
       
       const startStr = `${periodo}-01`;
       const endStr = `${periodo}-31`;
       qHojas = qHojas.where('fecha', '>=', startStr).where('fecha', '<=', endStr);
     }
     
-    let gSnap;
-    try {
-      gSnap = await qGastos.get();
-    } catch(err) {
-      console.warn("Monthly query failed for gastos_ruta in CC, using fallback:", err);
-      gSnap = await db.collection('gastos_ruta').get();
-    }
-    
+    let gSnap = await qGastos.get();
     const gastosByTurno={};
-    gSnap.forEach(d=>{const g=d.data();if(!gastosByTurno[g.turno_id])gastosByTurno[g.turno_id]={combustible:0,peaje:0};if(g.tipo==='combustible')gastosByTurno[g.turno_id].combustible+=g.monto_clp||0;else gastosByTurno[g.turno_id].peaje+=g.monto_clp||0;});
+    gSnap.forEach(d=>{
+      const g=d.data();
+      if(!gastosByTurno[g.turno_id])gastosByTurno[g.turno_id]={combustible:0,peaje:0};
+      if(g.tipo==='combustible') gastosByTurno[g.turno_id].combustible+=g.monto_clp||0;
+      else gastosByTurno[g.turno_id].peaje+=g.monto_clp||0;
+    });
 
-    // Load despachos (optimized by period)
-    let dSnap;
-    try {
-      dSnap = await qDespachos.get();
-    } catch(err) {
-      console.warn("Monthly query failed for despachos in CC, using fallback:", err);
-      dSnap = await db.collection('despachos').get();
-    }
-    
-    const despachosByTurno={};
-    dSnap.forEach(d=>{const dp=d.data();if(!despachosByTurno[dp.turno_id])despachosByTurno[dp.turno_id]={entregados:0,devueltos:0};if(dp.estado==='entregado')despachosByTurno[dp.turno_id].entregados++;else if(dp.estado==='devuelto')despachosByTurno[dp.turno_id].devueltos++;});
-
-    // Load hojas_ruta as master list of trips
-    let hSnap;
-    try {
-      hSnap = await qHojas.get();
-    } catch(err) {
-      console.warn("Query failed for hojas_ruta in CC, using fallback:", err);
-      hSnap = await db.collection('hojas_ruta').get();
-    }
-    
-    let sheets = [];
+    let hSnap = await qHojas.get();
+    let trips = [];
     hSnap.forEach(d => {
       const h = d.data();
       const fStr = h.fecha || '';
       if (!fStr) return;
-      const m = fStr.slice(0, 7);
-      if (periodo && m !== periodo) return;
+      if (periodo && fStr.slice(0, 7) !== periodo) return;
       if (vehiculo && h.patente !== vehiculo) return;
       if (conductor && h.conductor_email !== conductor) return;
       
       const parts = fStr.split('-');
-      const mon = parseInt(parts[1]);
-      const day = parseInt(parts[2]);
-      const dateObj = new Date(parseInt(parts[0]), mon - 1, day, 12, 0, 0); // midday to avoid timezone shift
+      const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
       
-      sheets.push({ id: d.id, ...h, _fecha: dateObj });
-    });
-    sheets.sort((a, b) => b._fecha - a._fecha);
-
-    // Build cost rows
-    _allCostos = sheets.map(h => {
       const g = gastosByTurno[h.turno_id] || { combustible: 0, peaje: 0 };
-      const d = despachosByTurno[h.turno_id] || { entregados: 0, devueltos: 0 };
+      const totGastos = g.combustible + g.peaje;
       
-      const deliveredCount = typeof h.total_entregas === 'number' ? h.total_entregas : d.entregados;
-      const returnedCount = typeof h.total_devoluciones === 'number' ? h.total_devoluciones : d.devueltos;
-      
-      return {
-        ...h,
-        combustible: g.combustible,
-        peaje: g.peaje,
-        total_gastos: g.combustible + g.peaje,
-        entregados: deliveredCount,
-        devueltos: returnedCount,
-        distribuidor: h.distribuidor || 'SIN DISTRIBUIDOR'
-      };
+      // RULE 1: Only show trips with operational expenses (total_gastos > 0)
+      if (totGastos > 0) {
+        // Resolve description
+        let desc = '';
+        const dist = (h.distribuidor || 'SIN DISTRIBUIDOR').toUpperCase();
+        if (dist.includes('CINTEC')) {
+          const comuna = h.entregas && h.entregas[0] && h.entregas[0].comuna ? h.entregas[0].comuna : 'Puerto Montt';
+          desc = `Ruta ${comuna}`;
+        } else if (dist.includes('TOTAL')) {
+          desc = 'OPL Puerto Montt TotalEnergies';
+        } else {
+          desc = `Ruta ${h.distribuidor || 'General'}`;
+        }
+        
+        trips.push({
+          id: d.id,
+          fechaStr: fStr,
+          _fecha: dateObj,
+          patente: h.patente || '—',
+          conductor: h.conductor_nombre || h.conductor_email || '—',
+          distribuidor: h.distribuidor || 'SIN DISTRIBUIDOR',
+          descripcion: desc,
+          ingreso: h.valor_servicio || 0,
+          combustible: g.combustible,
+          peaje: g.peaje,
+          total: (h.valor_servicio || 0) - totGastos,
+          tipo: 'viaje'
+        });
+      }
     });
 
-    let totComb=0,totPeaje=0,totGastos=0;
-    _allCostos.forEach(r=>{
-      totComb+=r.combustible||0;
-      totPeaje+=r.peaje||0;
-      totGastos+=r.total_gastos||0;
+    // 2. Load Pre-Facturas (Incomes)
+    let prefacturasSnap = await db.collection('prefacturas').get();
+    let prefacturas = [];
+    prefacturasSnap.forEach(d => {
+      const f = d.data();
+      const date = f.fecha_emision?.toDate ? f.fecha_emision.toDate() : null;
+      if (date) {
+        const m = date.toISOString().slice(0, 7);
+        if (periodo && m !== periodo) return;
+        // Filters
+        if (vehiculo || conductor) return; // Invoices don't have vehicles or conductors directly
+        
+        const fStr = date.toISOString().slice(0, 10);
+        const stateStr = f.estado === 'pagada' ? 'Pagada' : 'Por Pagar';
+        
+        prefacturas.push({
+          id: d.id,
+          fechaStr: fStr,
+          _fecha: date,
+          patente: '—',
+          conductor: '—',
+          distribuidor: '—',
+          descripcion: `Factura N°${f.numero || '—'} ${stateStr}`,
+          ingreso: f.neto || 0,
+          combustible: 0,
+          peaje: 0,
+          total: f.neto || 0,
+          tipo: 'prefactura'
+        });
+      }
     });
-    document.getElementById('cc-ingresos').textContent=fmt(totComb);
-    document.getElementById('cc-egresos').textContent=fmt(totPeaje);
-    document.getElementById('cc-margen').textContent=fmt(totGastos);
-    document.getElementById('cc-turnos').textContent=_allCostos.length;
+
+    // 3. Load Bodega Movements (Incomes/Expenses)
+    let bodegaSnap = await db.collection('ingresos_bodega').get();
+    let bodegaMovs = [];
+    bodegaSnap.forEach(d => {
+      const m = d.data();
+      const fStr = m.fecha || '';
+      if (!fStr) return;
+      if (periodo && fStr.slice(0, 7) !== periodo) return;
+      if (vehiculo || conductor) return; // Bodega doesn't have vehicles/conductors
+      
+      const parts = fStr.split('-');
+      const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+      
+      let desc = '';
+      let ing = 0;
+      let comb = 0;
+      
+      if (m.concepto === 'costo_arriendo') {
+        desc = 'Costo Fijo Arriendo Bodega';
+        comb = m.monto || 0;
+      } else if (m.concepto === 'ingreso_bodega') {
+        desc = 'Ingresos por bodega';
+        ing = m.monto || 0;
+      } else if (m.concepto === 'ingreso_m2') {
+        desc = 'Ingresos por M2 Extra';
+        ing = m.monto || 0;
+      } else {
+        desc = m.descripcion || 'Movimiento Bodega';
+        ing = m.monto || 0;
+      }
+      
+      bodegaMovs.push({
+        id: d.id,
+        fechaStr: fStr,
+        _fecha: dateObj,
+        patente: '—',
+        conductor: '—',
+        distribuidor: '—',
+        descripcion: desc,
+        ingreso: ing,
+        combustible: comb,
+        peaje: 0,
+        total: ing - comb,
+        tipo: m.concepto === 'costo_arriendo' ? 'bodega_egreso' : 'bodega_ingreso'
+      });
+    });
+
+    // 4. Load Egresos por Servicios (Luz, Agua, Gas, Arriendo - from gastos_contabilidad)
+    let contabilidadSnap = await db.collection('gastos_contabilidad').get();
+    let manualServicios = [];
+    contabilidadSnap.forEach(d => {
+      const g = d.data();
+      if (g.tipo === 'servicio') {
+        const fStr = g.fecha || '';
+        if (!fStr) return;
+        if (periodo && fStr.slice(0, 7) !== periodo) return;
+        if (vehiculo || conductor) return; // General admin expenses
+        
+        const parts = fStr.split('-');
+        const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+        
+        const m = {
+          'luz':'💡 Luz',
+          'agua':'🚰 Agua',
+          'gas':'🔥 Gas',
+          'arriendo':'🏢 Arriendo'
+        };
+        const concept = m[g.subtipo] || g.subtipo || 'Servicio';
+        
+        manualServicios.push({
+          id: d.id,
+          fechaStr: fStr,
+          _fecha: dateObj,
+          patente: '—',
+          conductor: '—',
+          distribuidor: '—',
+          descripcion: concept,
+          ingreso: 0,
+          combustible: g.monto_neto || g.monto || 0,
+          peaje: 0,
+          total: -(g.monto_neto || g.monto || 0),
+          tipo: 'gasto_servicio'
+        });
+      }
+    });
+
+    // 5. Load Servicios Especiales (Manual Incomes)
+    let especialesSnap = await db.collection('servicios_especiales').get();
+    let manualIncomes = [];
+    especialesSnap.forEach(d => {
+      const s = d.data();
+      const fStr = s.fecha || '';
+      if (!fStr) return;
+      if (periodo && fStr.slice(0, 7) !== periodo) return;
+      if (vehiculo && s.patente !== vehiculo) return;
+      if (conductor && s.conductor !== conductor) return;
+      
+      const parts = fStr.split('-');
+      const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+      
+      manualIncomes.push({
+        id: d.id,
+        fechaStr: fStr,
+        _fecha: dateObj,
+        patente: s.patente || '—',
+        conductor: s.conductor || '—',
+        distribuidor: '—',
+        descripcion: s.descripcion || 'Servicio Especial/Flete',
+        ingreso: s.valor_neto || 0,
+        combustible: 0,
+        peaje: 0,
+        total: s.valor_neto || 0,
+        tipo: 'ingreso_especial'
+      });
+    });
+
+    // Merge everything!
+    _allCostos = [...trips, ...prefacturas, ...bodegaMovs, ...manualServicios, ...manualIncomes];
+    _allCostos.sort((a, b) => b._fecha - a._fecha);
+
+    // Calculate totals
+    let totIng = 0;
+    let totEgr = 0;
+    _allCostos.forEach(r => {
+      totIng += r.ingreso || 0;
+      totEgr += (r.combustible || 0) + (r.peaje || 0);
+    });
+    
+    document.getElementById('cc-ingresos').textContent = fmt(totIng);
+    document.getElementById('cc-egresos').textContent = fmt(totEgr);
+    document.getElementById('cc-margen').textContent = fmt(totIng - totEgr);
+    document.getElementById('cc-turnos').textContent = _allCostos.filter(x => x.tipo === 'viaje').length;
 
     _ccLimit = 10;
     renderCentroCostos();
@@ -258,17 +408,21 @@ function renderCentroCostos(){
   }
   const displayCostos=_allCostos.slice(0,_ccLimit);
   body.innerHTML=displayCostos.map(r=>{
-    const f=r._fecha?r._fecha.toLocaleDateString('es-CL',{day:'2-digit',month:'short'}):'—';
+    const f = r._fecha ? r._fecha.toLocaleDateString('es-CL', {day:'2-digit', month:'short'}) : '—';
+    const totalCls = r.total < 0 ? 'money-red' : 'money-green';
+    const totalSign = r.total < 0 ? '-' : '';
+    const displayTotal = fmt(Math.abs(r.total));
+    
     return`<tr>
-      <td>${f}</td>
-      <td><code style="color:var(--accent)">${sanitize(r.patente||'—')}</code></td>
-      <td style="font-size:.78rem">${sanitize(r.conductor_nombre || r.conductor_email || '—')}</td>
-      <td>${sanitize(r.nombre_distribuidor || r.distribuidor || 'SIN DISTRIBUIDOR')}</td>
-      <td class="txt-r">${r.entregados}</td>
-      <td class="txt-r">${r.devueltos}</td>
+      <td class="txt-c">${f}</td>
+      <td class="txt-c"><code style="color:var(--accent)">${sanitize(r.patente)}</code></td>
+      <td style="font-size:.78rem" class="txt-c">${sanitize(r.conductor)}</td>
+      <td class="txt-c">${sanitize(r.distribuidor)}</td>
+      <td>${sanitize(r.descripcion)}</td>
+      <td class="txt-r money money-green">${fmt(r.ingreso)}</td>
       <td class="txt-r money money-red">${fmt(r.combustible)}</td>
       <td class="txt-r money money-red">${fmt(r.peaje)}</td>
-      <td class="txt-r money money-red">${fmt(r.total_gastos)}</td>
+      <td class="txt-r money ${totalCls}">${totalSign}${displayTotal}</td>
     </tr>`;
   }).join('');
   
@@ -277,7 +431,7 @@ function renderCentroCostos(){
   }
 }
 
-// â• â• â•  PRE-FACTURAS â• â• â• 
+// ═══ PRE-FACTURAS ═══
 async function loadFacturas(){
   try{
     const s=await db.collection('prefacturas').get();
@@ -293,20 +447,21 @@ function renderFacturas(){
   body.innerHTML=_allFacturas.map(f=>{
     const badgeCls={borrador:'b-borrador',enviada:'b-enviada',pagada:'b-pagada'}[f.estado]||'b-borrador';
     const badgeTxt={borrador:'Borrador',enviada:'Enviada',pagada:'Pagada'}[f.estado]||f.estado;
-    const fecha=f.fecha_emision?formatDate(f.fecha_emision):'â€”';
+    const fecha=f.fecha_emision?formatDate(f.fecha_emision):'—';
     return`<tr>
-      <td><code style="color:var(--accent)">${sanitize(f.numero||'â€”')}</code></td>
-      <td>${sanitize(f.cliente_nombre||'â€”')}</td>
-      <td style="font-size:.78rem">${sanitize(f.cliente_rut||'â€”')}</td>
+      <td><code style="color:var(--accent)">${sanitize(f.numero||'—')}</code></td>
+      <td>${sanitize(f.cliente_nombre||'—')}</td>
+      <td style="font-size:.78rem">${sanitize(f.cliente_rut||'—')}</td>
       <td>${fecha}</td>
       <td class="txt-r money">${fmt(f.neto||0)}</td>
       <td class="txt-r money">${fmt(f.iva||0)}</td>
       <td class="txt-r money money-green">${fmt(f.total||0)}</td>
       <td class="txt-c"><span class="badge-sm ${badgeCls}">${badgeTxt}</span></td>
       <td class="txt-c">
-        <button class="btn-sm" onclick="cambiarEstado('${f.id}','enviada')" title="Marcar enviada">ðŸ“§</button>
-        <button class="btn-sm" onclick="cambiarEstado('${f.id}','pagada')" title="Marcar pagada">âœ…</button>
-        <button class="btn-sm" onclick="imprimirFactura('${f.id}')" title="Imprimir">ðŸ–¨ï¸ </button>
+        <button class="btn-sm" onclick="cambiarEstado('${f.id}','enviada')" title="Marcar enviada">📧</button>
+        <button class="btn-sm" onclick="cambiarEstado('${f.id}','pagada')" title="Marcar pagada">✅</button>
+        <button class="btn-sm" onclick="imprimirFactura('${f.id}')" title="Imprimir">🖨️</button>
+        <button class="btn-sm" style="background:var(--danger); border-color:var(--danger); color:#fff;" onclick="eliminarPreFactura('${f.id}')" title="Eliminar Pre-Factura">🗑️</button>
       </td>
     </tr>`;
   }).join('');
@@ -500,26 +655,166 @@ function openFacturaModal(){
 }
 function closeFacturaModal(){document.getElementById('modal-factura').classList.remove('open');document.getElementById('f-items').innerHTML='';}
 
-function addItemRow(){
-  const tbody=document.getElementById('f-items');
-  const tr=document.createElement('tr');
-  tr.innerHTML=`
-    <td><input type="text" class="fi-desc" placeholder="Servicio transporteâ€¦"/></td>
-    <td><input type="number" class="fi-cant" value="1" min="1" oninput="calcTotals()"/></td>
-    <td><input type="number" class="fi-precio" value="0" oninput="calcTotals()"/></td>
-    <td class="txt-r money fi-sub">$0</td>
-    <td><button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem" onclick="this.closest('tr').remove();calcTotals()">âœ•</button></td>`;
-  tbody.appendChild(tr);
+let _itemCounter = 0;
+function addItemRow(data = null) {
+  _itemCounter++;
+  const itemId = 'item_' + _itemCounter;
+  const tbody = document.getElementById('f-items');
+  
+  // Main Row
+  const mainTr = document.createElement('tr');
+  mainTr.id = `main-${itemId}`;
+  mainTr.innerHTML = `
+    <td><input type="text" class="fi-desc field" placeholder="Servicio transporte…" value="${data ? sanitize(data.descripcion) : ''}" style="font-size: 0.82rem; padding: 6px 10px; border-radius: 6px;"/></td>
+    <td><input type="number" class="fi-cant field txt-r" value="${data ? data.cantidad : 1}" min="1" readonly style="opacity: 0.8; font-size: 0.82rem; padding: 6px 10px; border-radius: 6px; background: var(--surface2); border-color: var(--border);"/></td>
+    <td><input type="number" class="fi-precio field txt-r" value="${data ? data.precio_unitario : 0}" readonly style="opacity: 0.8; font-size: 0.82rem; padding: 6px 10px; border-radius: 6px; background: var(--surface2); border-color: var(--border);"/></td>
+    <td class="txt-r money fi-sub" id="sub-${itemId}">$0</td>
+    <td><button type="button" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem" onclick="removeItemRow('${itemId}')">✕</button></td>`;
+  tbody.appendChild(mainTr);
+  
+  // Details Row (collapsible subtable)
+  const detailsTr = document.createElement('tr');
+  detailsTr.id = `details-row-${itemId}`;
+  detailsTr.innerHTML = `
+    <td colspan="5" style="padding: 10px 20px; background: rgba(30, 48, 86, 0.15); border-bottom: 1px solid var(--border);">
+      <div style="font-size: 0.72rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Detalle de Servicios</div>
+      <table class="items-tbl sub-items-tbl" style="margin: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;">
+        <thead>
+          <tr>
+            <th>Descripción Detalle</th>
+            <th style="width: 70px;">Cant.</th>
+            <th style="width: 120px;">Un. Medida</th>
+            <th style="width: 100px;">Valor Neto</th>
+            <th style="width: 90px;">IVA (19%)</th>
+            <th style="width: 100px;">Total</th>
+            <th style="width: 30px;"></th>
+          </tr>
+        </thead>
+        <tbody class="sub-items-body" id="sub-items-${itemId}"></tbody>
+      </table>
+      <button class="btn-add-item" type="button" onclick="addSubItemRow('${itemId}')" style="margin-top: 6px; background: none; border: 1px dashed var(--border); color: var(--success); padding: 4px 10px; font-size: 0.75rem; border-radius: 6px; cursor: pointer; width: auto; font-weight: 600;">➕ Agregar Detalle</button>
+    </td>`;
+  tbody.appendChild(detailsTr);
+  
+  if (data && data.detalles && data.detalles.length > 0) {
+    data.detalles.forEach(d => addSubItemRow(itemId, d));
+  } else {
+    addSubItemRow(itemId);
+  }
+}
+
+function removeItemRow(itemId) {
+  const main = document.getElementById(`main-${itemId}`);
+  const details = document.getElementById(`details-row-${itemId}`);
+  if (main) main.remove();
+  if (details) details.remove();
+  calcTotals();
+}
+
+function addSubItemRow(itemId, data = null) {
+  const tbody = document.getElementById(`sub-items-${itemId}`);
+  const subTr = document.createElement('tr');
+  const subId = 'sub_' + Math.random().toString(36).substr(2, 9);
+  subTr.id = `subrow-${subId}`;
+  
+  // Options for Un. Medida
+  const units = ["Servicios", "M2", "Hrs"];
+  let optionsHTML = units.map(u => `<option value="${u}" ${data && data.un_medida === u ? 'selected' : ''}>${u}</option>`).join('');
+  if (data && data.un_medida && !units.includes(data.un_medida)) {
+    optionsHTML += `<option value="${data.un_medida}" selected>${data.un_medida}</option>`;
+  }
+  optionsHTML += `<option value="__agregar">+ Agregar Unidad</option>`;
+  
+  subTr.innerHTML = `
+    <td><input type="text" class="sub-desc field" placeholder="Detalle..." value="${data ? sanitize(data.descripcion_detalle) : ''}" style="font-size: 0.78rem; padding: 4px 8px; border-radius: 4px;"/></td>
+    <td><input type="number" class="sub-cant field txt-r" step="any" value="${data ? data.cantidad : 1}" oninput="calcSubRow('${subId}', '${itemId}')" style="font-size: 0.78rem; padding: 4px 8px; border-radius: 4px;"/></td>
+    <td>
+      <select class="field sub-unit" onchange="onSubUnitChange(this, '${subId}', '${itemId}')" style="font-size: 0.78rem; padding: 4px 8px; border-radius: 4px;">
+        ${optionsHTML}
+      </select>
+    </td>
+    <td><input type="number" class="sub-neto field txt-r" value="${data ? data.valor_neto : 0}" oninput="calcSubRow('${subId}', '${itemId}')" style="font-size: 0.78rem; padding: 4px 8px; border-radius: 4px;"/></td>
+    <td><input type="number" class="sub-iva field txt-r" value="${data ? data.iva : 0}" readonly style="font-size: 0.78rem; padding: 4px 8px; border-radius: 4px; background: var(--surface2); opacity: 0.8; border-color: var(--border);"/></td>
+    <td><input type="number" class="sub-total field txt-r" value="${data ? data.total : 0}" readonly style="font-size: 0.78rem; padding: 4px 8px; border-radius: 4px; background: var(--surface2); opacity: 0.8; border-color: var(--border);"/></td>
+    <td><button type="button" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:.85rem;padding:2px;" onclick="removeSubItemRow('${subId}', '${itemId}')">✕</button></td>
+  `;
+  tbody.appendChild(subTr);
+  calcSubRow(subId, itemId);
+}
+
+function removeSubItemRow(subId, itemId) {
+  const subrow = document.getElementById(`subrow-${subId}`);
+  if (subrow) subrow.remove();
+  recalculateMainRowFromDetails(itemId);
+}
+
+function onSubUnitChange(select, subId, itemId) {
+  if (select.value === '__agregar') {
+    const custom = prompt("Ingrese el nombre de la nueva Unidad de Medida (ej: Lts, Kgs, etc.):");
+    if (custom && custom.trim()) {
+      const opt = document.createElement('option');
+      opt.value = custom.trim();
+      opt.textContent = custom.trim();
+      select.insertBefore(opt, select.lastElementChild);
+      select.value = custom.trim();
+    } else {
+      select.selectedIndex = 0;
+    }
+  }
+}
+
+function calcSubRow(subId, itemId) {
+  const row = document.getElementById(`subrow-${subId}`);
+  if (!row) return;
+  
+  const cant = parseFloat(row.querySelector('.sub-cant').value) || 0;
+  const neto = parseFloat(row.querySelector('.sub-neto').value) || 0;
+  
+  const subNetoTotal = cant * neto;
+  const subNeto = Math.round(subNetoTotal);
+  const iva = Math.round(subNeto * 0.19);
+  const total = subNeto + iva;
+  
+  row.querySelector('.sub-iva').value = iva;
+  row.querySelector('.sub-total').value = total;
+  
+  recalculateMainRowFromDetails(itemId);
+}
+
+function recalculateMainRowFromDetails(itemId) {
+  const tbody = document.getElementById(`sub-items-${itemId}`);
+  if (!tbody) return;
+  
+  let totalNeto = 0;
+  let totalCant = 0;
+  
+  tbody.querySelectorAll('tr').forEach(tr => {
+    const cant = parseFloat(tr.querySelector('.sub-cant')?.value) || 0;
+    const neto = parseFloat(tr.querySelector('.sub-neto')?.value) || 0;
+    totalNeto += Math.round(cant * neto);
+    totalCant += cant;
+  });
+  
+  const mainRow = document.getElementById(`main-${itemId}`);
+  if (mainRow) {
+    mainRow.querySelector('.fi-cant').value = 1;
+    mainRow.querySelector('.fi-precio').value = totalNeto;
+    mainRow.querySelector('.fi-sub').textContent = fmt(totalNeto);
+  }
+  
+  calcTotals();
 }
 
 function calcTotals(){
   let neto=0;
   document.querySelectorAll('#f-items tr').forEach(tr=>{
-    const cant=parseInt(tr.querySelector('.fi-cant')?.value)||0;
-    const precio=parseInt(tr.querySelector('.fi-precio')?.value)||0;
-    const sub=cant*precio;
-    tr.querySelector('.fi-sub').textContent=fmt(sub);
-    neto+=sub;
+    if (tr.id && tr.id.startsWith('main-')) {
+      const cant=parseInt(tr.querySelector('.fi-cant')?.value)||0;
+      const precio=parseInt(tr.querySelector('.fi-precio')?.value)||0;
+      const sub=cant*precio;
+      tr.querySelector('.fi-sub').textContent=fmt(sub);
+      neto+=sub;
+    }
   });
   const iva=Math.round(neto*0.19);
   document.getElementById('f-neto').textContent=fmt(neto);
@@ -532,17 +827,53 @@ async function guardarFactura(){
   const clienteId=document.getElementById('f-cliente').value;
   const cli=_clientes.find(c=>c.id===clienteId);
   
-  if(!numero){showToast('Ingresa NÂ° documento','error');return;}
+  if(!numero){showToast('Ingresa N° documento','error');return;}
   if(!clienteId){showToast('Selecciona un cliente','error');return;}
 
   const items=[];
   document.querySelectorAll('#f-items tr').forEach(tr=>{
-    const desc=tr.querySelector('.fi-desc')?.value||'';
-    const cant=parseInt(tr.querySelector('.fi-cant')?.value)||0;
-    const precio=parseInt(tr.querySelector('.fi-precio')?.value)||0;
-    if(desc&&cant>0)items.push({descripcion:desc,cantidad:cant,precio_unitario:precio,subtotal:cant*precio});
+    if (tr.id && tr.id.startsWith('main-')) {
+      const itemId = tr.id.replace('main-', '');
+      const desc = tr.querySelector('.fi-desc')?.value || '';
+      const cant = parseFloat(tr.querySelector('.fi-cant')?.value) || 0;
+      const precio = parseFloat(tr.querySelector('.fi-precio')?.value) || 0;
+      
+      const subItemsBody = document.getElementById(`sub-items-${itemId}`);
+      const detalles = [];
+      if (subItemsBody) {
+        subItemsBody.querySelectorAll('tr').forEach(str => {
+          const sDesc = str.querySelector('.sub-desc')?.value || '';
+          const sCant = parseFloat(str.querySelector('.sub-cant')?.value) || 0;
+          const sUnit = str.querySelector('.sub-unit')?.value || '';
+          const sNeto = parseFloat(str.querySelector('.sub-neto')?.value) || 0;
+          const sIva = parseFloat(str.querySelector('.sub-iva')?.value) || 0;
+          const sTotal = parseFloat(str.querySelector('.sub-total')?.value) || 0;
+          
+          if (sDesc) {
+            detalles.push({
+              descripcion_detalle: sDesc,
+              cantidad: sCant,
+              un_medida: sUnit,
+              valor_neto: sNeto,
+              iva: sIva,
+              total: sTotal
+            });
+          }
+        });
+      }
+      
+      if (desc) {
+        items.push({
+          descripcion: desc,
+          cantidad: cant,
+          precio_unitario: precio,
+          subtotal: cant * precio,
+          detalles: detalles
+        });
+      }
+    }
   });
-  if(!items.length){showToast('Agrega al menos un Ã­tem','error');return;}
+  if(!items.length){showToast('Agrega al menos un ítem','error');return;}
 
   const neto=items.reduce((s,i)=>s+i.subtotal,0);
   const iva=Math.round(neto*0.19);
@@ -558,15 +889,158 @@ async function guardarFactura(){
       fecha_emision:firebase.firestore.FieldValue.serverTimestamp(),
       creado_por:_uid
     });
-    showToast('âœ… Pre-factura guardada','success');
+    showToast('✅ Pre-factura guardada','success');
     closeFacturaModal();await loadFacturas();
+    await loadCentroCostos();
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 
+// ═══ FORMULARIOS DE REGISTRO MANUAL (EGRESOS E INGRESOS) ═══
+function openManualGastoModal() {
+  document.getElementById('modal-manual-gasto').classList.add('open');
+  document.getElementById('mg-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('mg-monto').value = '';
+  document.getElementById('mg-descripcion').value = '';
+}
+function closeManualGastoModal() {
+  document.getElementById('modal-manual-gasto').classList.remove('open');
+}
+async function guardarManualGasto() {
+  const concepto = document.getElementById('mg-concepto').value;
+  const monto = parseInt(document.getElementById('mg-monto').value) || 0;
+  const fecha = document.getElementById('mg-fecha').value;
+  const descripcion = document.getElementById('mg-descripcion').value.trim();
+  
+  if (monto <= 0) {
+    showToast('Ingrese un monto válido', 'error');
+    return;
+  }
+  if (!fecha) {
+    showToast('Seleccione una fecha', 'error');
+    return;
+  }
+  
+  try {
+    await db.collection('gastos_contabilidad').add({
+      tipo: 'servicio',
+      subtipo: concepto,
+      monto_neto: monto,
+      monto: monto,
+      fecha: fecha,
+      descripcion: descripcion,
+      creado_por: _email,
+      created_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ Gasto por servicio registrado exitosamente', 'success');
+    closeManualGastoModal();
+    await loadCentroCostos();
+  } catch(e) {
+    showToast('Error al registrar: ' + e.message, 'error');
+  }
+}
+
+function openManualIngresoModal() {
+  document.getElementById('modal-manual-ingreso').classList.add('open');
+  document.getElementById('mi-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('mi-rut').value = '';
+  document.getElementById('mi-cliente').value = '';
+  document.getElementById('mi-patente').value = '';
+  document.getElementById('mi-descripcion').value = '';
+  document.getElementById('mi-neto').value = '';
+  document.getElementById('mi-iva').value = '';
+  document.getElementById('mi-bruto').value = '';
+  
+  // Populate conductor select
+  const condSel = document.getElementById('mi-conductor');
+  if (condSel) {
+    condSel.innerHTML = '<option value="">Selecciona Conductor...</option>';
+    document.querySelectorAll('#hoja-conductor-select option').forEach(opt => {
+      if (opt.value) {
+        const o = document.createElement('option');
+        o.value = opt.textContent; // Store conductor name or name + email
+        o.textContent = opt.textContent;
+        condSel.appendChild(o);
+      }
+    });
+  }
+}
+function closeManualIngresoModal() {
+  document.getElementById('modal-manual-ingreso').classList.remove('open');
+}
+function onManualIngresoRutInput() {
+  const rutVal = document.getElementById('mi-rut').value.trim();
+  if (!rutVal) return;
+  const clean = (s) => (s || '').replace(/[\.\-]/g, '').toLowerCase().trim();
+  const cleanInput = clean(rutVal);
+  const match = _clientes.find(c => clean(c.rut) === cleanInput);
+  if (match) {
+    document.getElementById('mi-cliente').value = match.nombre || match.id || '';
+  }
+}
+function calcManualIngresoFromNeto() {
+  const neto = parseFloat(document.getElementById('mi-neto').value) || 0;
+  const iva = Math.round(neto * 0.19);
+  const bruto = neto + iva;
+  document.getElementById('mi-iva').value = iva;
+  document.getElementById('mi-bruto').value = bruto;
+}
+function calcManualIngresoFromBruto() {
+  const bruto = parseFloat(document.getElementById('mi-bruto').value) || 0;
+  const neto = Math.round(bruto / 1.19);
+  const iva = bruto - neto;
+  document.getElementById('mi-neto').value = neto;
+  document.getElementById('mi-iva').value = iva;
+}
+async function guardarManualIngreso() {
+  const fecha = document.getElementById('mi-fecha').value;
+  const rut = document.getElementById('mi-rut').value.trim();
+  const cliente = document.getElementById('mi-cliente').value.trim();
+  const patente = document.getElementById('mi-patente').value.trim();
+  const conductor = document.getElementById('mi-conductor').value;
+  const descripcion = document.getElementById('mi-descripcion').value.trim();
+  const neto = parseFloat(document.getElementById('mi-neto').value) || 0;
+  const bruto = parseFloat(document.getElementById('mi-bruto').value) || 0;
+  const iva = parseFloat(document.getElementById('mi-iva').value) || 0;
+  
+  if (!fecha) {
+    showToast('Seleccione una fecha', 'error');
+    return;
+  }
+  if (!cliente) {
+    showToast('Ingrese el nombre del cliente', 'error');
+    return;
+  }
+  if (neto <= 0) {
+    showToast('Ingrese un valor neto válido', 'error');
+    return;
+  }
+  
+  try {
+    await db.collection('servicios_especiales').add({
+      fecha,
+      cliente_rut: rut,
+      cliente_nombre: cliente,
+      patente,
+      conductor,
+      descripcion,
+      valor_neto: neto,
+      valor_bruto: bruto,
+      iva,
+      creado_por: _email,
+      created_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ Servicio Especial/Flete registrado exitosamente', 'success');
+    closeManualIngresoModal();
+    await loadCentroCostos();
+  } catch(e) {
+    showToast('Error al registrar: ' + e.message, 'error');
+  }
+}
+
 async function cambiarEstado(id,estado){
-  if(!confirm(`Â¿Cambiar estado a "${estado}"?`))return;
+  if(!confirm(`¿Cambiar estado a "${estado}"?`))return;
   await db.collection('prefacturas').doc(id).update({estado});
-  showToast('âœ… Estado actualizado','success');
+  showToast('✅ Estado actualizado','success');
   await loadFacturas();
 }
 
@@ -585,7 +1059,7 @@ td{padding:8px;border-bottom:1px solid #eee}.r{text-align:right}
 .totals{width:250px;margin-left:auto}.totals td{padding:4px 8px;font-size:12px}.totals .total{font-size:14px;font-weight:700;border-top:2px solid #333}
 .footer{margin-top:30px;text-align:center;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:12px}
 @media print{body{padding:15px}}</style></head><body>
-<div class="header"><div><h1>SILOG SpA</h1><p>RUT: 77.XXX.XXX-X Â· Giro: Transporte y LogÃ­stica</p></div>
+<div class="header"><div><h1>SILOG SpA</h1><p>RUT: 76.932.962-5 Â· Giro: Transporte y LogÃ­stica</p></div>
 <div class="doc"><h2 style="color:#F47920">PRE-FACTURA</h2><p><b>NÂ°:</b> ${f.numero}</p><p><b>Fecha:</b> ${f.fecha_emision?formatDate(f.fecha_emision):new Date().toLocaleDateString('es-CL')}</p></div></div>
 <div class="parties"><div class="party"><h3>Emisor</h3><p><b>SILOG SpA</b></p><p>Giro: Transporte y LogÃ­stica</p></div>
 <div class="party"><h3>Receptor</h3><p><b>${f.cliente_nombre||'â€”'}</b></p><p>RUT: ${f.cliente_rut||'â€”'}</p><p>Giro: ${f.cliente_giro||'â€”'}</p><p>Dir: ${f.cliente_direccion||'â€”'}</p></div></div>

@@ -188,6 +188,13 @@ function userRol() {
       allow update, delete: if isAuth() && isViewer();
     }
 
+    // â”€â”€ Servicios Especiales (Manual ERP Finanzas) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    match /servicios_especiales/{id} {
+      allow read:  if isAuth() && isViewer();
+      allow create: if isAuth() && isViewer();
+      allow update, delete: if isAuth() && isViewer();
+    }
+
     // â”€â”€ Distribuidores (Lista dinÃ¡mica) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /distribuidores/{id} {
       allow read:   if isAuth();
