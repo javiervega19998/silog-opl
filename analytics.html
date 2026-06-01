@@ -614,6 +614,7 @@ function renderRankVehiculos(turnos,despachos,gastos){
     vehData[v.patente]={
       marca:v.marca||'',
       modelo:v.modelo||'',
+      kilometraje: v.kilometraje || v.km || 0,
       overall_recorridos:0,
       period_recorridos:0,
       period_litros:0,
@@ -627,7 +628,7 @@ function renderRankVehiculos(turnos,despachos,gastos){
     return;
   }
 
-  // 1) Calcular totales HISTÓRICOS (overall) para Odómetro Total (sólo km recorridos de todos los turnos)
+  // 1) Calcular totales HISTÓRICOS (overall) (viajes recorridos + discrepancias)
   _turnos.forEach(t=>{
     const v=t.patente;
     if(v && vehData[v]){
@@ -636,13 +637,30 @@ function renderRankVehiculos(turnos,despachos,gastos){
     }
   });
 
-  // 2) Calcular totales del PERÍODO FILTRADO
+  _discrepancias.forEach(d=>{
+    const v=d.patente;
+    if(v && vehData[v]){
+      const diff = d.diferencia_km || 0;
+      if (diff > 0) vehData[v].overall_recorridos += diff;
+    }
+  });
+
+  // 2) Calcular totales del PERÍODO FILTRADO (viajes del periodo + discrepancias del periodo)
   turnos.forEach(t=>{
     const v=t.patente;
     if(v && vehData[v]){
       vehData[v].turnos_count++;
       const km = getTurnoKm(t);
       if (km > 0) vehData[v].period_recorridos += km;
+    }
+  });
+
+  const periodDiscrepancias = filterByDaysPast(_discrepancias, _days);
+  periodDiscrepancias.forEach(d=>{
+    const v=d.patente;
+    if(v && vehData[v]){
+      const diff = d.diferencia_km || 0;
+      if (diff > 0) vehData[v].period_recorridos += diff;
     }
   });
 
@@ -659,7 +677,7 @@ function renderRankVehiculos(turnos,despachos,gastos){
   // Crear resultados
   const results=[];
   Object.entries(vehData).forEach(([patente,d])=>{
-    const odometer_total = d.overall_recorridos;
+    const odometer_total = d.kilometraje;
     const period_km = d.period_recorridos;
     
     let rendimiento = 0;
