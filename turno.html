@@ -373,7 +373,7 @@ async function onVehicleChange() {
       return;
     }
     const vData = vSnap.docs[0].data();
-    _lastVehicleKmRef = vData.km || vData.kilometraje || 0;
+    _lastVehicleKmRef = vData.kilometraje || vData.km || 0;
     
     const lastTurnoSnap = await db.collection('turnos')
       .where('patente', '==', patente.toUpperCase())
@@ -488,6 +488,8 @@ async function iniciarTurno() {
       btn.disabled=false; btn.innerHTML='🚛 Iniciar Jornada'; return;
     }
     const vehicleDocRef = vSnap.docs[0].ref;
+    const vDataCurrent = vSnap.docs[0].data();
+    const currentVehicleKm = vDataCurrent.kilometraje || vDataCurrent.km || 0;
 
     let lastTurno = null;
     let refKm = 0;
@@ -499,8 +501,14 @@ async function iniciarTurno() {
 
     if (!lastTurnoSnap.empty) {
       const doc = lastTurnoSnap.docs[0];
-      lastTurno = { id: doc.id, ...doc.data() };
-      refKm = lastTurno.km_final || 0;
+      const tData = doc.data();
+      // Si el kilometraje del vehículo no coincide con el km_final del último turno cerrado,
+      // significa que el kilometraje fue editado administrativamente en "Gestionar Flota".
+      // En este caso, se inicializa todo de nuevo y no se consideran viajes anteriores (Regla 6).
+      if ((tData.km_final || 0) === currentVehicleKm) {
+        lastTurno = { id: doc.id, ...tData };
+        refKm = lastTurno.km_final || 0;
+      }
     }
 
     btn.innerHTML='<span class="spinner"></span> Abriendo turno…';
@@ -513,7 +521,7 @@ async function iniciarTurno() {
       if (!vDoc.exists) throw new Error("El vehículo no existe en el sistema.");
       const vData = vDoc.data();
       
-      const lastKm = lastTurno ? refKm : (vData.km || vData.kilometraje || 0);
+      const lastKm = vData.kilometraje || vData.km || 0;
       
       if (lastKm > 0 && kmIni < lastKm) {
         throw new Error(`El kilometraje inicial (${kmIni} km) no puede ser menor al último registrado (${lastKm} km)`);
