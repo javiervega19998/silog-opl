@@ -1049,23 +1049,17 @@ function onCambioKmInicialNuevoInput() {
   }
   
   msg.style.display = 'block';
-  if (_selectedNuevoVehRefKm === 0) {
-    msg.style.color = 'var(--accent)';
-    msg.innerHTML = `📝 Primer registro de KM para este vehículo: <strong>${val.toLocaleString('es-CL')} km</strong>. Se guardará como referencia inicial.`;
-    return;
-  }
   
   const diff = val - _selectedNuevoVehRefKm;
-  if (diff === 0) {
-    msg.style.color = 'var(--success)';
-    msg.innerHTML = `✅ ¡Coincide perfectamente! (${val.toLocaleString('es-CL')} km)`;
-  } else if (diff > 0 && diff <= 500) {
-    msg.style.color = 'var(--success)';
-    msg.innerHTML = `✅ KM OK: +${diff} km respecto al último registro (${_selectedNuevoVehRefKm.toLocaleString('es-CL')} → ${val.toLocaleString('es-CL')})`;
-  } else {
-    const diffSign = diff > 0 ? `+${diff.toLocaleString('es-CL')}` : `${diff.toLocaleString('es-CL')}`;
+  if (diff > 0) {
     msg.style.color = 'var(--warning)';
-    msg.innerHTML = `⚠️ Diferencia detectada: <strong>${diffSign} km</strong> (KM ingresado: ${val.toLocaleString('es-CL')} vs anterior: ${_selectedNuevoVehRefKm.toLocaleString('es-CL')}). Se registrará esta diferencia.`;
+    msg.innerHTML = `⚠️ Km Inicial Registrado Mayor que Km Actual, Discrepancia de Km = ${diff}. Se registrará discrepancia`;
+  } else if (diff === 0) {
+    msg.style.color = 'var(--success)';
+    msg.innerHTML = `✅ Km Inicial Coincide con el Actual`;
+  } else {
+    msg.style.color = 'var(--danger)';
+    msg.innerHTML = `❌ El kilometraje inicial (${val} km) no puede ser menor al kilometraje actual (${_selectedNuevoVehRefKm} km)`;
   }
 }
 
@@ -1097,8 +1091,8 @@ async function confirmarCambioVehiculo() {
     showToast('Ingresa el kilometraje inicial del nuevo vehículo', 'error');
     return;
   }
-  if (_selectedNuevoVehRefKm > 0 && kmIniNuevo < _selectedNuevoVehRefKm) {
-    showToast(`El kilometraje inicial (${kmIniNuevo} km) no puede ser menor al último registrado (${_selectedNuevoVehRefKm} km)`, 'error');
+  if (kmIniNuevo < _selectedNuevoVehRefKm) {
+    showToast(`El kilometraje inicial (${kmIniNuevo} km) no puede ser menor al kilometraje actual del vehículo (${_selectedNuevoVehRefKm} km)`, 'error');
     return;
   }
 
@@ -1189,7 +1183,7 @@ async function confirmarCambioVehiculo() {
         await db.collection('notificaciones').add({
           tipo: 'discrepancia_km',
           patente: patenteNueva.toUpperCase(),
-          mensaje: `Discrepancia de kilometraje detectada al cambiar de vehículo a ${patenteNueva.toUpperCase()}: Conductor ${_name} ingresó ${kmIniNuevo} km, el kilometraje anterior era ${_selectedNuevoVehRefKm} km (Exceso de +${diferenciaNueva} km).`,
+          mensaje: `Discrepancia de kilometraje detectada al cambiar de vehículo a ${patenteNueva.toUpperCase()}: Conductor ${_name} ingresó ${kmIniNuevo} km, el kilometraje actual en flota era ${_selectedNuevoVehRefKm} km (Exceso de +${diferenciaNueva} km).`,
           fecha: firebase.firestore.FieldValue.serverTimestamp(),
           leida: false,
           turno_id: _turnoId,

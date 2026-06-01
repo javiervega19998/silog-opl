@@ -422,32 +422,17 @@ function updateKmInfo() {
     return;
   }
   
-  kmInfoMsg.style.display = 'block';
-  
-  // Caso 1: No hay KM previo (vehículo nuevo o sin historial)
-  if (_lastVehicleKmRef === 0) {
-    kmInfoMsg.style.color = 'var(--accent)';
-    kmInfoMsg.innerHTML = `📝 Primer registro de KM para este vehículo: <strong>${val.toLocaleString('es-CL')} km</strong>. Se guardará como referencia inicial.`;
-    return;
-  }
-  
   const diff = val - _lastVehicleKmRef;
   
-  // Caso 2: Coincide exactamente
-  if (diff === 0) {
-    kmInfoMsg.style.color = 'var(--success)';
-    kmInfoMsg.innerHTML = `✅ ¡Coincide perfectamente! (${val.toLocaleString('es-CL')} km)`;
-  }
-  // Caso 3: Diferencia razonable (1 a 500 km por encima)
-  else if (diff > 0 && diff <= 500) {
-    kmInfoMsg.style.color = 'var(--success)';
-    kmInfoMsg.innerHTML = `✅ KM OK: +${diff} km respecto al último registro (${_lastVehicleKmRef.toLocaleString('es-CL')} → ${val.toLocaleString('es-CL')})`;
-  }
-  // Caso 4: Diferencia grande o retroceso
-  else {
-    const diffSign = diff > 0 ? `+${diff.toLocaleString('es-CL')}` : `${diff.toLocaleString('es-CL')}`;
+  if (diff > 0) {
     kmInfoMsg.style.color = 'var(--warning)';
-    kmInfoMsg.innerHTML = `⚠️ Diferencia detectada: <strong>${diffSign} km</strong> (KM ingresado: ${val.toLocaleString('es-CL')} vs KM anterior: ${_lastVehicleKmRef.toLocaleString('es-CL')}). Se registrará esta diferencia.`;
+    kmInfoMsg.innerHTML = `⚠️ Km Inicial Registrado Mayor que Km Actual, Discrepancia de Km = ${diff}. Se registrará discrepancia`;
+  } else if (diff === 0) {
+    kmInfoMsg.style.color = 'var(--success)';
+    kmInfoMsg.innerHTML = `✅ Km Inicial Coincide con el Actual`;
+  } else {
+    kmInfoMsg.style.color = 'var(--danger)';
+    kmInfoMsg.innerHTML = `❌ El kilometraje inicial (${val} km) no puede ser menor al kilometraje actual (${_lastVehicleKmRef} km)`;
   }
 }
 
@@ -537,11 +522,11 @@ async function iniciarTurno() {
       
       const lastKm = vData.kilometraje || vData.km || 0;
       
-      if (lastKm > 0 && kmIni < lastKm) {
-        throw new Error(`El kilometraje inicial (${kmIni} km) no puede ser menor al último registrado (${lastKm} km)`);
+      if (kmIni < lastKm) {
+        throw new Error(`El kilometraje inicial (${kmIni} km) no puede ser menor al kilometraje actual del vehículo (${lastKm} km)`);
       }
       
-      if (lastKm > 0 && kmIni > lastKm) {
+      if (kmIni > lastKm) {
         registrarDiscrepancia = true;
         diferencia = kmIni - lastKm;
       }
@@ -566,15 +551,14 @@ async function iniciarTurno() {
     // Registrar discrepancia de KM si corresponde (sólo excesos)
     if (registrarDiscrepancia) {
       try {
-        const lastKm = lastTurno ? refKm : 0;
         await db.collection('km_discrepancias').add({
           patente: patente.toUpperCase(),
           conductor_email: _email,
           conductor_nombre: _name,
           fecha: firebase.firestore.FieldValue.serverTimestamp(),
           turno_anterior_id: lastTurno ? lastTurno.id : null,
-          km_final_anterior: lastKm,
-          conductor_anterior: lastTurno ? (lastTurno.conductor_nombre || lastTurno.conductor_email) : 'Sistema/Registro Inicial',
+          km_final_anterior: currentVehicleKm,
+          conductor_anterior: lastTurno ? (lastTurno.conductor_nombre || lastTurno.conductor_email) : 'Administración / Flota',
           fecha_cierre_anterior: lastTurno ? (lastTurno.hora_cierre || null) : null,
           turno_nuevo_id: newTurnoId,
           km_inicial_nuevo: kmIni,
@@ -589,7 +573,7 @@ async function iniciarTurno() {
         await db.collection('notificaciones').add({
           tipo: 'discrepancia_km',
           patente: patente.toUpperCase(),
-          mensaje: `Discrepancia de kilometraje detectada para el vehículo ${patente.toUpperCase()}: Conductor ${_name} ingresó ${kmIni} km, el kilometraje anterior era ${lastKm} km (Exceso de +${diferencia} km).`,
+          mensaje: `Discrepancia de kilometraje detectada para el vehículo ${patente.toUpperCase()}: Conductor ${_name} ingresó ${kmIni} km, el kilometraje actual en flota era ${currentVehicleKm} km (Exceso de +${diferencia} km).`,
           fecha: firebase.firestore.FieldValue.serverTimestamp(),
           leida: false,
           turno_id: newTurnoId,
