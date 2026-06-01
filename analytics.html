@@ -597,24 +597,25 @@ function getVehicleEmoji(marca, modelo) {
   return '🚛';
 }
 
+function getTurnoKm(t) {
+  if (!t.km_final || !t.km_inicial) return 0;
+  const kmIniActual = t.km_inicial_actual || t.km_inicial || 0;
+  const accum = t.km_recorridos_acumulados || 0;
+  const diff = t.km_final - kmIniActual;
+  return accum + (diff > 0 ? diff : 0);
+}
+
 function renderRankVehiculos(turnos,despachos,gastos){
   const container=document.getElementById('rank-vehiculos');
   
   // Agrupar datos por patente
   const vehData={};
   _vehiculos.forEach(v=>{
-    const base_km = v.base_km !== undefined ? v.base_km : (v.km || v.kilometraje || 0);
-    const base_edited_at = v.base_edited_at ? (v.base_edited_at.toDate ? v.base_edited_at.toDate() : new Date(v.base_edited_at)) : new Date(0);
-    
     vehData[v.patente]={
-      base_km,
-      base_edited_at,
       marca:v.marca||'',
       modelo:v.modelo||'',
       overall_recorridos:0,
-      overall_discrepancias:0,
       period_recorridos:0,
-      period_discrepancias:0,
       period_litros:0,
       turnos_count:0
     };
@@ -626,28 +627,12 @@ function renderRankVehiculos(turnos,despachos,gastos){
     return;
   }
 
-  // 1) Calcular totales HISTÓRICOS (overall) desde base_edited_at para Odómetro Total
+  // 1) Calcular totales HISTÓRICOS (overall) para Odómetro Total (sólo km recorridos de todos los turnos)
   _turnos.forEach(t=>{
     const v=t.patente;
     if(v && vehData[v]){
-      const tDate = t._date || (t.fecha?.toDate ? t.fecha.toDate() : (t.hora_apertura?.toDate ? t.hora_apertura.toDate() : null));
-      if(tDate && tDate >= vehData[v].base_edited_at){
-        if(t.km_final&&t.km_inicial){
-          const diff = t.km_final-t.km_inicial;
-          if(diff > 0) vehData[v].overall_recorridos += diff;
-        }
-      }
-    }
-  });
-
-  _discrepancias.forEach(d=>{
-    const v=d.patente;
-    if(v && vehData[v]){
-      const dDate = d._date || (d.fecha?.toDate ? d.fecha.toDate() : null);
-      if(dDate && dDate >= vehData[v].base_edited_at){
-        const diff = d.diferencia_km || 0;
-        if(diff > 0) vehData[v].overall_discrepancias += diff;
-      }
+      const km = getTurnoKm(t);
+      if (km > 0) vehData[v].overall_recorridos += km;
     }
   });
 
@@ -655,26 +640,9 @@ function renderRankVehiculos(turnos,despachos,gastos){
   turnos.forEach(t=>{
     const v=t.patente;
     if(v && vehData[v]){
-      const tDate = t._date;
-      if(tDate && tDate >= vehData[v].base_edited_at){
-        vehData[v].turnos_count++;
-        if(t.km_final&&t.km_inicial){
-          const diff = t.km_final-t.km_inicial;
-          if(diff > 0) vehData[v].period_recorridos += diff;
-        }
-      }
-    }
-  });
-
-  const periodDiscrepancias = filterByDaysPast(_discrepancias, _days);
-  periodDiscrepancias.forEach(d=>{
-    const v=d.patente;
-    if(v && vehData[v]){
-      const dDate = d._date;
-      if(dDate && dDate >= vehData[v].base_edited_at){
-        const diff = d.diferencia_km || 0;
-        if(diff > 0) vehData[v].period_discrepancias += diff;
-      }
+      vehData[v].turnos_count++;
+      const km = getTurnoKm(t);
+      if (km > 0) vehData[v].period_recorridos += km;
     }
   });
 
@@ -683,10 +651,7 @@ function renderRankVehiculos(turnos,despachos,gastos){
       const t = _turnos.find(x=>x._id===g.turno_id);
       const v = t ? t.patente : g.patente;
       if(v && vehData[v]){
-        const gDate = g._date;
-        if(gDate && gDate >= vehData[v].base_edited_at){
-          vehData[v].period_litros += parseFloat(g.litros)||0;
-        }
+        vehData[v].period_litros += parseFloat(g.litros)||0;
       }
     }
   });
@@ -694,8 +659,8 @@ function renderRankVehiculos(turnos,despachos,gastos){
   // Crear resultados
   const results=[];
   Object.entries(vehData).forEach(([patente,d])=>{
-    const odometer_total = d.base_km + d.overall_discrepancias + d.overall_recorridos;
-    const period_km = d.period_recorridos + d.period_discrepancias;
+    const odometer_total = d.overall_recorridos;
+    const period_km = d.period_recorridos;
     
     let rendimiento = 0;
     if(d.period_litros > 0){
