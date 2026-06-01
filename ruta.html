@@ -137,7 +137,7 @@ textarea.field{resize:vertical;min-height:60px}
     <div class="modal-title">📦 Nuevo Despacho <button class="modal-close" onclick="closeModal('add')">✕</button></div>
     <div class="form-group">
       <label>N° Correlativo</label>
-      <input class="field" type="text" id="add-correlativo" readonly/>
+      <input class="field" type="number" id="add-correlativo" min="1" step="1"/>
     </div>
     
     <div class="form-group" style="position:relative;">
@@ -538,6 +538,20 @@ async function guardarDespacho(){
   const btn = document.querySelector('#modal-add .btn-save');
   const searchInput = document.getElementById('add-cliente-search').value.trim();
   
+  const corrVal = document.getElementById('add-correlativo').value;
+  const corr = parseInt(corrVal);
+  if (isNaN(corr) || corr < 1 || corrVal.includes('.') || corrVal.includes(',')) {
+    showToast('El número correlativo debe ser un número entero mayor o igual a 1', 'error');
+    return;
+  }
+
+  // Verificar duplicados en la misma hoja de ruta
+  const existeDuplicado = _despachos.some(d => d.correlativo === corr);
+  if (existeDuplicado) {
+    showToast('El número correlativo ya está registrado en esta hoja de ruta', 'error');
+    return;
+  }
+  
   if(!_selectedClienteId && searchInput){
     const match = _clientes.find(c => (c.nombre || '').trim().toLowerCase() === searchInput.toLowerCase());
     if(match){
@@ -600,7 +614,7 @@ async function guardarDespacho(){
   const desc='';
   const comuna=document.getElementById('universal-comuna').value.trim();
   const distribuidor=document.getElementById('universal-distribuidor').value.trim();
-  const corr=parseInt(document.getElementById('add-correlativo').value)||(_despachos.length+1);
+  // El número correlativo corr ya fue obtenido y validado al inicio de la función
 
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…'; }
   try {
