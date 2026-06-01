@@ -494,6 +494,9 @@ function openModal(id){
     document.getElementById('cliente-suggestions').style.display='none';
     document.getElementById('no-client-actions').style.display='none';
     document.getElementById('new-client-fields').style.display='none';
+    const n = document.getElementById('new-cli-nombre'); if (n) n.value = '';
+    const d = document.getElementById('new-cli-dir'); if (d) d.value = '';
+    const t = document.getElementById('new-cli-tel'); if (t) t.value = '';
     _selectedClienteId = '';
   }
 }
@@ -502,6 +505,9 @@ function closeModal(id){
   document.getElementById('modal-'+id).classList.remove('open');
   if(id==='add'){
     quitarUbicacionGPS();
+    const n = document.getElementById('new-cli-nombre'); if (n) n.value = '';
+    const d = document.getElementById('new-cli-dir'); if (d) d.value = '';
+    const t = document.getElementById('new-cli-tel'); if (t) t.value = '';
   }
   if(id==='entrega'){
     _podFile=null;

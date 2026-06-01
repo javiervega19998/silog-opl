@@ -730,7 +730,8 @@ async function cerrarTurno() {
       transaction.update(vehicleDocRef, { km: kmFin, kilometraje: kmFin, estado: 'Disponible', conductor: null });
       transaction.set(hojaDocRef, {
         turno_id: _turnoDocId, conductor_uid: _uid, conductor_email: _email,
-        conductor_nombre: _name, distribuidor: distribuidor,
+        conductor_nombre: _name, distribuidor: distribuidor || tData.distribuidor || '',
+        comuna: tData.comuna || '',
         patente: tData.patente, fecha: fecha,
         hora_inicio: tData.hora_apertura || null,
         hora_termino: firebase.firestore.FieldValue.serverTimestamp(),

@@ -223,9 +223,12 @@ select.field{appearance:auto;cursor:pointer}
             <select class="field" id="hoja-patente-select" style="font-size:0.8rem;padding:6px 10px;border-radius:8px;"></select>
           </div>
         </div>
-        <div class="row-2" style="margin-bottom:10px">
+        <div class="row-3" style="margin-bottom:10px">
           <div class="form-group"><label style="font-size:0.68rem;">Distribuidor</label>
             <select class="field" id="hoja-distribuidor-select" style="font-size:0.8rem;padding:6px 10px;border-radius:8px;"></select>
+          </div>
+          <div class="form-group"><label style="font-size:0.68rem;">Comuna</label>
+            <input class="field" type="text" id="hoja-comuna-input" placeholder="Comuna..." style="font-size:0.8rem;padding:6px 10px;border-radius:8px;"/>
           </div>
           <div class="form-group"><label style="font-size:0.68rem;">Fecha</label>
             <input class="field" type="date" id="hoja-fecha-input" style="font-size:0.8rem;padding:6px 10px;border-radius:8px;"/>
@@ -666,7 +669,7 @@ async function loadCentroCostos(){
         let desc = '';
         const dist = (h.distribuidor || 'SIN DISTRIBUIDOR').toUpperCase();
         if (dist.includes('CINTEC')) {
-          const comuna = h.entregas && h.entregas[0] && h.entregas[0].comuna ? h.entregas[0].comuna : 'Puerto Montt';
+          const comuna = h.comuna || (h.entregas && h.entregas[0] && h.entregas[0].comuna ? h.entregas[0].comuna : 'Puerto Montt');
           desc = `Ruta ${comuna}`;
         } else if (dist.includes('TOTAL')) {
           desc = 'OPL Puerto Montt TotalEnergies';
@@ -2053,6 +2056,7 @@ function openHoja(id){
     }
     distSelect.value = currentDist;
   }
+  if(document.getElementById('hoja-comuna-input')) document.getElementById('hoja-comuna-input').value = _hojaActual.comuna || '';
   if(document.getElementById('hoja-fecha-input')) document.getElementById('hoja-fecha-input').value = _hojaActual.fecha || '';
   if(document.getElementById('hoja-hora-inicio-input')) document.getElementById('hoja-hora-inicio-input').value = formatTimeForInput(_hojaActual.hora_inicio);
   if(document.getElementById('hoja-hora-termino-input')) document.getElementById('hoja-hora-termino-input').value = formatTimeForInput(_hojaActual.hora_termino);
@@ -2142,6 +2146,7 @@ async function guardarHoja(){
 
   const patenteEditada = document.getElementById('hoja-patente-select')?.value || '';
   const distribuidorEditado = document.getElementById('hoja-distribuidor-select')?.value || '';
+  const comunaEditada = document.getElementById('hoja-comuna-input')?.value || '';
   const fechaEditada = document.getElementById('hoja-fecha-input')?.value || '';
   const horaInicioEditada = document.getElementById('hoja-hora-inicio-input')?.value || '';
   const horaTerminoEditada = document.getElementById('hoja-hora-termino-input')?.value || '';
@@ -2289,6 +2294,7 @@ async function guardarHoja(){
       patente: patenteEditada,
       distribuidor: distribuidorEditado,
       nombre_distribuidor: distribuidorEditado,
+      comuna: comunaEditada,
       fecha: fechaEditada,
       fecha_despacho: fechaEditada,
       hora_inicio: horaInicioEditada,
