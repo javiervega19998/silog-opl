@@ -345,7 +345,7 @@ async function onVehicleChange() {
     try {
       const snap = await db.collection('chequeo_operacional')
         .where('operador', '==', _email)
-        .where('patente', '==', patente.toUpperCase())
+        .where('patente_chequeo', '==', patente.toUpperCase())
         .where('fecha_chequeo', '>=', ts)
         .get();
       
@@ -460,7 +460,7 @@ async function iniciarTurno() {
       const ts = firebase.firestore.Timestamp.fromDate(today);
       const checklistSnap = await db.collection('chequeo_operacional')
         .where('operador', '==', _email)
-        .where('patente', '==', patente.toUpperCase())
+        .where('patente_chequeo', '==', patente.toUpperCase())
         .where('fecha_chequeo', '>=', ts)
         .limit(1)
         .get();
