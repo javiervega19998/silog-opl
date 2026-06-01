@@ -111,7 +111,7 @@ function userRol() {
     // â”€â”€ Turnos (Apertura/Cierre de Jornada) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /turnos/{id} {
       allow create: if isAuth() && (isViewer() || request.resource.data.conductor_uid == request.auth.uid);
-      allow read:   if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
+      allow read:   if isAuth();
       allow update: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
       allow delete: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
     }
