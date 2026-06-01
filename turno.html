@@ -401,7 +401,9 @@ async function onVehicleChange() {
 function updateKmInfo() {
   const kmInfoMsg = document.getElementById('km-info-msg');
   const kmInput = document.getElementById('km-inicial');
-  const val = parseInt(kmInput.value);
+  const valRaw = kmInput.value || '';
+  const valClean = valRaw.replace(/\./g, '').replace(/,/g, '').trim();
+  const val = parseInt(valClean);
   
   if (!kmInfoMsg) return;
   
@@ -451,7 +453,9 @@ function updateKmInfo() {
 
 async function iniciarTurno() {
   const patente = document.getElementById('sel-vehiculo').value;
-  const kmIni = parseInt(document.getElementById('km-inicial').value);
+  const valRaw = document.getElementById('km-inicial').value || '';
+  const valClean = valRaw.replace(/\./g, '').replace(/,/g, '').trim();
+  const kmIni = parseInt(valClean);
   if (!patente) { showToast('Selecciona un vehículo','error'); return; }
   if (!kmIni || kmIni <= 0) { showToast('Ingresa el kilometraje inicial','error'); return; }
   const btn = document.getElementById('btn-iniciar');
@@ -617,7 +621,9 @@ async function cerrarTurno() {
   if (!tSnap.exists) { showToast('El turno no existe', 'error'); return; }
   const tData = tSnap.data();
 
-  const kmFin = parseInt(document.getElementById('km-final').value);
+  const valRaw = document.getElementById('km-final').value || '';
+  const valClean = valRaw.replace(/\./g, '').replace(/,/g, '').trim();
+  const kmFin = parseInt(valClean);
   const activeVeh = tData.vehiculo_actual || tData.patente || '';
   const kmIniActual = tData.km_inicial_actual || tData.km_inicial || 0;
   

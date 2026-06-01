@@ -982,7 +982,9 @@ let _selectedNuevoVehRefKm = 0;
 
 function onCambioKmFinalActualInput() {
   const msg = document.getElementById('cambio-km-final-msg');
-  const val = parseInt(document.getElementById('cambio-km-final-actual').value);
+  const valRaw = document.getElementById('cambio-km-final-actual').value || '';
+  const valClean = valRaw.replace(/\./g, '').replace(/,/g, '').trim();
+  const val = parseInt(valClean);
   const kmIniActual = _turnoData.km_inicial_actual || _turnoData.km_inicial || 0;
   
   if (isNaN(val) || val <= 0) {
@@ -1020,7 +1022,9 @@ function onCambioVehiculoSelectChange() {
 
 function onCambioKmInicialNuevoInput() {
   const msg = document.getElementById('cambio-km-inicial-msg');
-  const val = parseInt(document.getElementById('cambio-km-inicial-nuevo').value);
+  const valRaw = document.getElementById('cambio-km-inicial-nuevo').value || '';
+  const valClean = valRaw.replace(/\./g, '').replace(/,/g, '').trim();
+  const val = parseInt(valClean);
   
   if (isNaN(val) || val <= 0) {
     if (_selectedNuevoVehRefKm > 0) {
@@ -1058,9 +1062,13 @@ async function confirmarCambioVehiculo() {
   const vehActual = _turnoData.vehiculo_actual || _turnoData.patente || '';
   const kmIniActual = _turnoData.km_inicial_actual || _turnoData.km_inicial || 0;
   
-  const kmFinActual = parseInt(document.getElementById('cambio-km-final-actual').value);
+  const valRawActual = document.getElementById('cambio-km-final-actual').value || '';
+  const valCleanActual = valRawActual.replace(/\./g, '').replace(/,/g, '').trim();
+  const kmFinActual = parseInt(valCleanActual);
   const patenteNueva = document.getElementById('cambio-sel-vehiculo').value;
-  const kmIniNuevo = parseInt(document.getElementById('cambio-km-inicial-nuevo').value);
+  const valRawNuevo = document.getElementById('cambio-km-inicial-nuevo').value || '';
+  const valCleanNuevo = valRawNuevo.replace(/\./g, '').replace(/,/g, '').trim();
+  const kmIniNuevo = parseInt(valCleanNuevo);
   
   if (isNaN(kmFinActual) || kmFinActual <= 0) {
     showToast('Ingresa el kilometraje final del vehículo actual', 'error');
