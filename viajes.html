@@ -77,7 +77,7 @@
         <div class="form-row"><label>ID Viaje</label><input class="field" id="id_viaje"/></div>
         <div class="form-row"><label>Fecha Despacho</label><input class="field" type="date" id="fecha_despacho"/></div>
       </div>
-      <div class="form-row"><label>Conductor</label><input class="field" id="nombre_conductor_viaje"/></div>
+      <div class="form-row"><label>Conductor</label><select class="field" id="nombre_conductor_viaje"><option value="">Seleccione Conductor...</option></select></div>
       <div class="row-2">
         <div class="form-row"><label>Patente</label><select class="field" id="patente" style="text-transform:uppercase"><option value="">Seleccione Vehículo...</option></select></div>
         <div class="form-row">
@@ -260,14 +260,49 @@
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
 <script>
-let _email='', _name='', _isViewer=false, _activeTab='form';
+let _uid='', _email='', _name='', _isViewer=false, _activeTab='form';
 
 requireAuth(async(user,data)=>{
+  _uid=user.uid;
   _email=data.correo_electronico||data.email||user.email;
   _name=data.name||data.nombre||'';
   _isViewer=isViewerRole((data.rol||data.role));
   document.getElementById('user-name').textContent=_name;
-  document.getElementById('nombre_conductor_viaje').value=_name;
+  
+  const condSelect = document.getElementById('nombre_conductor_viaje');
+  if (_isViewer) {
+    try {
+      const usersSnap = await db.collection('users').get();
+      condSelect.innerHTML = '<option value="" disabled selected>Seleccione Conductor...</option>';
+      usersSnap.forEach(d => {
+        const u = d.data();
+        const email = u.correo_electronico || u.email || '';
+        const name = u.nombre_completo || u.nombre || u.name || '';
+        const role = (u.rol || u.role || '').toLowerCase();
+        if ((role.includes('conductor') || role === 'admin') && email) {
+          const o = document.createElement('option');
+          o.value = email;
+          o.textContent = `${name} (${email})`;
+          o.dataset.uid = d.id;
+          o.dataset.name = name;
+          condSelect.appendChild(o);
+        }
+      });
+    } catch(err) {
+      console.warn("Error cargando lista de conductores:", err);
+    }
+  } else {
+    condSelect.innerHTML = '';
+    const o = document.createElement('option');
+    o.value = _email;
+    o.textContent = `${_name} (${_email})`;
+    o.dataset.uid = user.uid;
+    o.dataset.name = _name;
+    condSelect.appendChild(o);
+    condSelect.value = _email;
+    condSelect.disabled = true;
+  }
+
   const now=new Date();
   document.getElementById('id_viaje').value=String(now.getDate()).padStart(2,'0')+String(now.getMonth()+1).padStart(2,'0')+now.getFullYear();
   document.getElementById('fecha_despacho').value=now.toISOString().split('T')[0];
@@ -453,7 +488,26 @@ async function submitViaje(){
   const kmF=parseFloat(document.getElementById('km_final_viaje').value);
   const fechaDespacho=document.getElementById('fecha_despacho').value;
   const idViaje=document.getElementById('id_viaje').value.trim();
-  const conductorNombre=document.getElementById('nombre_conductor_viaje').value.trim();
+  
+  const condSelect = document.getElementById('nombre_conductor_viaje');
+  let conductorEmail = _email;
+  let conductorNombre = _name;
+  let conductorUid = _uid;
+
+  if (_isViewer) {
+    const selectedOpt = condSelect.options[condSelect.selectedIndex];
+    if (!selectedOpt || !selectedOpt.value) {
+      showToast('Seleccione un conductor', 'error');
+      return;
+    }
+    conductorEmail = selectedOpt.value;
+    conductorNombre = selectedOpt.dataset.name || selectedOpt.textContent;
+    conductorUid = selectedOpt.dataset.uid || '';
+  } else {
+    conductorEmail = _email;
+    conductorNombre = _name;
+    conductorUid = _uid;
+  }
   
   if(!patente||!dist||!kmI||!kmF||!fechaDespacho||!idViaje||!conductorNombre){
     showToast('Completa los campos obligatorios del viaje','error');
@@ -567,8 +621,8 @@ async function submitViaje(){
     batch.set(hrRef, {
       turno_id: tripId,
       id_viaje: idViaje,
-      conductor_uid: (typeof _uid !== 'undefined' ? _uid : ''),
-      conductor_email: _email,
+      conductor_uid: conductorUid,
+      conductor_email: conductorEmail,
       conductor_nombre: conductorNombre,
       distribuidor: dist,
       nombre_distribuidor: dist,
@@ -623,7 +677,12 @@ async function submitViaje(){
         estado: estadoViaje === 'Conforme' ? 'entregado' : 'devuelto',
         devolucion_motivo: estadoViaje !== 'Conforme' ? document.getElementById('detalle_devoluciones').value || 'Incidente en Ruta' : '',
         fecha: firebase.firestore.Timestamp.fromDate(new Date(fechaDespacho + 'T12:00:00')),
-        pod_timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        pod_timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        // ASIGNACIÓN AL CONDUCTOR
+        conductor_uid: conductorUid,
+        conductor_email: conductorEmail,
+        conductor_nombre: conductorNombre,
+        patente: patente
       });
     });
     
