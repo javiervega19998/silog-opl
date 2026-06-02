@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Hoja de Ruta</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root{--primary:#1B4B9B;--accent:#F47920;--bg:#060D1F;--surface:#0D1B35;--surface2:#142040;--text:#E8EEF8;--text2:#8A9DC0;--border:#1E3056;--success:#10B981;--danger:#EF4444;}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+.nav{background:rgba(13,27,53,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-weight:800;font-size:1rem}.nav-brand span{color:var(--accent)}
+.btn-back{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
+.main{max-width:700px;margin:0 auto;padding:20px 16px 80px}
+.page-header{margin-bottom:24px}.page-header h2{font-size:1.3rem;font-weight:700}.page-header p{color:var(--text2);font-size:.83rem;margin-top:4px}
+.tab-row{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tab-btn{flex:1;min-width:100px;padding:9px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:.82rem;font-family:'Inter',sans-serif;transition:.2s}
+.tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}
+.section-card h3{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:16px}
+.form-row{margin-bottom:12px}.form-row label{display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;font-family:'Inter',sans-serif;outline:none}
+.field:focus{border-color:var(--primary)}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:10px}
+.toggle{position:relative;width:42px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.slider{position:absolute;inset:0;background:#1E3056;border-radius:24px;cursor:pointer;transition:.3s}
+.slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#8A9DC0;border-radius:50%;transition:.3s}
+.toggle input:checked+.slider{background:var(--success)}
+.toggle input:checked+.slider::before{transform:translateX(18px);background:#fff}
+.client-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.client-item{display:flex;gap:8px;align-items:center}
+.client-item input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.83rem;font-family:'Inter',sans-serif;outline:none}
+.btn-add{background:transparent;border:1px dashed var(--border);color:var(--text2);padding:8px;border-radius:8px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif;width:100%;transition:.2s}
+.btn-add:hover{border-color:var(--primary);color:var(--text)}
+.btn-remove{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#FCA5A5;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:.9rem;flex-shrink:0}
+.img-preview{width:100%;max-height:150px;object-fit:contain;border-radius:8px;margin-top:8px;display:none}
+.btn-submit{width:100%;padding:15px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--primary),#2563EB);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;margin-top:8px;transition:.2s}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(27,75,155,.4)}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.trip-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px}
+.trip-id{font-size:.75rem;color:var(--text2)}.trip-dist{font-size:.95rem;font-weight:700;color:var(--accent);margin:4px 0}
+.trip-meta{font-size:.78rem;color:var(--text2)}
+.badge-conf{background:rgba(16,185,129,.15);color:#6EE7B7;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
+.badge-obs{background:rgba(245,158,11,.15);color:#FCD34D;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
+.badge-inc{background:rgba(239,68,68,.15);color:#FCA5A5;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.3s}
+.toast.show{opacity:1}.toast-success{border-color:var(--success);color:#6EE7B7}.toast-error{border-color:var(--danger);color:#FCA5A5}
+.btn-delete-trip{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#FCA5A5;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;font-family:'Inter',sans-serif;margin-top:10px;transition:.2s;display:block}
+.btn-delete-trip:hover{background:rgba(239,68,68,.2);border-color:var(--danger);color:#fff}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> SpA</div>
+  <div style="display:flex;gap:8px">
+    <span id="user-name" style="font-size:.82rem;color:var(--text2);align-self:center"></span>
+    <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+  </div>
+</nav>
+<div class="main">
+  <div class="page-header"><h2>📋 Hoja de Ruta</h2><p>Registro de viaje y despacho diario</p></div>
+  <div class="tab-row">
+    <button class="tab-btn active" id="tbtn-form" onclick="showTab('form')">Nuevo Viaje</button>
+    <button class="tab-btn" id="tbtn-history" onclick="showTab('history')">Mis Viajes</button>
+    <button class="tab-btn" id="tbtn-admin" style="display:none" onclick="showTab('admin')">📊 Todos los Viajes</button>
+  </div>
+
+  <!-- FORMULARIO -->
+  <div id="tab-form">
+    <div class="section-card">
+      <h3>📋 Datos del Viaje</h3>
+      <div class="row-2">
+        <div class="form-row"><label>ID Viaje</label><input class="field" id="id_viaje"/></div>
+        <div class="form-row"><label>Fecha Despacho</label><input class="field" type="date" id="fecha_despacho"/></div>
+      </div>
+      <div class="form-row"><label>Conductor</label><input class="field" id="nombre_conductor_viaje"/></div>
+      <div class="row-2">
+        <div class="form-row"><label>Patente</label><select class="field" id="patente" style="text-transform:uppercase"><option value="">Seleccione Vehículo...</option></select></div>
+        <div class="form-row">
+          <label>Distribuidor</label>
+          <select class="field" id="nombre_distribuidor" onchange="onDistribuidorSelect(this.value)">
+            <option value="" disabled selected>Seleccione Distribuidor...</option>
+            <option value="CINTEC">CINTEC</option>
+            <option value="TotalEnergies">TotalEnergies</option>
+            <option value="new">➕ Agregar nuevo...</option>
+          </select>
+        </div>
+      </div>
+      <div class="row-2" id="row-valor-servicio" style="display:none">
+        <div class="form-row">
+          <label>Valor del Servicio ($)</label>
+          <input class="field" type="number" id="valor_servicio_viaje" placeholder="Ej: 80000"/>
+        </div>
+      </div>
+      <div class="form-row" id="row-pod-documento" style="display:none">
+        <label>Documento Firmado por Cliente (Validación Entrega)</label>
+        <input type="file" id="pod_documento" accept="application/pdf,image/*" class="field" onchange="previewPod(this)"/>
+        <iframe id="pdf-pod-preview" style="width:100%; height:250px; border-radius:8px; margin-top:8px; border:1px solid var(--border); display:none;"></iframe>
+        <img id="img-pod-preview" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-top:8px; display:none;"/>
+      </div>
+      <div class="row-2">
+        <div class="form-row"><label>Km Inicial</label><input class="field" type="number" id="km_inicial" placeholder="61000"/></div>
+        <div class="form-row"><label>Km Final</label><input class="field" type="number" id="km_final_viaje" placeholder="61100"/></div>
+      </div>
+      <div class="form-row" id="row-documentos">
+        <label>Nº de Documento (WMS Bodega)</label>
+        <div id="docs-list" style="display:flex;flex-direction:column;gap:6px">
+          <div class="doc-item" style="display:flex;gap:8px">
+            <input class="field doc-input" placeholder="Ej: GD-0046" />
+            <button class="btn-remove" onclick="removeDoc(this)" style="display:none">✕</button>
+          </div>
+        </div>
+        <button class="btn-add" onclick="addDoc()" type="button" style="margin-top:6px;padding:6px;font-size:0.75rem">+ Agregar otro documento</button>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3>🏢 Clientes de Despacho</h3>
+      <div class="client-list" id="client-list">
+        <div class="client-item"><input placeholder="Nombre del cliente" class="client-input"/><button class="btn-remove" onclick="removeClient(this)">✕</button></div>
+      </div>
+      <button class="btn-add" onclick="addClient()">+ Agregar Cliente</button>
+    </div>
+
+    <div class="section-card">
+      <h3>⛽ Combustible</h3>
+      <div class="toggle-row"><label>¿Se realizó carga de combustible?</label>
+        <label class="toggle"><input type="checkbox" id="carga_combustible_viaje" onchange="toggleFuel(this.checked)"/><span class="slider"></span></label>
+      </div>
+      <div id="fuel-fields" style="display:none">
+        <div class="row-2">
+          <div class="form-row"><label>Litros</label><input class="field" type="number" step="0.1" id="litros_combustible" placeholder="45.5"/></div>
+          <div class="form-row"><label>Monto ($)</label><input class="field" type="number" id="monto_combustible" placeholder="50000"/></div>
+        </div>
+        <div class="form-row"><label>N° Factura / Boleta</label><input class="field" id="factura_combustible" placeholder="Número de documento"/></div>
+        <div class="form-row"><label>Foto Comprobante</label>
+          <input type="file" id="foto_combustible" accept="image/*" class="field" onchange="previewImg(this)"/>
+          <img id="img-preview" class="img-preview"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h3>📦 Devoluciones y Estado</h3>
+      <div class="form-row"><label>Detalle de Devoluciones</label>
+        <textarea class="field" id="detalle_devoluciones" rows="2" placeholder="Sin Observaciones" style="resize:vertical">Sin Observaciones</textarea>
+      </div>
+      <div class="form-row"><label>Estado del Viaje</label>
+        <select class="field" id="estado_viaje">
+          <option value="Conforme">Conforme</option>
+          <option value="Con Observaciones">Con Observaciones</option>
+          <option value="Incidente">Incidente</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-submit" id="btn-submit" onclick="submitViaje()">📋 Registrar Hoja de Ruta</button>
+  </div>
+
+  <!-- MIS VIAJES -->
+  <div id="tab-history" style="display:none">
+    <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:.8rem;color:var(--text2);white-space:nowrap">Filtrar por fecha:</label>
+      <input type="date" id="filter-date-history" class="field" style="flex:1;max-width:180px" onchange="loadHistory()"/>
+      <button class="btn-back" onclick="clearFilterDate('history')" style="padding:10px 14px">✕ Limpiar</button>
+    </div>
+    <div id="history-list"><div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div></div>
+  </div>
+
+  <!-- ADMIN: todos los viajes -->
+  <div id="tab-admin" style="display:none">
+    <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:.8rem;color:var(--text2);white-space:nowrap">Conductor:</label>
+      <select id="filter-conductor" class="field" style="flex:1;max-width:200px" onchange="loadAdminViajes()">
+        <option value="">Todos los conductores</option>
+      </select>
+      <label style="font-size:.8rem;color:var(--text2);white-space:nowrap;margin-left:8px">Fecha:</label>
+      <input type="date" id="filter-date-admin" class="field" style="flex:1;max-width:160px" onchange="loadAdminViajes()"/>
+      <button class="btn-back" onclick="clearFilterDate('admin')" style="padding:10px 14px">✕ Limpiar</button>
+    </div>
+    <div id="admin-viajes-list"><div style="color:var(--text2);text-align:center;padding:32px">Selecciona un filtro o carga todos</div></div>
+  </div>
+  <!-- MODAL EDITAR VIAJE (ADMIN) -->
+  <div id="modal-edit-trip" style="position:fixed;inset:0;background:rgba(6,13,31,.85);backdrop-filter:blur(6px);z-index:1000;display:none;align-items:center;justify-content:center;padding:14px">
+    <div class="card" style="width:100%;max-width:500px;margin:0;max-height:90vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;position:relative">
+      <h3 style="margin-bottom:16px;color:var(--accent);font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px">✏️ Editar Viaje</h3>
+      <input type="hidden" id="edit-trip-id"/>
+      <input type="hidden" id="edit-trip-turno-id"/>
+      <div class="form-row" style="margin-bottom:12px">
+        <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Patente</label>
+        <input class="field" id="edit-patente" style="text-transform:uppercase;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;outline:none"/>
+      </div>
+      <div class="form-row" style="margin-bottom:12px">
+        <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Distribuidor</label>
+        <input class="field" id="edit-distribuidor" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;outline:none"/>
+      </div>
+      <div class="row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="form-row">
+          <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Km Inicial</label>
+          <input class="field" type="number" id="edit-km-inicial" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;outline:none"/>
+        </div>
+        <div class="form-row">
+          <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Km Final</label>
+          <input class="field" type="number" id="edit-km-final" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;outline:none"/>
+        </div>
+      </div>
+      <div class="row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="form-row">
+          <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Total Entregas</label>
+          <input class="field" type="number" id="edit-entregas" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;outline:none"/>
+        </div>
+        <div class="form-row">
+          <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Total Devoluciones</label>
+          <input class="field" type="number" id="edit-devoluciones" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;outline:none"/>
+        </div>
+      </div>
+      <div class="row-2" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="form-row">
+          <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Litros Comb.</label>
+          <input class="field" type="number" step="0.1" id="edit-litros" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;outline:none"/>
+        </div>
+        <div class="form-row">
+          <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Combustible ($)</label>
+          <input class="field" type="number" id="edit-combustible" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;outline:none"/>
+        </div>
+        <div class="form-row">
+          <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Peaje ($)</label>
+          <input class="field" type="number" id="edit-peaje" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;outline:none"/>
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:12px">
+        <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Estado de Hoja de Ruta</label>
+        <select class="field" id="edit-estado" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.85rem;outline:none">
+          <option value="pendiente">⏳ Pendiente</option>
+          <option value="revisada">✅ Revisada</option>
+          <option value="observada">⚠️ Observada</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button class="btn-save" style="flex:1;padding:12px;background:linear-gradient(135deg,var(--primary),#2563EB);border:none;border-radius:10px;color:#fff;font-size:.9rem;font-weight:700;cursor:pointer" onclick="saveEditedTrip()">💾 Guardar</button>
+        <button class="btn-back" style="flex:1;padding:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;cursor:pointer;font-size:.9rem" onclick="closeEditModal()">✕ Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js?v=6"></script>
+<script>
+let _email='', _name='', _isViewer=false, _activeTab='form';
+
+requireAuth(async(user,data)=>{
+  _email=data.correo_electronico||data.email||user.email;
+  _name=data.name||data.nombre||'';
+  _isViewer=isViewerRole((data.rol||data.role));
+  document.getElementById('user-name').textContent=_name;
+  document.getElementById('nombre_conductor_viaje').value=_name;
+  const now=new Date();
+  document.getElementById('id_viaje').value=String(now.getDate()).padStart(2,'0')+String(now.getMonth()+1).padStart(2,'0')+now.getFullYear();
+  document.getElementById('fecha_despacho').value=now.toISOString().split('T')[0];
+  
+  const patenteSelect = document.getElementById('patente');
+
+  try {
+    db.collection('vehiculos').onSnapshot(snap => {
+      const vList = new Set();
+      let assignedPatente = '';
+      
+      snap.forEach(d => {
+        const v = d.data();
+        if(v.conductor === _email && v.patente) {
+          assignedPatente = v.patente.toUpperCase();
+          vList.add(assignedPatente);
+        }
+        if(v.estado === 'Disponible' || v.estado === 'Disponible ') {
+          if(v.patente) vList.add(v.patente.toUpperCase());
+        }
+      });
+  
+      patenteSelect.innerHTML = '<option value="">Seleccione Vehículo...</option>';
+      vList.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p; o.textContent = p;
+        patenteSelect.appendChild(o);
+      });
+      
+      if(assignedPatente) patenteSelect.value = assignedPatente;
+    }, err => {
+      console.error("Error onSnapshot vehiculos:", err);
+    });
+  } catch(e) { 
+    console.error("Error crítico cargando vehículos:", e);
+  }
+  
+  if(_isViewer){
+    document.getElementById('tbtn-admin').style.display='block';
+    const usersSnap=await db.collection('users').get();
+    const sel=document.getElementById('filter-conductor');
+    usersSnap.forEach(d=>{
+      const u=d.data(), em=u.correo_electronico||u.email||'';
+      if(em){const o=document.createElement('option');o.value=em;o.textContent=u.nombre||u.name||em;sel.appendChild(o);}
+    });
+  }
+  await loadDistribuidores();
+});
+
+async function loadDistribuidores(selectName = '') {
+  const select = document.getElementById('nombre_distribuidor');
+  if(!select) return;
+  try {
+    const snap = await db.collection('distribuidores').get();
+    const list = new Set(['CINTEC', 'TotalEnergies']);
+    snap.forEach(d => {
+      const n = d.data().nombre;
+      if (n) list.add(n.trim());
+    });
+    
+    select.innerHTML = '<option value="" disabled selected>Seleccione Distribuidor...</option>';
+    list.forEach(name => {
+      const o = document.createElement('option');
+      o.value = name;
+      o.textContent = name;
+      select.appendChild(o);
+    });
+    
+    const oNew = document.createElement('option');
+    oNew.value = 'new';
+    oNew.textContent = '➕ Agregar nuevo...';
+    select.appendChild(oNew);
+    
+    if (selectName) {
+      select.value = selectName;
+      onDistribuidorSelect(selectName);
+    }
+  } catch(e) {
+    console.error("Error loading distribuidores:", e);
+  }
+}
+
+async function onDistribuidorSelect(val) {
+  if (val === 'new') {
+    const name = prompt("Ingrese el nombre del nuevo Distribuidor:");
+    if (name && name.trim()) {
+      const cleanName = name.trim();
+      try {
+        await db.collection('distribuidores').add({
+          nombre: cleanName,
+          created_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showToast('✅ Distribuidor agregado con éxito', 'success');
+        await loadDistribuidores(cleanName);
+      } catch(e) {
+        showToast('Error al agregar: ' + e.message, 'error');
+        document.getElementById('nombre_distribuidor').value = '';
+      }
+    } else {
+      document.getElementById('nombre_distribuidor').value = '';
+    }
+    return;
+  }
+  
+  const isTotal = val.toLowerCase().includes('total');
+  document.getElementById('row-valor-servicio').style.display = isTotal ? 'block' : 'none';
+  document.getElementById('row-pod-documento').style.display = isTotal ? 'block' : 'none';
+}
+
+function previewPod(inp) {
+  const file = inp.files[0];
+  const pdfPrev = document.getElementById('pdf-pod-preview');
+  const imgPrev = document.getElementById('img-pod-preview');
+  if(!pdfPrev || !imgPrev) return;
+  pdfPrev.style.display = 'none';
+  imgPrev.style.display = 'none';
+  if (!file) return;
+  
+  if (file.type === 'application/pdf') {
+    pdfPrev.src = URL.createObjectURL(file);
+    pdfPrev.style.display = 'block';
+  } else if (file.type.startsWith('image/')) {
+    imgPrev.src = URL.createObjectURL(file);
+    imgPrev.style.display = 'block';
+  }
+}
+
+function showTab(t){
+  _activeTab=t;
+  ['form','history','admin'].forEach(id=>{
+    const el=document.getElementById('tab-'+id);if(el)el.style.display=t===id?'block':'none';
+  });
+  ['form','history','admin'].forEach(id=>{
+    const b=document.getElementById('tbtn-'+id);if(b)b.classList.toggle('active',t===id);
+  });
+  if(t==='history') loadHistory();
+  if(t==='admin') loadAdminViajes();
+}
+
+function addClient(){
+  const li=document.getElementById('client-list');
+  const d=document.createElement('div');d.className='client-item';
+  d.innerHTML='<input placeholder="Nombre del cliente" class="client-input"/><button class="btn-remove" onclick="removeClient(this)">✕</button>';
+  li.appendChild(d);
+}
+function removeClient(btn){btn.parentElement.remove();}
+
+function addDoc(){
+  const li=document.getElementById('docs-list');
+  const d=document.createElement('div');d.className='doc-item';d.style.display='flex';d.style.gap='8px';
+  d.innerHTML='<input class="field doc-input" placeholder="Ej: GD-0046" /><button class="btn-remove" onclick="removeDoc(this)">✕</button>';
+  li.appendChild(d);
+  updateDocRemoveButtons();
+}
+function removeDoc(btn){
+  btn.parentElement.remove();
+  updateDocRemoveButtons();
+}
+function updateDocRemoveButtons() {
+  const items = document.querySelectorAll('.doc-item');
+  items.forEach((item) => {
+    const btn = item.querySelector('.btn-remove');
+    if (btn) btn.style.display = items.length > 1 ? 'block' : 'none';
+  });
+}
+
+function toggleFuel(on){document.getElementById('fuel-fields').style.display=on?'block':'none';}
+function previewImg(inp){const img=document.getElementById('img-preview');if(inp.files[0]){img.src=URL.createObjectURL(inp.files[0]);img.style.display='block';}}
+
+async function submitViaje(){
+  const patente=document.getElementById('patente').value.trim().toUpperCase();
+  const dist=document.getElementById('nombre_distribuidor').value.trim();
+  const kmI=parseFloat(document.getElementById('km_inicial').value);
+  const kmF=parseFloat(document.getElementById('km_final_viaje').value);
+  const fechaDespacho=document.getElementById('fecha_despacho').value;
+  const idViaje=document.getElementById('id_viaje').value.trim();
+  const conductorNombre=document.getElementById('nombre_conductor_viaje').value.trim();
+  
+  if(!patente||!dist||!kmI||!kmF||!fechaDespacho||!idViaje||!conductorNombre){
+    showToast('Completa los campos obligatorios del viaje','error');
+    return;
+  }
+  
+  const btn=document.getElementById('btn-submit');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Guardando…';
+  
+  try{
+    const clients=[...document.querySelectorAll('.client-input')].map(i=>i.value.trim()).filter(Boolean);
+    const docs = [...document.querySelectorAll('.doc-input')].map(i=>i.value.trim()).filter(Boolean);
+    
+    if(docs.length === 0) {
+      showToast('Debe ingresar al menos un N° de Documento.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '📋 Registrar Hoja de Ruta';
+      return;
+    }
+
+    // Validar documentos con WMS si es TotalEnergies
+    if(dist.toLowerCase().includes('total')) {
+      for(let doc of docs) {
+        const movSnap = await db.collection('movimientos_bodega')
+          .where('referencia', '==', doc)
+          .limit(1).get();
+        if(movSnap.empty) {
+          showToast(`El N° de Documento "${doc}" no se encontró en Bodega.`, 'error');
+          btn.disabled = false;
+          btn.innerHTML = '📋 Registrar Hoja de Ruta';
+          return;
+        }
+      }
+    }
+
+    const hasFuel=document.getElementById('carga_combustible_viaje').checked;
+    
+    // Validar campos de combustible
+    if(hasFuel) {
+      const vLitros = parseFloat(document.getElementById('litros_combustible').value);
+      const vMonto = parseFloat(document.getElementById('monto_combustible').value);
+      const vFoto = document.getElementById('foto_combustible').files[0];
+      
+      if (!vLitros || vLitros <= 0) {
+        showToast('Debe ingresar la cantidad de litros cargados.', 'error');
+        btn.disabled = false; btn.innerHTML = '📋 Registrar Hoja de Ruta'; return;
+      }
+      if (!vMonto || vMonto <= 0) {
+        showToast('Debe ingresar el monto total del combustible.', 'error');
+        btn.disabled = false; btn.innerHTML = '📋 Registrar Hoja de Ruta'; return;
+      }
+      if (!vFoto) {
+        showToast('Debe adjuntar la foto o boleta del comprobante de combustible.', 'error');
+        btn.disabled = false; btn.innerHTML = '📋 Registrar Hoja de Ruta'; return;
+      }
+    }
+
+    let fotoUrl='';
+    const fotoFile=document.getElementById('foto_combustible').files[0];
+    if(hasFuel&&fotoFile){
+      const ref=storage.ref(`facturas/${Date.now()}_${fotoFile.name}`);
+      await ref.put(fotoFile);fotoUrl=await ref.getDownloadURL();
+    }
+    
+    // Adjuntar POD Document para TotalEnergies
+    let podUrl = '';
+    let podName = '';
+    const podFile = document.getElementById('pod_documento').files[0];
+    if (dist.toLowerCase().includes('total') && podFile) {
+      const ref = storage.ref(`pods/${Date.now()}_${podFile.name}`);
+      await ref.put(podFile);
+      podUrl = await ref.getDownloadURL();
+      podName = podFile.name;
+    }
+    
+    // Valor de servicio
+    const valorServicio = dist.toLowerCase().includes('total') ? parseFloat(document.getElementById('valor_servicio_viaje').value) || 0 : 0;
+    
+    // Mapear estado
+    const estadoViaje=document.getElementById('estado_viaje').value;
+    const mappedEstado=estadoViaje==='Conforme'?'revisada':(estadoViaje==='Con Observaciones'?'observada':'pendiente');
+    
+    // Crear nueva referencia de hojas_ruta para obtener ID consistente
+    const hrRef=db.collection('hojas_ruta').doc();
+    const tripId=hrRef.id;
+    
+    // Entregas array
+    const entregasArray=clients.map((cName, idx) => ({
+      correlativo: idx + 1,
+      documento: `${idViaje}-${idx + 1}`,
+      cliente: cName,
+      direccion: '',
+      comuna: '',
+      observaciones: '',
+      estado: estadoViaje === 'Conforme' ? 'entregado' : 'devuelto',
+      devolucion_motivo: estadoViaje !== 'Conforme' ? document.getElementById('detalle_devoluciones').value || 'Incidente en Ruta' : '',
+    }));
+    
+    const batch=db.batch();
+    
+    // 1. Escribir Hoja de Ruta
+    batch.set(hrRef, {
+      turno_id: tripId,
+      id_viaje: idViaje,
+      conductor_uid: (typeof _uid !== 'undefined' ? _uid : ''),
+      conductor_email: _email,
+      conductor_nombre: conductorNombre,
+      distribuidor: dist,
+      nombre_distribuidor: dist,
+      patente: patente,
+      fecha: fechaDespacho,
+      fecha_despacho: fechaDespacho,
+      hora_inicio: firebase.firestore.FieldValue.serverTimestamp(),
+      hora_termino: firebase.firestore.FieldValue.serverTimestamp(),
+      km_inicial: kmI,
+      km_final: kmF,
+      km_final_viaje: kmF,
+      km_recorridos: kmF - kmI,
+      total_entregas: clients.length,
+      total_devoluciones: estadoViaje === 'Conforme' ? 0 : clients.length,
+      entregas: entregasArray,
+      clientes_despacho: clients,
+      carga_combustible_viaje: hasFuel,
+      combustible: hasFuel ? parseFloat(document.getElementById('monto_combustible').value)||0 : 0,
+      monto_combustible: hasFuel ? parseFloat(document.getElementById('monto_combustible').value)||0 : 0,
+      litros_combustible: hasFuel ? parseFloat(document.getElementById('litros_combustible').value)||0 : 0,
+      factura_combustible: hasFuel ? document.getElementById('factura_combustible').value : '',
+      foto_combustible_url: fotoUrl,
+      peaje: 0,
+      n_guias: docs.length || clients.length,
+      cant_guias: docs.length || clients.length,
+      documentos_wms: docs,
+      n_documento: docs.join(', '),
+      detalle_devoluciones: document.getElementById('detalle_devoluciones').value,
+      estado: mappedEstado,
+      estado_viaje: estadoViaje,
+      valor_servicio: valorServicio,
+      pod_doc_url: podUrl,
+      pod_doc_name: podName,
+      created_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // 2. Escribir Despachos
+    clients.forEach((cName, idx) => {
+      const docAsignado = docs[idx] || docs[0] || `${idViaje}-${idx + 1}`;
+      const dRef = db.collection('despachos').doc();
+      batch.set(dRef, {
+        turno_id: tripId,
+        cliente_nombre: cName,
+        cliente_direccion: '',
+        cliente_comuna: '',
+        guia_numero: docAsignado,
+        n_documento: docAsignado,
+        referencia: docAsignado,
+        distribuidor: dist,
+        nombre_distribuidor: dist,
+        estado: estadoViaje === 'Conforme' ? 'entregado' : 'devuelto',
+        devolucion_motivo: estadoViaje !== 'Conforme' ? document.getElementById('detalle_devoluciones').value || 'Incidente en Ruta' : '',
+        fecha: firebase.firestore.Timestamp.fromDate(new Date(fechaDespacho + 'T12:00:00')),
+        pod_timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    
+    await batch.commit();
+    showToast('✅ Hoja de ruta guardada con éxito', 'success');
+    setTimeout(()=>window.location.href='dashboard.html', 1500);
+  }catch(e){
+    btn.disabled=false;
+    btn.innerHTML='📋 Registrar Hoja de Ruta';
+    showToast('Error: '+e.message, 'error');
+  }
+}
+function tripCard(r){
+  const km = r.km_recorridos || (r.km_final && r.km_inicial ? r.km_final - r.km_inicial : 0);
+  const badgeCls = r.estado === 'revisada' ? 'badge-conf' : r.estado === 'observada' ? 'badge-inc' : 'badge-obs';
+  const badgeTxt = r.estado === 'revisada' ? 'Revisada' : r.estado === 'observada' ? 'Observada' : 'Pendiente';
+  const dateStr = r.fecha || (r.created_at ? formatDate(r.created_at) : '—');
+  return `<div class="trip-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="trip-id">🚛 ${sanitize(r.patente)||'—'} · ${sanitize(r.conductor_nombre||r.conductor_email)||''}</div>
+        <div class="trip-dist">${sanitize(r.distribuidor)||'—'}</div>
+        <div class="trip-meta">📅 ${dateStr} · ${km} km · ${r.total_entregas||0} entregas · ${r.total_devoluciones||0} devoluciones</div>
+        ${r.combustible || r.peaje ? `<div class="trip-meta" style="margin-top:4px">⛽ $${(r.combustible||0).toLocaleString('es-CL')} · 🛣️ $${(r.peaje||0).toLocaleString('es-CL')}</div>` : ''}
+        ${_isViewer && r.id ? `
+          <div style="display:flex;gap:8px">
+            <button class="btn-delete-trip" style="margin-top:10px;background:var(--primary);border-color:var(--border);color:#fff" onclick="openEditModal('${r.id}')">✏️ Editar</button>
+            <button class="btn-delete-trip" style="margin-top:10px" onclick="deleteTrip('${r.id}', this)">🗑️ Eliminar</button>
+          </div>
+        ` : ''}
+      </div>
+      <span class="${badgeCls}">${badgeTxt}</span>
+    </div>
+  </div>`;
+}
+
+async function deleteTrip(tripId, btn){
+  if(!confirm('¿Estás seguro de que deseas eliminar este viaje? Esta acción no se puede deshacer.')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Eliminando…';
+  try{
+    const batch = db.batch();
+    
+    // 1. Eliminar viaje de hojas_ruta
+    batch.delete(db.collection('hojas_ruta').doc(tripId));
+    
+    // 2. Buscar y eliminar despachos asociados por turno_id
+    const dSnap = await db.collection('despachos').where('turno_id', '==', tripId).get();
+    dSnap.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    // 3. Buscar y eliminar gastos_ruta asociados por turno_id
+    const gSnap = await db.collection('gastos_ruta').where('turno_id', '==', tripId).get();
+    gSnap.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+    showToast('✅ Viaje y todos sus documentos asociados eliminados permanentemente', 'success');
+    if(_activeTab === 'history') await loadHistory();
+    else if(_activeTab === 'admin') await loadAdminViajes();
+  }catch(e){
+    btn.disabled = false;
+    btn.innerHTML = '🗑️ Eliminar Viaje';
+    showToast('Error al eliminar viaje: ' + e.message, 'error');
+  }
+}
+
+async function loadHistory(){
+  const list=document.getElementById('history-list');
+  list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div>';
+  const filterDate = document.getElementById('filter-date-history').value;
+  try{
+    let snap;
+    if(filterDate) {
+      snap = await db.collection('hojas_ruta').where('fecha','==',filterDate).get();
+    } else {
+      snap = await db.collection('hojas_ruta').where('conductor_email','==',_email).get();
+    }
+    
+    if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';return;}
+    let docs=[];
+    snap.forEach(d=>{
+      const data = d.data();
+      if(filterDate && data.conductor_email !== _email) return;
+      docs.push({id: d.id, ...data});
+    });
+    
+    if(!docs.length){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes registrados.</div>';return;}
+    
+    docs.sort((a,b)=>{
+      const da = a.created_at?.toMillis?.() || (a.fecha ? new Date(a.fecha).getTime() : 0);
+      const db = b.created_at?.toMillis?.() || (b.fecha ? new Date(b.fecha).getTime() : 0);
+      return db - da;
+    });
+
+    let displayDocs = docs;
+    if(!filterDate) {
+      displayDocs = docs.slice(0, 7);
+    }
+    
+    list.innerHTML=displayDocs.map(tripCard).join('');
+  }catch(e){list.innerHTML=`<div style="color:var(--text2);text-align:center;padding:32px">Error: ${e.message}</div>`;}
+}
+
+async function loadAdminViajes(){
+  const list=document.getElementById('admin-viajes-list');
+  list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Cargando…</div>';
+  const filtro=document.getElementById('filter-conductor').value;
+  const filterDate = document.getElementById('filter-date-admin').value;
+  try{
+    let snap;
+    if(filterDate) {
+      snap = await db.collection('hojas_ruta').where('fecha','==',filterDate).get();
+    } else if(filtro) {
+      snap = await db.collection('hojas_ruta').where('conductor_email','==',filtro).get();
+    } else {
+      snap = await db.collection('hojas_ruta').orderBy('created_at','desc').limit(7).get();
+    }
+    
+    if(snap.empty){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes.</div>';return;}
+    let docs=[];
+    snap.forEach(d=>{
+      const data = d.data();
+      if(filterDate && filtro && data.conductor_email !== filtro) return;
+      docs.push({id: d.id, ...data});
+    });
+    
+    if(!docs.length){list.innerHTML='<div style="color:var(--text2);text-align:center;padding:32px">Sin viajes.</div>';return;}
+    
+    if(filterDate || filtro) {
+      docs.sort((a,b)=>{
+        const da = a.created_at?.toMillis?.() || (a.fecha ? new Date(a.fecha).getTime() : 0);
+        const db = b.created_at?.toMillis?.() || (b.fecha ? new Date(b.fecha).getTime() : 0);
+        return db - da;
+      });
+    }
+    
+    let displayDocs = docs;
+    if(!filterDate) {
+      displayDocs = docs.slice(0, 7);
+    }
+    
+    list.innerHTML=displayDocs.map(tripCard).join('');
+  }catch(e){list.innerHTML=`<div style="color:var(--text2);text-align:center;padding:32px">Error: ${e.message}</div>`;}
+}
+
+async function openEditModal(tripId) {
+  const modal = document.getElementById('modal-edit-trip');
+  try {
+    const doc = await db.collection('hojas_ruta').doc(tripId).get();
+    if (!doc.exists) return;
+    const r = doc.data();
+    
+    document.getElementById('edit-trip-id').value = tripId;
+    document.getElementById('edit-trip-turno-id').value = r.turno_id || '';
+    document.getElementById('edit-patente').value = r.patente || '';
+    document.getElementById('edit-distribuidor').value = r.nombre_distribuidor || r.distribuidor || '';
+    document.getElementById('edit-km-inicial').value = r.km_inicial ?? 0;
+    document.getElementById('edit-km-final').value = r.km_final_viaje ?? r.km_final ?? 0;
+    document.getElementById('edit-entregas').value = r.total_entregas ?? 0;
+    document.getElementById('edit-devoluciones').value = r.total_devoluciones ?? 0;
+    document.getElementById('edit-combustible').value = r.monto_combustible ?? r.combustible ?? 0;
+    document.getElementById('edit-litros').value = r.litros_combustible ?? 0;
+    document.getElementById('edit-peaje').value = r.peaje ?? 0;
+    document.getElementById('edit-estado').value = r.estado || 'pendiente';
+    
+    modal.style.display = 'flex';
+  } catch(e) {
+    showToast('Error al cargar datos del viaje: ' + e.message, 'error');
+  }
+}
+
+function closeEditModal() {
+  document.getElementById('modal-edit-trip').style.display = 'none';
+}
+
+async function saveEditedTrip() {
+  const tripId = document.getElementById('edit-trip-id').value;
+  const turnoId = document.getElementById('edit-trip-turno-id').value;
+  const patente = document.getElementById('edit-patente').value.trim().toUpperCase();
+  const distribuidor = document.getElementById('edit-distribuidor').value.trim();
+  const kmI = parseFloat(document.getElementById('edit-km-inicial').value) || 0;
+  const kmF = parseFloat(document.getElementById('edit-km-final').value) || 0;
+  const entregas = parseInt(document.getElementById('edit-entregas').value, 10) || 0;
+  const devoluciones = parseInt(document.getElementById('edit-devoluciones').value, 10) || 0;
+  const combustible = parseFloat(document.getElementById('edit-combustible').value) || 0;
+  const litrosCombustible = parseFloat(document.getElementById('edit-litros').value) || 0;
+  const peaje = parseFloat(document.getElementById('edit-peaje').value) || 0;
+  const estado = document.getElementById('edit-estado').value;
+
+  if(!patente || !distribuidor) {
+    showToast('Completa patente y distribuidor', 'error');
+    return;
+  }
+
+  const btn = document.querySelector('#modal-edit-trip .btn-save');
+  btn.disabled = true;
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Guardando...';
+
+  try {
+    // 1) Actualizar el documento en hojas_ruta
+    await db.collection('hojas_ruta').doc(tripId).update({
+      patente,
+      nombre_distribuidor: distribuidor,
+      distribuidor,
+      km_inicial: kmI,
+      km_final_viaje: kmF,
+      km_final: kmF,
+      km_recorridos: kmF - kmI,
+      total_entregas: entregas,
+      total_devoluciones: devoluciones,
+      monto_combustible: combustible,
+      combustible,
+      peaje,
+      estado
+    });
+
+    // 2) Alinear y sincronizar los despachos asociados al turno_id
+    if (turnoId) {
+      try {
+        const dSnap = await db.collection('despachos').where('turno_id', '==', turnoId).get();
+        const despDocs = [];
+        dSnap.forEach(doc => despDocs.push({ id: doc.id, ref: doc.ref, ...doc.data() }));
+
+        const batch = db.batch();
+        let currentD = 0;
+        let currentE = 0;
+
+        for (let i = 0; i < despDocs.length; i++) {
+          const docRef = despDocs[i].ref;
+          if (currentD < devoluciones) {
+            batch.update(docRef, {
+              estado: 'devuelto',
+              devolucion_motivo: despDocs[i].devolucion_motivo || 'Ajuste Administrativo'
+            });
+            currentD++;
+          } else if (currentE < entregas) {
+            batch.update(docRef, {
+              estado: 'entregado',
+              devolucion_motivo: firebase.firestore.FieldValue.delete(),
+              devolucion_foto_url: firebase.firestore.FieldValue.delete()
+            });
+            currentE++;
+          } else {
+            // Eliminar despachos sobrantes
+            batch.delete(docRef);
+          }
+        }
+
+        // Crear despachos faltantes si corresponde
+        while (currentD < devoluciones) {
+          const newRef = db.collection('despachos').doc();
+          batch.set(newRef, {
+            turno_id: turnoId,
+            estado: 'devuelto',
+            devolucion_motivo: 'Ajuste Administrativo',
+            cliente_nombre: 'Cliente Genérico ' + (currentD + 1),
+            fecha: firebase.firestore.FieldValue.serverTimestamp(),
+            pod_timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          currentD++;
+        }
+        while (currentE < entregas) {
+          const newRef = db.collection('despachos').doc();
+          batch.set(newRef, {
+            turno_id: turnoId,
+            estado: 'entregado',
+            cliente_nombre: 'Cliente Genérico ' + (currentE + 1),
+            fecha: firebase.firestore.FieldValue.serverTimestamp(),
+            pod_timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          currentE++;
+        }
+
+        await batch.commit();
+        console.log('Sincronización de despachos completada con éxito.');
+      } catch(synce) {
+        console.warn('Error al sincronizar despachos con hojas_ruta:', synce.message);
+      }
+    }
+
+    showToast('✅ Viaje y Analytics alineados correctamente', 'success');
+    closeEditModal();
+    if(_activeTab === 'history') await loadHistory();
+    else if(_activeTab === 'admin') await loadAdminViajes();
+  } catch(e) {
+    showToast('Error al guardar cambios: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+function clearFilterDate(type) {
+  document.getElementById('filter-date-' + type).value = '';
+  if(type === 'history') loadHistory();
+  else if(type === 'admin') loadAdminViajes();
+}
+</script>
+</body>
+</html>
+
+
+

@@ -753,6 +753,84 @@ async function cerrarTurno() {
     });
 
     showToast('✅ Jornada finalizada con éxito','success');
+
+    // ═══ Pre-Factura automática al cierre de turno (solo TotalEnergies, si valor_servicio > 0) ═══
+    const resolvedDistribuidor = (distribuidor || tData.distribuidor || '').toUpperCase();
+    if (resolvedDistribuidor.includes('TOTAL')) {
+      try {
+        // Sumar valor_servicio de todas las hojas del turno (puede haber múltiples despachos bodega)
+        let totalValorServicio = 0;
+        const hrFinalSnap = await db.collection('hojas_ruta').where('turno_id', '==', _turnoDocId).get();
+        hrFinalSnap.forEach(doc => { totalValorServicio += doc.data().valor_servicio || 0; });
+
+        if (totalValorServicio > 0) {
+          // Buscar datos CRM de TotalEnergies
+          let crmRut = '76.123.456-7', crmNombre = 'TotalEnergies';
+          let crmGiro = 'Distribución de Combustibles y Lubricantes';
+          let crmDir  = 'Av. Vitacura 2670, Las Condes, Santiago', crmId = 'TotalEnergies';
+          try {
+            const crmSnap = await db.collection('clientes').get();
+            crmSnap.forEach(doc => {
+              const d = doc.data();
+              const n = (d.nombre || d.empresa || '').toLowerCase();
+              if (n.includes('total') || n.includes('energies')) {
+                crmRut    = d.rut          || crmRut;
+                crmNombre = d.razon_social  || d.nombre || crmNombre;
+                crmGiro   = d.giro          || crmGiro;
+                crmDir    = d.direccion     || crmDir;
+                crmId     = doc.id;
+              }
+            });
+          } catch(e) { console.warn('CRM TotalEnergies:', e); }
+
+          const ivaVal        = Math.round(totalValorServicio * 0.19);
+          const totalVal      = totalValorServicio + ivaVal;
+          const pfNum         = `PF-${fecha.replace(/-/g,'')}-${activeVeh.replace(/[^A-Z0-9]/gi,'')}`;
+          const comunaStr     = tData.comuna || '';
+          const entregasCount = entregas.length - devoluciones;
+
+          await db.collection('prefacturas').add({
+            numero:            pfNum,
+            cliente_id:        crmId,
+            cliente_nombre:    crmNombre,
+            cliente_rut:       crmRut,
+            cliente_giro:      crmGiro,
+            cliente_direccion: crmDir,
+            neto:   totalValorServicio,
+            iva:    ivaVal,
+            total:  totalVal,
+            estado: 'borrador',
+            observaciones: `Pre-factura generada al cierre de turno. Conductor: ${_name}. Patente: ${activeVeh}. KM recorridos: ${totalKmRecorridos} km. Entregas: ${entregasCount}. Devoluciones: ${devoluciones}. Combustible: $${combustible.toLocaleString('es-CL')}. Peajes: $${peaje.toLocaleString('es-CL')}.`,
+            fecha_emision:    firebase.firestore.Timestamp.fromDate(new Date()),
+            creado_por:       _uid,
+            turno_id:         _turnoDocId,
+            conductor_nombre: _name,
+            conductor_email:  _email,
+            patente:          activeVeh,
+            fecha_turno:      fecha,
+            items: [{
+              descripcion:     `Servicio de Transporte TotalEnergies — ${fecha}`,
+              cantidad:        1,
+              precio_unitario: totalValorServicio,
+              subtotal:        totalValorServicio,
+              detalles: [{
+                descripcion_detalle: `Conductor: ${_name} | Patente: ${activeVeh} | Fecha: ${fecha}${comunaStr ? ' | Comuna: ' + comunaStr : ''} | KM Recorridos: ${totalKmRecorridos} km | Entregas: ${entregasCount} | Devoluciones: ${devoluciones} | Combustible: $${combustible.toLocaleString('es-CL')} | Peajes: $${peaje.toLocaleString('es-CL')}`,
+                cantidad:     1,
+                un_medida:    'Servicio',
+                valor_neto:   totalValorServicio,
+                iva:          ivaVal,
+                total:        totalVal
+              }]
+            }]
+          });
+          showToast('📄 Pre-Factura TotalEnergies generada', 'success');
+        }
+      } catch(pfErr) {
+        console.warn('Error generando pre-factura al cierre:', pfErr);
+        showToast('⚠️ Pre-factura no pudo generarse: ' + pfErr.message, 'warning');
+      }
+    }
+
     alert(`Jornada finalizada exitosamente.\nKilómetros recorridos en este vehículo: ${kmFin - kmIniActual} km.\nTotal kilómetros acumulados: ${totalKmRecorridos} km.`);
     setTimeout(()=>window.location.href='dashboard.html',1500);
   } catch(e) {

@@ -1,0 +1,34 @@
+{"users": [
+{
+  "localId": "F7Ww8hPyJgNmSU6UFIPd5OtSGxo1",
+  "email": "finanzas@silogspa.cl",
+  "emailVerified": false,
+  "passwordHash": "zab6IIRIgpeDDwXeHHXvAv65m7bof2T+BXgI34FWIPFznC/9gGo8+UZ14NA0SoQDzpfe6LYsxpaesxuLHcmwkg==",
+  "salt": "GIyujuv0G4AfVQ==",
+  "lastSignedInAt": "1779324115229",
+  "createdAt": "1779276588228",
+  "customAttributes": "{}",
+  "providerUserInfo": []
+},
+{
+  "localId": "iwV6j44vKJSLHT6na8QFws39LEj1",
+  "email": "javier.vega.g1998@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "CJFrva8cRHXgzR0lPBmhj5sVeGcBaoAdd9MttRBDqAnyd8TEaTS6rYkal5iCJeeS2aODgPfVQLbLF9o9utk5Rg==",
+  "salt": "UDtBlgMZ35J6Dg==",
+  "lastSignedInAt": "1779673849932",
+  "createdAt": "1778123675523",
+  "disabled": false,
+  "customAttributes": "{\"rol\":\"admin\",\"area\":\"Administracion\"}",
+  "providerUserInfo": []
+},
+{
+  "localId": "jAo017SnthQlr0WZ1gf2XsUHW6y1",
+  "email": "administracion@silogspa.cl",
+  "emailVerified": false,
+  "passwordHash": "9UR6vw03WbhThT8ppjyCDPM9r0u5hXDkUT9T4uNCCjq3xwJkCdCls7vcZLKx+V+sdE6+DaeNuQqdc1qtFEGpDA==",
+  "salt": "y4z3+1dFtHXTqQ==",
+  "lastSignedInAt": "1779673568071",
+  "createdAt": "1779306013007",
+  "providerUserInfo": []
+}]}

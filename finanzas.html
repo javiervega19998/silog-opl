@@ -140,12 +140,12 @@ select.field{appearance:auto;cursor:pointer}
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Vehículo</th><th>Conductor</th><th>Distribuidor</th>
+          <th>Fecha</th><th>Vehículo</th><th>Conductor</th><th>Distribuidor</th><th>Comuna</th>
           <th>Descripción</th><th class="txt-r">Ingresos</th>
           <th class="txt-r">Combustible</th><th class="txt-r">Peajes</th>
           <th class="txt-r">Total</th>
         </tr></thead>
-        <tbody id="cc-body"><tr><td colspan="9" class="txt-c" style="color:var(--text2);padding:20px">Cargando…</td></tr></tbody>
+        <tbody id="cc-body"><tr><td colspan="10" class="txt-c" style="color:var(--text2);padding:20px">Cargando…</td></tr></tbody>
       </table>
     </div>
     <div style="text-align:center;margin-top:14px">
@@ -195,13 +195,13 @@ select.field{appearance:auto;cursor:pointer}
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Conductor</th><th>Distribuidor</th><th>Patente</th>
+          <th>Fecha</th><th>Conductor</th><th>Distribuidor</th><th>Comuna</th><th>Patente</th>
           <th class="txt-c">Entregas</th><th class="txt-c">Dev.</th>
           <th class="txt-r">Combust.</th><th class="txt-r">Peaje</th>
           <th class="txt-c">KM</th><th class="txt-c">Estado</th>
           <th class="txt-c">Acciones</th>
         </tr></thead>
-        <tbody id="hr-body"><tr><td colspan="11" class="txt-c" style="color:var(--text2);padding:20px">Selecciona filtros y presiona Filtrar</td></tr></tbody>
+        <tbody id="hr-body"><tr><td colspan="12" class="txt-c" style="color:var(--text2);padding:20px">Selecciona filtros y presiona Filtrar</td></tr></tbody>
       </table>
     </div>
     <div style="text-align:center;margin-top:14px">
@@ -242,12 +242,15 @@ select.field{appearance:auto;cursor:pointer}
             <input class="field" type="time" id="hoja-hora-termino-input" style="font-size:0.8rem;padding:6px 10px;border-radius:8px;"/>
           </div>
         </div>
-        <div class="row-2">
+        <div class="row-3">
           <div class="form-group"><label style="font-size:0.68rem;">KM Inicial</label>
             <input class="field" type="number" id="hoja-km-inicial-input" style="font-size:0.8rem;padding:6px 10px;border-radius:8px;"/>
           </div>
           <div class="form-group"><label style="font-size:0.68rem;">KM Final</label>
             <input class="field" type="number" id="hoja-km-final-input" style="font-size:0.8rem;padding:6px 10px;border-radius:8px;"/>
+          </div>
+          <div class="form-group"><label style="font-size:0.68rem;">Valor del Servicio (CLP)</label>
+            <input class="field" type="number" id="hoja-valor-servicio-input" min="0" placeholder="Ej: 150000" style="font-size:0.8rem;padding:6px 10px;border-radius:8px;" inputmode="numeric"/>
           </div>
         </div>
       </div>
@@ -268,6 +271,7 @@ select.field{appearance:auto;cursor:pointer}
       <button class="btn-add-item" type="button" onclick="agregarClienteHoja()" style="margin-top:8px; width:100%; border:1px dashed var(--border); background:none; padding:10px; border-radius:8px; color:var(--accent); cursor:pointer; font-weight:600; font-size:0.83rem; font-family:'Inter',sans-serif; margin-bottom:14px;">➕ Agregar Cliente</button>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn-save" style="flex:1" onclick="guardarHoja()">💾 Guardar Cambios</button>
+        <button class="btn-sm" id="btn-gen-prefactura" style="flex:0 0 auto;padding:12px 18px;background:var(--accent);border-color:var(--accent);color:#fff;display:none;" onclick="generarPreFacturaDesdeHoja()">📄 Pre-Factura</button>
         <button class="btn-sm" style="flex:0 0 auto;padding:12px 18px;background:var(--success);border-color:var(--success);color:#fff" onclick="exportHojaExcel()">📥 Excel</button>
       </div>
     </div>
@@ -668,14 +672,14 @@ async function loadCentroCostos(){
       const g = gastosByTurno[h.turno_id] || { combustible: 0, peaje: 0 };
       const totGastos = g.combustible + g.peaje;
       
-      // RULE 1: Only show trips with operational expenses (total_gastos > 0)
-      if (totGastos > 0) {
-        // Resolve description
+      // RULE 1: Only show trips with operational expenses (total_gastos > 0) or income (valor_servicio > 0)
+      if (totGastos > 0 || (h.valor_servicio || 0) > 0) {
+        // Resolve description and comuna
         let desc = '';
         const dist = (h.distribuidor || 'SIN DISTRIBUIDOR').toUpperCase();
+        const comuna = h.comuna || (h.entregas && h.entregas[0] && h.entregas[0].comuna ? h.entregas[0].comuna : '');
         if (dist.includes('CINTEC')) {
-          const comuna = h.comuna || (h.entregas && h.entregas[0] && h.entregas[0].comuna ? h.entregas[0].comuna : 'Puerto Montt');
-          desc = `Ruta ${comuna}`;
+          desc = `Ruta ${comuna || 'Puerto Montt'}`;
         } else if (dist.includes('TOTAL')) {
           desc = 'OPL Puerto Montt TotalEnergies';
         } else {
@@ -689,6 +693,7 @@ async function loadCentroCostos(){
           patente: h.patente || '—',
           conductor: (_userFullNameMap[(h.conductor_email || '').toLowerCase().trim()] || _userFullNameMap[h.conductor_uid] || h.conductor_nombre || h.conductor_email || '—'),
           distribuidor: h.distribuidor || h.nombre_distribuidor || 'SIN DISTRIBUIDOR',
+          comuna: comuna || '—',
           descripcion: desc,
           ingreso: h.valor_servicio || 0,
           combustible: g.combustible,
@@ -721,6 +726,7 @@ async function loadCentroCostos(){
           patente: '—',
           conductor: '—',
           distribuidor: '—',
+          comuna: '—',
           descripcion: `Factura N°${f.numero || '—'} ${stateStr}`,
           ingreso: f.neto || 0,
           combustible: 0,
@@ -769,6 +775,7 @@ async function loadCentroCostos(){
         patente: '—',
         conductor: '—',
         distribuidor: '—',
+        comuna: '—',
         descripcion: desc,
         ingreso: ing,
         combustible: comb,
@@ -807,6 +814,7 @@ async function loadCentroCostos(){
           patente: '—',
           conductor: '—',
           distribuidor: '—',
+          comuna: '—',
           descripcion: concept,
           ingreso: 0,
           combustible: g.monto_neto || g.monto || 0,
@@ -838,6 +846,7 @@ async function loadCentroCostos(){
         patente: s.patente || '—',
         conductor: s.conductor || '—',
         distribuidor: '—',
+        comuna: s.comuna || '—',
         descripcion: s.descripcion || 'Servicio Especial/Flete',
         ingreso: s.valor_neto || 0,
         combustible: 0,
@@ -879,7 +888,7 @@ function renderCentroCostos(){
   const body=document.getElementById('cc-body');
   const loadBtn=document.getElementById('btn-load-more-cc');
   if(!_allCostos.length){
-    body.innerHTML='<tr><td colspan="9" class="txt-c empty">Sin datos para este periodo</td></tr>';
+    body.innerHTML='<tr><td colspan="10" class="txt-c empty">Sin datos para este periodo</td></tr>';
     if(loadBtn) loadBtn.style.display='none';
     return;
   }
@@ -895,6 +904,7 @@ function renderCentroCostos(){
       <td class="txt-c"><code style="color:var(--accent)">${sanitize(r.patente)}</code></td>
       <td style="font-size:.78rem" class="txt-c">${sanitize(r.conductor)}</td>
       <td class="txt-c">${sanitize(r.distribuidor)}</td>
+      <td class="txt-c">${sanitize(r.comuna||'—')}</td>
       <td>${sanitize(r.descripcion)}</td>
       <td class="txt-r money money-green">${fmt(r.ingreso)}</td>
       <td class="txt-r money money-red">${fmt(r.combustible)}</td>
@@ -1809,7 +1819,7 @@ async function loadHojasRuta(isMore = false){
         _hojasRuta = newDocs;
       }
     } catch(err2) {
-      document.getElementById('hr-body').innerHTML = `<tr><td colspan="11" class="txt-c">Error: ${err2.message}</td></tr>`;
+      document.getElementById('hr-body').innerHTML = `<tr><td colspan="12" class="txt-c">Error: ${err2.message}</td></tr>`;
     }
   } finally {
     _loadingMoreHR = false;
@@ -1821,15 +1831,17 @@ async function loadHojasRuta(isMore = false){
 }
 function renderHojasRuta(){
   const body=document.getElementById('hr-body');
-  if(!_hojasRuta.length){body.innerHTML='<tr><td colspan="11" class="txt-c" style="color:var(--text2);padding:20px">Sin hojas de ruta</td></tr>';return;}
+  if(!_hojasRuta.length){body.innerHTML='<tr><td colspan="12" class="txt-c" style="color:var(--text2);padding:20px">Sin hojas de ruta</td></tr>';return;}
   const estadoBadge={'pendiente_revision':'<span class="badge-sm b-borrador">🟡 Pendiente</span>','revisada':'<span class="badge-sm b-pagada">🟢 Revisada</span>','observada':'<span class="badge-sm b-enviada">🔴 Observada</span>'};
   body.innerHTML=_hojasRuta.map(h=>{
     const conductorFull = _userFullNameMap[(h.conductor_email || '').toLowerCase().trim()] || _userFullNameMap[h.conductor_uid] || h.conductor_nombre || h.conductor_email || '—';
     const distribuidorFull = h.distribuidor || h.nombre_distribuidor || '—';
+    const resolvedComuna = h.comuna || (h.entregas && h.entregas[0] && h.entregas[0].comuna ? h.entregas[0].comuna : '');
     return `<tr>
       <td>${sanitize(h.fecha||'—')}</td>
       <td>${sanitize(conductorFull)}</td>
       <td>${sanitize(distribuidorFull)}</td>
+      <td>${sanitize(resolvedComuna||'—')}</td>
       <td style="font-weight:700;color:var(--accent)">${sanitize(h.patente||'—')}</td>
       <td class="txt-c">${h.total_entregas||0}</td>
       <td class="txt-c" style="color:var(--danger)">${h.total_devoluciones||0}</td>
@@ -2071,9 +2083,20 @@ function openHoja(id){
   if(document.getElementById('hoja-hora-termino-input')) document.getElementById('hoja-hora-termino-input').value = formatTimeForInput(_hojaActual.hora_termino);
   if(document.getElementById('hoja-km-inicial-input')) document.getElementById('hoja-km-inicial-input').value = _hojaActual.km_inicial || 0;
   if(document.getElementById('hoja-km-final-input')) document.getElementById('hoja-km-final-input').value = _hojaActual.km_final_viaje || _hojaActual.km_final || 0;
+  if(document.getElementById('hoja-valor-servicio-input')) document.getElementById('hoja-valor-servicio-input').value = _hojaActual.valor_servicio || 0;
   
   if(document.getElementById('hoja-estado')) document.getElementById('hoja-estado').value=_hojaActual.estado||'pendiente_revision';
   
+  const btnGenPF = document.getElementById('btn-gen-prefactura');
+  if (btnGenPF) {
+    const dist = (_hojaActual.distribuidor || _hojaActual.nombre_distribuidor || '').toLowerCase();
+    if (dist.includes('total') || dist.includes('energies')) {
+      btnGenPF.style.display = 'inline-block';
+    } else {
+      btnGenPF.style.display = 'none';
+    }
+  }
+
   // Render editable entregas
   const tbody=document.getElementById('hoja-entregas');
   const entregas=_hojaActual.entregas||[];
@@ -2096,6 +2119,97 @@ function openHoja(id){
 }
 
 function closeHojaModal(){document.getElementById('modal-hoja').classList.remove('open');_hojaActual=null;}
+
+async function generarPreFacturaDesdeHoja() {
+  if (!_hojaActual) return;
+  const valorServicio = parseFloat(document.getElementById('hoja-valor-servicio-input').value) || 0;
+  if (valorServicio <= 0) {
+    showToast('⚠️ Debes ingresar un Valor de Servicio mayor a 0 antes de generar la Pre-factura. No olvides guardar los cambios.', 'warning');
+    return;
+  }
+  
+  if (!confirm('¿Deseas generar la Pre-Factura por $' + valorServicio.toLocaleString('es-CL') + ' para esta Hoja de Ruta?')) return;
+  
+  const btn = document.getElementById('btn-gen-prefactura');
+  const prevText = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  
+  try {
+    let crmRut = '76.123.456-7', crmNombre = 'TotalEnergies', crmGiro = 'Distribución de Combustibles y Lubricantes', crmDir = 'Av. Vitacura 2670, Las Condes, Santiago', crmId = 'TotalEnergies';
+    try {
+      const crmSnap = await db.collection('clientes').get();
+      crmSnap.forEach(doc => {
+        const d = doc.data();
+        const n = (d.nombre || d.empresa || '').toLowerCase();
+        if (n.includes('total') || n.includes('energies')) {
+          crmRut = d.rut || crmRut;
+          crmNombre = d.razon_social || d.nombre || crmNombre;
+          crmGiro = d.giro || crmGiro;
+          crmDir = d.direccion || crmDir;
+          crmId = doc.id;
+        }
+      });
+    } catch(e) { console.warn(e); }
+    
+    const ivaVal = Math.round(valorServicio * 0.19);
+    const totalVal = valorServicio + ivaVal;
+    
+    const h = _hojaActual;
+    const fechaStr = h.fecha ? h.fecha.replace(/-/g,'') : new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const patStr = (h.patente || 'SD').replace(/[^A-Z0-9]/gi,'');
+    const pfNum = `PF-${fechaStr}-${patStr}-${Math.floor(Math.random()*1000)}`;
+    const condName = _userFullNameMap[(h.conductor_email || '').toLowerCase().trim()] || _userFullNameMap[h.conductor_uid] || h.conductor_nombre || h.conductor_email || '—';
+    const entregasCount = h.total_entregas || 0;
+    const devolucionesCount = h.total_devoluciones || 0;
+    const kmStr = h.km_recorridos !== undefined ? h.km_recorridos : '0';
+    const combStr = h.combustible || 0;
+    const peajeStr = h.peaje || 0;
+    const comunaStr = h.comuna || '';
+    
+    await db.collection('prefacturas').add({
+      numero: pfNum,
+      cliente_id: crmId,
+      cliente_nombre: crmNombre,
+      cliente_rut: crmRut,
+      cliente_giro: crmGiro,
+      cliente_direccion: crmDir,
+      neto: valorServicio,
+      iva: ivaVal,
+      total: totalVal,
+      estado: 'borrador',
+      observaciones: `Pre-factura generada desde revisión manual de Hoja de Ruta. Conductor: ${condName}. Patente: ${h.patente||'—'}. KM recorridos: ${kmStr} km. Entregas: ${entregasCount}. Devoluciones: ${devolucionesCount}. Combustible: $${combStr.toLocaleString('es-CL')}. Peajes: $${peajeStr.toLocaleString('es-CL')}.`,
+      fecha_emision: firebase.firestore.Timestamp.fromDate(new Date()),
+      creado_por: typeof _email !== 'undefined' ? _email : (typeof _uid !== 'undefined' ? _uid : 'Admin'),
+      turno_id: h.turno_id || '',
+      conductor_nombre: condName,
+      conductor_email: h.conductor_email || '',
+      patente: h.patente || '',
+      fecha_turno: h.fecha || '',
+      items: [{
+        descripcion: `Servicio de Transporte TotalEnergies — ${h.fecha||''}`,
+        cantidad: 1,
+        precio_unitario: valorServicio,
+        subtotal: valorServicio,
+        detalles: [{
+          descripcion_detalle: `Conductor: ${condName} | Patente: ${h.patente||'—'} | Fecha: ${h.fecha||''}${comunaStr ? ' | Comuna: ' + comunaStr : ''} | KM Recorridos: ${kmStr} km | Entregas: ${entregasCount} | Devoluciones: ${devolucionesCount} | Combustible: $${combStr.toLocaleString('es-CL')} | Peajes: $${peajeStr.toLocaleString('es-CL')}`,
+          cantidad: 1,
+          un_medida: 'Servicio',
+          valor_neto: valorServicio,
+          iva: ivaVal,
+          total: totalVal
+        }]
+      }]
+    });
+    
+    showToast('✅ Pre-Factura generada exitosamente.', 'success');
+  } catch (err) {
+    console.error(err);
+    showToast('Error al generar pre-factura: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = prevText;
+  }
+}
 
 function eliminarClienteHojaRow(btn) {
   if(!confirm('¿Deseas quitar este cliente de la Hoja de Ruta? Se removerá al guardar los cambios.')) return;
@@ -2161,6 +2275,7 @@ async function guardarHoja(){
   const horaTerminoEditada = document.getElementById('hoja-hora-termino-input')?.value || '';
   const kmInicialEditado = parseFloat(document.getElementById('hoja-km-inicial-input')?.value) || 0;
   const kmFinalEditado = parseFloat(document.getElementById('hoja-km-final-input')?.value) || 0;
+  const valorServicioEditado = parseFloat(document.getElementById('hoja-valor-servicio-input')?.value) || 0;
   const kmRecorridosCalculados = Math.max(0, kmFinalEditado - kmInicialEditado);
 
   const entregas=[];
@@ -2312,6 +2427,7 @@ async function guardarHoja(){
       km_final: kmFinalEditado,
       km_final_viaje: kmFinalEditado,
       km_recorridos: kmRecorridosCalculados,
+      valor_servicio: valorServicioEditado,
       estado: document.getElementById('hoja-estado').value,
       revisado_por: _email,
       revisado_at: firebase.firestore.FieldValue.serverTimestamp()

@@ -1,0 +1,11 @@
+{"users": [
+{
+  "localId": "vepvyWDG6oQTP8daJt5snW8NNDP2",
+  "email": "operaciones@silogspa.cl",
+  "emailVerified": false,
+  "passwordHash": "KscQppVbcamsNfkdFJwY8bFAlI3vRqT/j/Jw5HGUGA49K6UMBDTzJgm/Ciyj4oTESS3N9WlordDYDH6jC+JCdQ==",
+  "salt": "JmcEDcgvNeznag==",
+  "createdAt": "1779675855153",
+  "disabled": false,
+  "providerUserInfo": []
+}]}

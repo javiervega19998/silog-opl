@@ -342,6 +342,16 @@ body {
       <label>Nº de Documento (WMS Bodega)</label>
       <input class="field" id="n_documento_wms" placeholder="Ej: GD-0046, F-1234"/>
     </div>
+    <div class="row-2" style="margin-top:12px">
+      <div class="form-row">
+        <label>Comuna de la Ruta</label>
+        <input class="field" id="comuna_ruta" placeholder="Ej: Puerto Montt, Llanquihue"/>
+      </div>
+      <div class="form-row">
+        <label>Valor del Servicio (CLP / Ingreso)</label>
+        <input class="field" type="number" id="valor_servicio" min="0" placeholder="Ej: 150000" inputmode="numeric"/>
+      </div>
+    </div>
   </div>
 
   <!-- TABS DE OPERACION WMS -->
@@ -466,6 +476,10 @@ async function loadActiveTurno() {
     document.getElementById('conductor_viaje').value = `${_name} (${_email})`;
     document.getElementById('patente').value = (_turnoData.patente || '').toUpperCase();
     document.getElementById('km_inicial').value = `${_turnoData.km_inicial_actual || _turnoData.km_inicial || 0} km`;
+    // Auto-rellenar la comuna desde los datos del turno (puede ser editada manualmente)
+    if (_turnoData.comuna) {
+      document.getElementById('comuna_ruta').value = _turnoData.comuna;
+    }
   } catch(e) {
     showToast('Error cargando turno: ' + e.message, 'error');
   }
@@ -789,13 +803,54 @@ async function finalizarDespacho() {
       });
     }
     
-    // 2) Escribir hoja de ruta
+    // 2) Escribir hoja de ruta y resolver CRM para TotalEnergies
+    const comunaRuta = document.getElementById('comuna_ruta').value.trim();
+    const valorServicio = parseFloat(document.getElementById('valor_servicio').value) || 0;
+
+    let crmData = { rut: '', razon_social: '', giro: '', direccion: '' };
+    let crmClienteId = 'TotalEnergies';
+    try {
+      const crmSnap = await db.collection('clientes').get();
+      crmSnap.forEach(doc => {
+        const dData = doc.data();
+        const dName = (dData.nombre || dData.empresa || '').toLowerCase();
+        if (dName.includes('total') || dName.includes('energies')) {
+          crmData.rut = dData.rut || '';
+          crmData.razon_social = dData.razon_social || dData.nombre || dData.empresa || 'TotalEnergies';
+          crmData.giro = dData.giro || '';
+          crmData.direccion = dData.direccion || '';
+          crmClienteId = doc.id;
+        }
+      });
+    } catch(err) {
+      console.warn("Error fetching TotalEnergies CRM info:", err);
+    }
+    
+    // Sensible fallbacks if CRM query yielded empty fields
+    crmData.rut = crmData.rut || '76.123.456-7';
+    crmData.razon_social = crmData.razon_social || 'TotalEnergies';
+    crmData.giro = crmData.giro || 'Distribución de Combustibles y Lubricantes';
+    crmData.direccion = crmData.direccion || 'Av. Vitacura 2670, Las Condes, Santiago';
+
     const docsWms = _itemsRegistrados.map(i => i.referencia);
     const uniqueDocsWms = [...new Set(docsWms)];
     
     const totalEntregas = _itemsRegistrados.filter(i => i.tipo === 'salida').reduce((sum, i) => sum + i.cantidad, 0);
     const totalDevoluciones = _itemsRegistrados.filter(i => i.tipo === 'inversa').reduce((sum, i) => sum + i.cantidad, 0);
-    
+
+    // Construir array entregas desde clientes de bodega → visible en revisión Hoja de Ruta (Finanzas)
+    const entregasBodega = clients.map((cName, idx) => ({
+      correlativo: idx + 1,
+      documento:  uniqueDocsWms[idx] || uniqueDocsWms[0] || nDocWms,
+      cliente:    cName,
+      direccion:  '',
+      estado:     totalDevoluciones > 0 && totalEntregas === 0 ? 'devuelto' : 'entregado',
+      observaciones:    totalDevoluciones > 0 ? 'Devolución registrada en WMS' : '',
+      devolucion_motivo: totalDevoluciones > 0 ? 'Devolución de productos registrada en WMS' : '',
+      comuna:     comunaRuta,
+      valor_diario: 0,
+    }));
+
     batch.set(hrRef, {
       turno_id: _activeTurnoId,
       id_viaje: idViaje,
@@ -821,9 +876,16 @@ async function finalizarDespacho() {
       n_documento: nDocWms,
       documentos_wms_str: nDocWms,
       productos_despacho: _itemsRegistrados,
+      entregas: entregasBodega,
       estado: 'pendiente',
+      comuna: comunaRuta,
+      valor_servicio: valorServicio,
       created_at: firebase.firestore.FieldValue.serverTimestamp()
     });
+
+    // ℹ️ La pre-factura TotalEnergies se genera automáticamente al cierre de turno (turno.html)
+    //    Si el campo Valor del Servicio está vacío, el administrador puede generarla manualmente
+    //    desde la revisión de Hoja de Ruta en el módulo de Finanzas.
     
     // 3) Escribir los Despachos individuales
     clients.forEach((cName, idx) => {
