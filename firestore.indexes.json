@@ -41,6 +41,14 @@
         { "fieldPath": "turno_id", "order": "ASCENDING" },
         { "fieldPath": "conductor_uid", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "hojas_ruta",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "turno_id", "order": "ASCENDING" },
+        { "fieldPath": "conductor_uid", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

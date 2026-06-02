@@ -630,12 +630,16 @@ async function cerrarTurno() {
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Verificando pendientes…';
   try {
     // ── VALIDACIÓN DE PEDIDOS PENDIENTES ANTES DE CERRAR ──
-    const allDespSnap = await db.collection('despachos').where('turno_id', '==', _turnoDocId).get();
+    let pendingQuery = db.collection('despachos').where('turno_id', '==', _turnoDocId);
+    if (!isViewerRole(_role)) {
+      pendingQuery = pendingQuery.where('conductor_uid', '==', _uid);
+    }
+    const allDespSnap = await pendingQuery.get();
     let hasPending = false;
     allDespSnap.forEach(d => {
       const data = d.data();
       if (data.estado === 'pendiente') {
-        if (isViewerRole(_role) || data.conductor_uid === _uid) hasPending = true;
+        hasPending = true;
       }
     });
     
@@ -665,7 +669,6 @@ async function cerrarTurno() {
     const clientes_despacho = [];
     allDespSnap.forEach(d => {
       const dd = d.data();
-      if (!isViewerRole(_role) && dd.conductor_uid !== _uid) return;
       if (!distribuidor) distribuidor = dd.distribuidor || dd.nombre_distribuidor || '';
       if (dd.estado === 'devuelto') devoluciones++;
       if (dd.estado === 'entregado' && dd.cliente_nombre) clientes_despacho.push(dd.cliente_nombre);
@@ -683,10 +686,13 @@ async function cerrarTurno() {
     // Gastos del turno
     let combustible = 0, peaje = 0, litros_combustible = 0;
     try {
-      const gSnap = await db.collection('gastos_ruta').where('turno_id','==',_turnoDocId).get();
+      let gQuery = db.collection('gastos_ruta').where('turno_id','==',_turnoDocId);
+      if (!isViewerRole(_role)) {
+        gQuery = gQuery.where('conductor_uid', '==', _uid);
+      }
+      const gSnap = await gQuery.get();
       gSnap.forEach(g => {
         const gd = g.data();
-        if (!isViewerRole(_role) && gd.conductor_uid !== _uid) return;
         if (gd.tipo === 'combustible') {
           combustible += gd.monto_clp || gd.monto || 0;
           litros_combustible += gd.litros || 0;
@@ -701,7 +707,9 @@ async function cerrarTurno() {
     const fecha = new Date().toISOString().split('T')[0];
     
     // Buscar hojas de ruta registradas durante el turno (ej: desde Despacho Bodega)
-    const existingHrSnap = await db.collection('hojas_ruta').where('turno_id', '==', _turnoDocId).get();
+    let hrQuery = db.collection('hojas_ruta').where('turno_id', '==', _turnoDocId);
+    if (!isViewerRole(_role)) hrQuery = hrQuery.where('conductor_uid', '==', _uid);
+    const existingHrSnap = await hrQuery.get();
 
     const firstVehKmIni = tData.km_inicial || 0;
     const firstVehKmFin = firstVehKmIni + totalKmRecorridos;
@@ -755,7 +763,9 @@ async function cerrarTurno() {
       try {
         // Sumar valor_servicio de todas las hojas del turno (puede haber múltiples despachos bodega)
         let totalValorServicio = 0;
-        const hrFinalSnap = await db.collection('hojas_ruta').where('turno_id', '==', _turnoDocId).get();
+        let hrFinalQuery = db.collection('hojas_ruta').where('turno_id', '==', _turnoDocId);
+        if (!isViewerRole(_role)) hrFinalQuery = hrFinalQuery.where('conductor_uid', '==', _uid);
+        const hrFinalSnap = await hrFinalQuery.get();
         hrFinalSnap.forEach(doc => { totalValorServicio += doc.data().valor_servicio || 0; });
 
         if (totalValorServicio > 0) {
