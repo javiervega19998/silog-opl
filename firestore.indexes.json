@@ -49,6 +49,14 @@
         { "fieldPath": "turno_id", "order": "ASCENDING" },
         { "fieldPath": "conductor_uid", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "hojas_ruta",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "patente", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
