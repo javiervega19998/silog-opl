@@ -16,6 +16,31 @@
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "hora_cierre", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "despachos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "turno_id", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "conductor_uid", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "despachos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "turno_id", "order": "ASCENDING" },
+        { "fieldPath": "conductor_uid", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "gastos_ruta",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "turno_id", "order": "ASCENDING" },
+        { "fieldPath": "conductor_uid", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

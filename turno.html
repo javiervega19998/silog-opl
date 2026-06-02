@@ -478,9 +478,10 @@ async function iniciarTurno() {
     // 2. Verificar que este conductor NO tenga ya un turno abierto
     const openCheck = await db.collection('turnos')
       .where('conductor_uid','==',_uid)
-      .where('estado','==','abierto')
       .get();
-    if (!openCheck.empty) {
+    let hasOpen = false;
+    openCheck.forEach(d => { if (d.data().estado === 'abierto') hasOpen = true; });
+    if (hasOpen) {
       showToast('⚠️ Ya tienes un turno activo. Ciérralo antes de iniciar uno nuevo.','error');
       btn.disabled=false; btn.innerHTML='🚛 Iniciar Jornada'; return;
     }
@@ -629,15 +630,16 @@ async function cerrarTurno() {
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Verificando pendientes…';
   try {
     // ── VALIDACIÓN DE PEDIDOS PENDIENTES ANTES DE CERRAR ──
-    let pendingQuery = db.collection('despachos')
-      .where('turno_id', '==', _turnoDocId)
-      .where('estado', '==', 'pendiente');
-    if (!isViewerRole(_role)) {
-      pendingQuery = pendingQuery.where('conductor_uid', '==', _uid);
-    }
-    const pendingSnap = await pendingQuery.get();
+    const allDespSnap = await db.collection('despachos').where('turno_id', '==', _turnoDocId).get();
+    let hasPending = false;
+    allDespSnap.forEach(d => {
+      const data = d.data();
+      if (data.estado === 'pendiente') {
+        if (isViewerRole(_role) || data.conductor_uid === _uid) hasPending = true;
+      }
+    });
     
-    if (!pendingSnap.empty) {
+    if (hasPending) {
       showToast('❌ Tienes pedidos pendientes en tu ruta. Regístralos como entregados o devueltos antes de finalizar la jornada.', 'error');
       btn.disabled = false; btn.innerHTML = '🔴 Finalizar Jornada';
       return;
@@ -651,7 +653,7 @@ async function cerrarTurno() {
     }
     btn.innerHTML='<span class="spinner"></span> Cerrando turno…';
 
-    const vSnap = await db.collection('vehiculos').where('patente','==',activeVeh.toUpperCase()).limit(1).get();
+    const vSnap = await db.collection('vehiculos').where('patente','==',activeVeh.toUpperCase().trim()).limit(1).get();
     if (vSnap.empty) {
       throw new Error(`Vehículo ${activeVeh} no encontrado`);
     }
@@ -659,15 +661,11 @@ async function cerrarTurno() {
     const turnoDocRef = db.collection('turnos').doc(_turnoDocId);
 
     // ═══ Compilar Viaje / Hoja de Ruta para Finanzas ═══
-    let despQuery = db.collection('despachos').where('turno_id','==',_turnoDocId);
-    if (!isViewerRole(_role)) {
-      despQuery = despQuery.where('conductor_uid', '==', _uid);
-    }
-    const despSnap = await despQuery.get();
     const entregas = []; let devoluciones = 0, distribuidor = '';
     const clientes_despacho = [];
-    despSnap.forEach(d => {
+    allDespSnap.forEach(d => {
       const dd = d.data();
+      if (!isViewerRole(_role) && dd.conductor_uid !== _uid) return;
       if (!distribuidor) distribuidor = dd.distribuidor || dd.nombre_distribuidor || '';
       if (dd.estado === 'devuelto') devoluciones++;
       if (dd.estado === 'entregado' && dd.cliente_nombre) clientes_despacho.push(dd.cliente_nombre);
@@ -685,13 +683,10 @@ async function cerrarTurno() {
     // Gastos del turno
     let combustible = 0, peaje = 0, litros_combustible = 0;
     try {
-      let gQuery = db.collection('gastos_ruta').where('turno_id','==',_turnoDocId);
-      if (!isViewerRole(_role)) {
-        gQuery = gQuery.where('conductor_uid', '==', _uid);
-      }
-      const gSnap = await gQuery.get();
+      const gSnap = await db.collection('gastos_ruta').where('turno_id','==',_turnoDocId).get();
       gSnap.forEach(g => {
         const gd = g.data();
+        if (!isViewerRole(_role) && gd.conductor_uid !== _uid) return;
         if (gd.tipo === 'combustible') {
           combustible += gd.monto_clp || gd.monto || 0;
           litros_combustible += gd.litros || 0;

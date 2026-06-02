@@ -677,7 +677,7 @@ async function loadCentroCostos(){
         // Resolve description and comuna
         let desc = '';
         const dist = (h.distribuidor || 'SIN DISTRIBUIDOR').toUpperCase();
-        const comuna = h.comuna || (h.entregas && h.entregas[0] && h.entregas[0].comuna ? h.entregas[0].comuna : '');
+        const comuna = h.comuna || '';
         if (dist.includes('CINTEC')) {
           desc = `Ruta ${comuna || 'Puerto Montt'}`;
         } else if (dist.includes('TOTAL')) {
@@ -728,10 +728,10 @@ async function loadCentroCostos(){
           distribuidor: '—',
           comuna: '—',
           descripcion: `Factura N°${f.numero || '—'} ${stateStr}`,
-          ingreso: f.neto || 0,
+          ingreso: f.estado === 'pagada' ? (f.neto || 0) : 0,
           combustible: 0,
           peaje: 0,
-          total: f.neto || 0,
+          total: f.estado === 'pagada' ? (f.neto || 0) : 0,
           tipo: 'prefactura'
         });
       }
@@ -864,7 +864,7 @@ async function loadCentroCostos(){
     let totIng = 0;
     let totEgr = 0;
     _allCostos.forEach(r => {
-      totIng += r.ingreso || 0;
+      totIng += (r.tipo === 'viaje') ? 0 : (r.ingreso || 0);
       totEgr += (r.combustible || 0) + (r.peaje || 0);
     });
     
@@ -906,7 +906,7 @@ function renderCentroCostos(){
       <td class="txt-c">${sanitize(r.distribuidor)}</td>
       <td class="txt-c">${sanitize(r.comuna||'—')}</td>
       <td>${sanitize(r.descripcion)}</td>
-      <td class="txt-r money money-green">${fmt(r.ingreso)}</td>
+      <td class="txt-r money ${r.tipo === 'viaje' ? '' : 'money-green'}" style="${r.tipo === 'viaje' ? 'color:var(--text2);' : ''}">${r.tipo === 'viaje' ? '<span style="font-size:0.7em">(Ref)</span> ' : ''}${fmt(r.ingreso)}</td>
       <td class="txt-r money money-red">${fmt(r.combustible)}</td>
       <td class="txt-r money money-red">${fmt(r.peaje)}</td>
       <td class="txt-r money ${totalCls}">${totalSign}${displayTotal}</td>
@@ -1774,6 +1774,25 @@ async function loadHojasRuta(isMore = false){
     
     let newDocs=[];
     snap.forEach(d=>newDocs.push({id:d.id,...d.data()}));
+    
+    // Backfill missing comunas from turnos on the fly
+    const turnosToFetch = newDocs.filter(h => !h.comuna && (!h.entregas || !h.entregas[0] || !h.entregas[0].comuna)).map(h => h.turno_id).filter(id => id);
+    if (turnosToFetch.length > 0) {
+      try {
+        const turnosPromises = turnosToFetch.map(tid => db.collection('turnos').doc(tid).get().catch(() => null));
+        const turnosSnaps = await Promise.all(turnosPromises);
+        const turnosMap = {};
+        turnosSnaps.forEach(tSnap => { if (tSnap && tSnap.exists) turnosMap[tSnap.id] = tSnap.data(); });
+        newDocs.forEach(h => {
+          if (!h.comuna && (!h.entregas || !h.entregas[0] || !h.entregas[0].comuna)) {
+            if (turnosMap[h.turno_id] && turnosMap[h.turno_id].comuna) {
+              h.comuna = turnosMap[h.turno_id].comuna;
+            }
+          }
+        });
+      } catch(err) { console.warn("Error fetching fallback comunas:", err); }
+    }
+
     await populateExpensesForHojasRuta(newDocs);
     
     // Client-side empresa filter
@@ -1810,6 +1829,24 @@ async function loadHojasRuta(isMore = false){
       
       let newDocs=[];
       snap.forEach(d=>newDocs.push({id:d.id,...d.data()}));
+      
+      const turnosToFetch = newDocs.filter(h => !h.comuna && (!h.entregas || !h.entregas[0] || !h.entregas[0].comuna)).map(h => h.turno_id).filter(id => id);
+      if (turnosToFetch.length > 0) {
+        try {
+          const turnosPromises = turnosToFetch.map(tid => db.collection('turnos').doc(tid).get().catch(() => null));
+          const turnosSnaps = await Promise.all(turnosPromises);
+          const turnosMap = {};
+          turnosSnaps.forEach(tSnap => { if (tSnap && tSnap.exists) turnosMap[tSnap.id] = tSnap.data(); });
+          newDocs.forEach(h => {
+            if (!h.comuna && (!h.entregas || !h.entregas[0] || !h.entregas[0].comuna)) {
+              if (turnosMap[h.turno_id] && turnosMap[h.turno_id].comuna) {
+                h.comuna = turnosMap[h.turno_id].comuna;
+              }
+            }
+          });
+        } catch(err) { console.warn("Error fetching fallback comunas:", err); }
+      }
+
       await populateExpensesForHojasRuta(newDocs);
       newDocs.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
       
@@ -2098,9 +2135,27 @@ function openHoja(id){
   }
 
   // Render editable entregas
-  const tbody=document.getElementById('hoja-entregas');
-  const entregas=_hojaActual.entregas||[];
-  tbody.innerHTML=entregas.map((e,i)=>`<tr>
+  const tbody = document.getElementById('hoja-entregas');
+  let entregas=_hojaActual.entregas||[];
+  if (entregas.length === 0 && _hojaActual.clientes_despacho && _hojaActual.clientes_despacho.length > 0) {
+    _hojaActual.clientes_despacho.forEach((cName, idx) => {
+      entregas.push({
+        correlativo: idx + 1,
+        documento: _hojaActual.documentos_wms ? _hojaActual.documentos_wms[idx] || _hojaActual.documentos_wms[0] : (_hojaActual.n_documento || ''),
+        cliente: cName,
+        direccion: '',
+        estado: 'entregado',
+        observaciones: '',
+        comuna: _hojaActual.comuna || ''
+      });
+    });
+  }
+
+  tbody.innerHTML=entregas.map((e,i)=>{
+    const isTotal = (_hojaActual.distribuidor || _hojaActual.nombre_distribuidor || '').toLowerCase().includes('total');
+    const inheritedComuna = e.comuna || _hojaActual.comuna || '';
+    const valorMostrar = (isTotal && _hojaActual.valor_servicio) ? _hojaActual.valor_servicio : (e.valor_diario || 0);
+    return `<tr>
     <td class="he-corr">${e.correlativo||i+1}</td>
     <td><input class="field he-doc" value="${sanitize(e.documento||'')}" style="width:100px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
     <td><input class="field he-lugar" value="${sanitize(e.cliente||e.direccion||'')}" data-direccion="${sanitize(e.direccion||'')}" style="width:140px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
@@ -2111,10 +2166,10 @@ function openHoja(id){
       </select>
     </td>
     <td><input class="field he-obs" value="${sanitize(e.observaciones||e.devolucion_motivo||'')}" style="width:120px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
-    <td><input class="field he-comuna" value="${sanitize(e.comuna||'')}" style="width:90px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
-    <td><input class="field he-valor" type="number" value="${e.valor_diario||0}" style="width:80px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td><input class="field he-comuna" value="${sanitize(inheritedComuna)}" style="width:90px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
+    <td><input class="field he-valor" type="number" value="${valorMostrar}" style="width:80px; padding:6px 10px; font-size:0.8rem; border-radius:6px;"/></td>
     <td><button class="btn-sm" type="button" style="background:none; border:none; color:var(--danger); font-size:1.1rem; padding:2px; cursor:pointer;" onclick="eliminarClienteHojaRow(this)" title="Eliminar Cliente">🗑️</button></td>
-  </tr>`).join('');
+  </tr>`;}).join('');
   document.getElementById('modal-hoja').classList.add('open');
 }
 
