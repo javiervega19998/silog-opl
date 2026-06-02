@@ -482,7 +482,7 @@ select.field{appearance:auto;cursor:pointer}
 <script src="js/firebase-config.js"></script>
 <script src="js/auth.js"></script>
 <script>
-let _uid='',_email='',_allCostos=[],_allFacturas=[],_clientes=[],_allGastosRaw=[],_allMovBodega=[];
+let _uid='',_email='',_allCostos=[],_allFacturas=[],_clientes=[],_allGastosRaw=[],_allMovBodega=[],_userFullNameMap={};
 let _lastHRDoc=null,_hasMoreHR=true,_loadingMoreHR=false;
 
 requireAdmin(async(user,data)=>{
@@ -540,15 +540,20 @@ async function loadFilters(){
 
     uSnap.forEach(d=>{
       const u=d.data();
-      const email = u.correo_electronico || u.email || '';
-      const nombre = u.nombre || u.name || email;
-      if((u.rol||'').toLowerCase().includes('conductor')){
+      const email = (u.correo_electronico || u.email || '').trim().toLowerCase();
+      const fullName = (u.nombre_completo || ((u.nombre || '') + ' ' + (u.apellido || '')).trim() || u.nombre || u.name || email || '—');
+      if (email) {
+        _userFullNameMap[email] = fullName;
+      }
+      _userFullNameMap[d.id] = fullName;
+
+      if((u.rol||'').toLowerCase().includes('conductor') && email){
         if(uSel){
-          const o=document.createElement('option');o.value=email;o.textContent=nombre;uSel.appendChild(o);
+          const o=document.createElement('option');o.value=email;o.textContent=fullName;uSel.appendChild(o);
         }
       }
-      if(modalConductorSel){
-        const o=document.createElement('option');o.value=email;o.textContent=`${nombre} (${email})`;modalConductorSel.appendChild(o);
+      if(modalConductorSel && email){
+        const o=document.createElement('option');o.value=email;o.textContent=`${fullName} (${email})`;modalConductorSel.appendChild(o);
       }
     });
 
@@ -682,8 +687,8 @@ async function loadCentroCostos(){
           fechaStr: fStr,
           _fecha: dateObj,
           patente: h.patente || '—',
-          conductor: h.conductor_nombre || h.conductor_email || '—',
-          distribuidor: h.distribuidor || 'SIN DISTRIBUIDOR',
+          conductor: (_userFullNameMap[(h.conductor_email || '').toLowerCase().trim()] || _userFullNameMap[h.conductor_uid] || h.conductor_nombre || h.conductor_email || '—'),
+          distribuidor: h.distribuidor || h.nombre_distribuidor || 'SIN DISTRIBUIDOR',
           descripcion: desc,
           ingreso: h.valor_servicio || 0,
           combustible: g.combustible,
@@ -1818,19 +1823,23 @@ function renderHojasRuta(){
   const body=document.getElementById('hr-body');
   if(!_hojasRuta.length){body.innerHTML='<tr><td colspan="11" class="txt-c" style="color:var(--text2);padding:20px">Sin hojas de ruta</td></tr>';return;}
   const estadoBadge={'pendiente_revision':'<span class="badge-sm b-borrador">🟡 Pendiente</span>','revisada':'<span class="badge-sm b-pagada">🟢 Revisada</span>','observada':'<span class="badge-sm b-enviada">🔴 Observada</span>'};
-  body.innerHTML=_hojasRuta.map(h=>`<tr>
-    <td>${sanitize(h.fecha||'—')}</td>
-    <td>${sanitize(h.conductor_nombre||h.conductor_email||'—')}</td>
-    <td>${sanitize(h.distribuidor||'—')}</td>
-    <td style="font-weight:700;color:var(--accent)">${sanitize(h.patente||'—')}</td>
-    <td class="txt-c">${h.total_entregas||0}</td>
-    <td class="txt-c" style="color:var(--danger)">${h.total_devoluciones||0}</td>
-    <td class="txt-r money">${fmt(h.combustible||0)}</td>
-    <td class="txt-r money">${fmt(h.peaje||0)}</td>
-    <td class="txt-c">${h.km_recorridos !== undefined && h.km_recorridos !== null ? h.km_recorridos : '—'} km</td>
-    <td class="txt-c">${estadoBadge[h.estado]||sanitize(h.estado)}</td>
-    <td class="txt-c"><button class="btn-sm" onclick="openHoja('${sanitize(h.id)}')">👁️ Ver</button> <button class="btn-sm" style="background:var(--success);border-color:var(--success);color:#fff" onclick="exportHojaExcelById('${sanitize(h.id)}')">📥</button> <button class="btn-sm" style="background:var(--danger);border-color:var(--danger);color:#fff" onclick="eliminarHojaDeRuta('${sanitize(h.id)}', this)">🗑️</button></td>
-  </tr>`).join('');
+  body.innerHTML=_hojasRuta.map(h=>{
+    const conductorFull = _userFullNameMap[(h.conductor_email || '').toLowerCase().trim()] || _userFullNameMap[h.conductor_uid] || h.conductor_nombre || h.conductor_email || '—';
+    const distribuidorFull = h.distribuidor || h.nombre_distribuidor || '—';
+    return `<tr>
+      <td>${sanitize(h.fecha||'—')}</td>
+      <td>${sanitize(conductorFull)}</td>
+      <td>${sanitize(distribuidorFull)}</td>
+      <td style="font-weight:700;color:var(--accent)">${sanitize(h.patente||'—')}</td>
+      <td class="txt-c">${h.total_entregas||0}</td>
+      <td class="txt-c" style="color:var(--danger)">${h.total_devoluciones||0}</td>
+      <td class="txt-r money">${fmt(h.combustible||0)}</td>
+      <td class="txt-r money">${fmt(h.peaje||0)}</td>
+      <td class="txt-c">${h.km_recorridos !== undefined && h.km_recorridos !== null ? h.km_recorridos : '—'} km</td>
+      <td class="txt-c">${estadoBadge[h.estado]||sanitize(h.estado)}</td>
+      <td class="txt-c"><button class="btn-sm" onclick="openHoja('${sanitize(h.id)}')">👁️ Ver</button> <button class="btn-sm" style="background:var(--success);border-color:var(--success);color:#fff" onclick="exportHojaExcelById('${sanitize(h.id)}')">📥</button> <button class="btn-sm" style="background:var(--danger);border-color:var(--danger);color:#fff" onclick="eliminarHojaDeRuta('${sanitize(h.id)}', this)">🗑️</button></td>
+    </tr>`;
+  }).join('');
 }
 function formatTimeForInput(ts) {
   if (!ts) return '';
