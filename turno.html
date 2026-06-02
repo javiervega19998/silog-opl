@@ -668,7 +668,7 @@ async function cerrarTurno() {
     const clientes_despacho = [];
     despSnap.forEach(d => {
       const dd = d.data();
-      if (!distribuidor && dd.distribuidor) distribuidor = dd.distribuidor;
+      if (!distribuidor) distribuidor = dd.distribuidor || dd.nombre_distribuidor || '';
       if (dd.estado === 'devuelto') devoluciones++;
       if (dd.estado === 'entregado' && dd.cliente_nombre) clientes_despacho.push(dd.cliente_nombre);
       entregas.push({
@@ -736,7 +736,7 @@ async function cerrarTurno() {
         const hojaDocRef = db.collection('hojas_ruta').doc(_turnoDocId);
         transaction.set(hojaDocRef, {
           turno_id: _turnoDocId, conductor_uid: _uid, conductor_email: _email,
-          conductor_nombre: _name, distribuidor: distribuidor || tData.distribuidor || '',
+          conductor_nombre: _name, distribuidor: distribuidor || tData.distribuidor || 'SIN DISTRIBUIDOR', nombre_distribuidor: distribuidor || tData.distribuidor || 'SIN DISTRIBUIDOR',
           comuna: tData.comuna || '',
           patente: tData.patente, fecha: fecha,
           hora_inicio: tData.hora_apertura || null,

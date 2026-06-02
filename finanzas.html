@@ -2413,7 +2413,7 @@ function exportHojaExcel(){
   const data=[];
   data.push(['','','','','','','']); // Row 1: blank
   data.push(['',`HOJA DE RUTA ${h.fecha||''} SILOG SpA`,'','','','','']); // Row 2: title
-  data.push(['','CONDUCTOR:',h.conductor_nombre||'','DISTRIBUIDOR:',h.distribuidor||'','','']); // Row 3
+  data.push(['','CONDUCTOR:',h.conductor_nombre||'','DISTRIBUIDOR:',h.distribuidor||h.nombre_distribuidor||'','','']); // Row 3
   data.push(['','PATENTE:',h.patente||'','INICIO:',hi,'TERMINO:',ht]); // Row 4
   data.push(['','KM INICIAL:',h.km_inicial||'','KM FINAL:',h.km_final||'','KM RECORRIDOS:',h.km_recorridos||'']); // Row 5
   data.push(['','','','','','','']); // Row 6: blank
@@ -2639,7 +2639,7 @@ async function loadComprobantes() {
                   ${hasFactura ? `<img src="${h.foto_combustible_url}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open('${h.foto_combustible_url}','_blank')"/>` : '📄'}
                 </div>
                 <div style="flex:1">
-                  <div style="font-weight:600;font-size:.8rem">${h.nombre_distribuidor || 'Carga combustible'}</div>
+                  <div style="font-weight:600;font-size:.8rem">${h.nombre_distribuidor || h.distribuidor || 'Carga combustible'}</div>
                   <div style="font-size:.7rem;color:var(--text2)">KM Cierre: ${h.km_final || '—'} · Peaje: ${fmt(h.peaje || 0)}</div>
                 </div>
                 ${hasFactura ? `<a href="${h.foto_combustible_url}" target="_blank" download class="btn-sm download-link" style="text-decoration:none;font-size:.7rem;background:var(--accent);color:#fff">Descargar</a>
