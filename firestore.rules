@@ -100,7 +100,7 @@ function userRol() {
     // Bodeguero + Viewer pueden escribir
     match /inventory/{id} {
       allow read:  if isAuth();
-      allow write: if isAuth() && (isViewer() || isBodeguero());
+      allow write: if isAuth();
     }
 
     // â”€â”€ Correos / Formularios / Planillas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -135,7 +135,11 @@ function userRol() {
     match /clientes/{id} {
       allow read:  if isAuth();
       allow create: if isAuth();
-      allow update, delete: if isAuth() && isViewer();
+      allow update: if isAuth() && (
+        isViewer() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['coords', 'maps_url'])
+      );
+      allow delete: if isAuth() && isViewer();
     }
 
     // â”€â”€ LogÃ­stica Inversa (Devoluciones â†’ Bodega) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -148,9 +152,15 @@ function userRol() {
 
     // â”€â”€ Movimientos de Bodega â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /movimientos_bodega/{id} {
-      allow create: if isAuth() && (isViewer() || isBodeguero());
+      allow create: if isAuth();
       allow read:   if isAuth();
       allow update, delete: if isAuth() && (isViewer() || isBodeguero());
+    }
+
+    // ── Config Inversa (Logística Inversa) ──
+    match /config_inversa/{id} {
+      allow read:  if isAuth();
+      allow write: if isAuth() && isViewer();
     }
 
     // â”€â”€ Productos (Stock extendido) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -162,7 +172,7 @@ function userRol() {
     // â”€â”€ Pre-Facturas (ERP Finanzas) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /prefacturas/{id} {
       allow read:  if isAuth() && isViewer();
-      allow create: if isAuth() && isViewer();
+      allow create: if isAuth() && (isViewer() || request.resource.data.creado_por == request.auth.uid);
       allow update, delete: if isAuth() && isViewer();
     }
 
