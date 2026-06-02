@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Silog SpA · Despacho Bodega</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
+<style>
+:root {
+  --primary: #1B4B9B;
+  --accent: #F47920;
+  --bg: #060D1F;
+  --surface: #0D1B35;
+  --surface2: #142040;
+  --text: #E8EEF8;
+  --text2: #8A9DC0;
+  --border: #1E3056;
+  --success: #10B981;
+  --danger: #EF4444;
+  --warning: #F59E0B;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  font-family: 'Inter', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+}
+.nav {
+  background: rgba(13, 27, 53, 0.95);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.nav-brand {
+  font-weight: 800;
+  font-size: 1rem;
+}
+.nav-brand span {
+  color: var(--accent);
+}
+.btn-back {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: 'Inter', sans-serif;
+}
+.main {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 20px 16px 100px;
+}
+.page-header {
+  margin-bottom: 20px;
+}
+.page-header h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.page-header p {
+  color: var(--text2);
+  font-size: 0.83rem;
+  margin-top: 4px;
+}
+.section-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.section-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+.section-card h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.form-row {
+  margin-bottom: 12px;
+}
+.form-row label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+.field {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+.field:focus {
+  border-color: var(--primary);
+}
+.row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.tab-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  transition: 0.2s;
+}
+.tab-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.client-list, .items-table-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.client-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.client-item input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-size: 0.83rem;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+.btn-add {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text2);
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: 'Inter', sans-serif;
+  width: 100%;
+  transition: 0.2s;
+  font-weight: 600;
+}
+.btn-add:hover {
+  border-color: var(--primary);
+  color: var(--text);
+}
+.btn-remove {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #FCA5A5;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.btn-submit {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary), #2563EB);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  margin-top: 8px;
+  transition: 0.2s;
+}
+.btn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(27, 75, 155, 0.4);
+}
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+.item-tag {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+}
+.item-tag span {
+  font-size: 0.85rem;
+}
+.item-tag small {
+  color: var(--text2);
+}
+.feedback-card {
+  font-size: 0.78rem;
+  margin-top: 6px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 0.82rem;
+  opacity: 0;
+  transition: 0.3s;
+}
+.toast.show { opacity: 1; }
+.toast-success { border-color: var(--success); color: #6EE7B7; }
+.toast-error { border-color: var(--danger); color: #FCA5A5; }
+.toast-warning { border-color: var(--warning); color: #FDE047; }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand"><span>SILOG</span> SpA</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="user-name" style="font-size:0.82rem;color:var(--text2)">Cargando...</span>
+    <button class="btn-back" onclick="window.location.href='turno.html'">← Turno</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="page-header">
+    <h2>🏭 Despacho Bodega Silog</h2>
+    <p>Integración WMS de Salida y Logística Inversa para TotalEnergies</p>
+  </div>
+
+  <!-- CONTEXTO DE TURNO -->
+  <div class="section-card">
+    <h3>📋 Datos de Control de Turno</h3>
+    <div class="row-2">
+      <div class="form-row">
+        <label>ID Viaje</label>
+        <input class="field" id="id_viaje" readonly disabled style="opacity: 0.65"/>
+      </div>
+      <div class="form-row">
+        <label>Fecha Despacho</label>
+        <input class="field" type="date" id="fecha_despacho"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Conductor en Jornada</label>
+      <input class="field" id="conductor_viaje" readonly disabled style="opacity: 0.65"/>
+    </div>
+    <div class="row-2">
+      <div class="form-row">
+        <label>Patente Vehículo</label>
+        <input class="field" id="patente" readonly disabled style="opacity: 0.65"/>
+      </div>
+      <div class="form-row">
+        <label>Distribuidor</label>
+        <input class="field" id="distribuidor" value="TotalEnergies" readonly disabled style="opacity: 0.65"/>
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="form-row">
+        <label>Km Inicial</label>
+        <input class="field" id="km_inicial" readonly disabled style="opacity: 0.65"/>
+      </div>
+      <div class="form-row">
+        <label>Km Final</label>
+        <input class="field" id="km_final" value="Pendiente al cerrar turno" readonly disabled style="opacity: 0.65"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Nº de Documento (WMS Bodega)</label>
+      <input class="field" id="n_documento_wms" placeholder="Ej: GD-0046, F-1234"/>
+    </div>
+  </div>
+
+  <!-- TABS DE OPERACION WMS -->
+  <div class="tab-row">
+    <button class="tab-btn active" id="tab-salida-btn" onclick="setMode('salida')">📤 Salida (Despacho)</button>
+    <button class="tab-btn" id="tab-inversa-btn" onclick="setMode('inversa')">🔄 Logística Inversa (Devolución)</button>
+  </div>
+
+  <!-- SECCIÓN SALIDA / INGRESO DE PRODUCTOS -->
+  <div class="section-card">
+    <h3 id="wms-action-title">📤 Salida de Bodega WMS</h3>
+    
+    <div class="form-row">
+      <label>Validar por Código / SKU / Barras</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" class="field" id="item-codigo" placeholder="Ej: SKU-001 o Código de Barras"/>
+        <button type="button" class="btn-back" onclick="validarProducto()" style="padding:0 16px">🔍 Validar</button>
+      </div>
+      <div id="valid-feedback" class="feedback-card" style="display:none"></div>
+    </div>
+
+    <div class="form-row">
+      <label>Producto Seleccionado</label>
+      <select class="field" id="item-producto" onchange="onSelectProductDropdown()">
+        <option value="" disabled selected>Seleccione producto...</option>
+      </select>
+    </div>
+
+    <div class="row-2">
+      <div class="form-row">
+        <label>Cantidad</label>
+        <input class="field" type="number" id="item-cant" min="1" placeholder="Ej: 5" inputmode="numeric"/>
+      </div>
+      <div class="form-row" id="row-clasificacion" style="display:none">
+        <label>Clasificación Devolución</label>
+        <select class="field" id="item-clasificacion">
+          <option value="stock_disponible">📦 Volver a Stock</option>
+          <option value="merma">🗑️ Merma / Dañado</option>
+        </select>
+      </div>
+      <div class="form-row" id="row-ref">
+        <label>Referencia (Guía/Factura)</label>
+        <input class="field" type="text" id="item-ref" placeholder="Ej: GD-0046"/>
+      </div>
+    </div>
+
+    <button type="button" class="btn-add" onclick="agregarProductoAListado()" style="border-style:solid;border-width:1px;background:var(--surface2)">➕ Agregar a la Lista</button>
+  </div>
+
+  <!-- LISTADO DE ITEMS AGREGADOS -->
+  <div class="section-card">
+    <h3>📦 Listado de Productos Registrados</h3>
+    <div class="items-table-list" id="wms-items-list">
+      <div style="color:var(--text2);text-align:center;padding:12px;font-size:0.8rem">No hay productos agregados a la lista todavía.</div>
+    </div>
+  </div>
+
+  <!-- CLIENTES DE DESPACHO -->
+  <div class="section-card">
+    <h3>🏢 Clientes de Despacho</h3>
+    <div class="client-list" id="client-list">
+      <div class="client-item">
+        <input placeholder="Nombre del cliente" class="client-input"/>
+        <button class="btn-remove" onclick="removeClient(this)">✕</button>
+      </div>
+    </div>
+    <button class="btn-add" onclick="addClient()">+ Agregar Cliente</button>
+  </div>
+
+  <!-- BOTÓN FINAL -->
+  <button class="btn-submit" id="btn-submit" onclick="finalizarDespacho()">📋 Registrar Despacho Bodega</button>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js?v=2"></script>
+<script src="js/auth.js?v=7"></script>
+<script>
+let _uid='', _email='', _name='', _role='', _activeTurnoId='', _turnoData=null, _mode='salida';
+let _productos = [];
+let _itemsRegistrados = [];
+
+requireAuth(async(user,data)=>{
+  _uid=user.uid;
+  _email=data.correo_electronico||data.email||user.email;
+  _name=data.name||data.nombre||'';
+  _role=(data.rol||data.role||'conductor').toLowerCase().trim();
+  document.getElementById('user-name').textContent=_name;
+
+  // Cargar datos del turno activo
+  await loadActiveTurno();
+  // Cargar listado de productos de bodega
+  await loadWmsProducts();
+});
+
+async function loadActiveTurno() {
+  try {
+    const snap = await db.collection('turnos')
+      .where('conductor_uid','==',_uid)
+      .where('estado','==','abierto')
+      .limit(1).get();
+      
+    if (snap.empty) {
+      showToast('❌ No tienes un turno activo. Inicia jornada antes de despachar.', 'error');
+      alert('Error: Debes iniciar tu turno antes de acceder a Despacho Bodega Silog.');
+      window.location.href = 'turno.html';
+      return;
+    }
+    
+    const doc = snap.docs[0];
+    _activeTurnoId = doc.id;
+    _turnoData = doc.data();
+
+    // Llenar campos de control
+    const now = new Date();
+    document.getElementById('id_viaje').value = String(now.getDate()).padStart(2,'0') + String(now.getMonth()+1).padStart(2,'0') + now.getFullYear();
+    document.getElementById('fecha_despacho').value = now.toISOString().split('T')[0];
+    document.getElementById('conductor_viaje').value = `${_name} (${_email})`;
+    document.getElementById('patente').value = (_turnoData.patente || '').toUpperCase();
+    document.getElementById('km_inicial').value = `${_turnoData.km_inicial_actual || _turnoData.km_inicial || 0} km`;
+  } catch(e) {
+    showToast('Error cargando turno: ' + e.message, 'error');
+  }
+}
+
+async function loadWmsProducts() {
+  try {
+    const snap = await db.collection('inventory').get();
+    _productos = [];
+    snap.forEach(d => {
+      _productos.push({ id: d.id, ...d.data() });
+    });
+    _productos.sort((a,b) => (a.name||a.nombre||'').localeCompare(b.name||b.nombre||''));
+    
+    // Poblar dropdown select
+    const sel = document.getElementById('item-producto');
+    sel.innerHTML = '<option value="" disabled selected>Seleccione producto...</option>';
+    _productos.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = `${p.name||p.nombre||p.id} ${p.sku?'('+p.sku+')':''}  — Stock: ${p.qty??p.cantidad??0}`;
+      sel.appendChild(o);
+    });
+  } catch(e) {
+    showToast('Error cargando inventario: ' + e.message, 'error');
+  }
+}
+
+function setMode(mode) {
+  _mode = mode;
+  document.getElementById('tab-salida-btn').classList.toggle('active', mode === 'salida');
+  document.getElementById('tab-inversa-btn').classList.toggle('active', mode === 'inversa');
+  
+  document.getElementById('wms-action-title').textContent = mode === 'salida' ? '📤 Salida de Bodega WMS' : '🔄 Logística Inversa WMS';
+  document.getElementById('row-clasificacion').style.display = mode === 'inversa' ? 'block' : 'none';
+  
+  // Limpiar inputs
+  document.getElementById('item-codigo').value = '';
+  document.getElementById('item-producto').value = '';
+  document.getElementById('item-cant').value = '';
+  document.getElementById('item-ref').value = '';
+  document.getElementById('valid-feedback').style.display = 'none';
+}
+
+function validarProducto() {
+  const codeInp = document.getElementById('item-codigo');
+  const feedback = document.getElementById('valid-feedback');
+  const select = document.getElementById('item-producto');
+  
+  const val = codeInp.value.trim().toLowerCase();
+  if (!val) {
+    showToast('Ingresa un código para validar', 'warning');
+    return;
+  }
+  
+  const prod = _productos.find(p => 
+    (p.code || '').toLowerCase() === val || 
+    (p.sku || '').toLowerCase() === val || 
+    (p.codigo_barras || '').toLowerCase() === val || 
+    (p.id || '').toLowerCase() === val
+  );
+  
+  if (prod) {
+    select.value = prod.id;
+    const stock = prod.qty ?? prod.cantidad ?? 0;
+    feedback.style.display = 'block';
+    feedback.style.border = '1px solid var(--success)';
+    feedback.style.color = '#6EE7B7';
+    feedback.style.background = 'rgba(16, 185, 129, 0.08)';
+    feedback.innerHTML = `
+      <strong>✅ Producto Validado:</strong> ${prod.nombre || prod.name || 'Sin Nombre'}<br>
+      <span style="font-size:0.72rem;color:var(--text2)">
+        SKU: ${prod.sku || '—'} | Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'}
+      </span>
+    `;
+    showToast(`✅ Código validado: ${prod.nombre || prod.name}`, 'success');
+  } else {
+    select.value = '';
+    feedback.style.display = 'block';
+    feedback.style.border = '1px solid var(--danger)';
+    feedback.style.color = '#FCA5A5';
+    feedback.style.background = 'rgba(239, 68, 68, 0.08)';
+    feedback.innerHTML = `
+      <strong>❌ Código no registrado:</strong> "${codeInp.value.trim()}"
+    `;
+    showToast('❌ Producto no encontrado', 'error');
+  }
+}
+
+function onSelectProductDropdown() {
+  const select = document.getElementById('item-producto');
+  const codeInp = document.getElementById('item-codigo');
+  const feedback = document.getElementById('valid-feedback');
+  
+  const prodId = select.value;
+  if (!prodId) return;
+  
+  const prod = _productos.find(p => p.id === prodId);
+  if (prod) {
+    codeInp.value = prod.sku || prod.code || prod.id;
+    const stock = prod.qty ?? prod.cantidad ?? 0;
+    feedback.style.display = 'block';
+    feedback.style.border = '1px solid var(--primary)';
+    feedback.style.color = 'var(--text)';
+    feedback.style.background = 'rgba(27, 75, 155, 0.08)';
+    feedback.innerHTML = `
+      <strong>ℹ️ Producto Seleccionado:</strong> ${prod.nombre || prod.name}<br>
+      <span style="font-size:0.72rem;color:var(--text2)">
+        SKU: ${prod.sku || '—'} | Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'}
+      </span>
+    `;
+  }
+}
+
+function agregarProductoAListado() {
+  const select = document.getElementById('item-producto');
+  const cantInp = document.getElementById('item-cant');
+  const refInp = document.getElementById('item-ref');
+  const clasInp = document.getElementById('item-clasificacion');
+  
+  const prodId = select.value;
+  const cant = parseInt(cantInp.value) || 0;
+  const ref = refInp.value.trim();
+  const clas = clasInp.value;
+  
+  if (!prodId) { showToast('Seleccione un producto', 'warning'); return; }
+  if (cant <= 0) { showToast('Ingrese una cantidad válida', 'warning'); return; }
+  if (!ref) { showToast('Ingrese la referencia (guía/factura)', 'warning'); return; }
+  
+  const prod = _productos.find(p => p.id === prodId);
+  if (!prod) return;
+  
+  const stock = prod.qty ?? prod.cantidad ?? 0;
+  if (_mode === 'salida' && cant > stock) {
+    showToast(`❌ Cantidad excede stock disponible (${stock})`, 'error');
+    return;
+  }
+  
+  // Agregar al arreglo local
+  _itemsRegistrados.push({
+    producto_id: prodId,
+    code: prod.sku || prod.code || prod.id,
+    name: prod.name || prod.nombre,
+    cantidad: cant,
+    tipo: _mode,
+    referencia: ref,
+    clasificacion: clas
+  });
+  
+  renderRegisteredItems();
+  
+  // Limpiar inputs del item
+  cantInp.value = '';
+  refInp.value = '';
+  document.getElementById('item-codigo').value = '';
+  select.value = '';
+  document.getElementById('valid-feedback').style.display = 'none';
+  showToast('📦 Producto agregado a la lista', 'success');
+}
+
+function renderRegisteredItems() {
+  const container = document.getElementById('wms-items-list');
+  if (_itemsRegistrados.length === 0) {
+    container.innerHTML = '<div style="color:var(--text2);text-align:center;padding:12px;font-size:0.8rem">No hay productos agregados a la lista todavía.</div>';
+    return;
+  }
+  
+  container.innerHTML = _itemsRegistrados.map((item, idx) => {
+    const isSal = item.tipo === 'salida';
+    const typeLabel = isSal ? '📤 Salida' : `🔄 Devolución (${item.clasificacion === 'merma' ? '🗑️ Merma' : '📦 Stock'})`;
+    const color = isSal ? 'var(--danger)' : 'var(--success)';
+    return `
+      <div class="item-tag">
+        <div>
+          <strong style="font-size:0.88rem">${sanitize(item.name)}</strong><br>
+          <small>Código: ${item.code} | Ref: ${sanitize(item.referencia)} | <b style="color:${color}">${typeLabel}</b></small>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <strong style="font-size:1rem">${item.cantidad} un</strong>
+          <button class="btn-remove" onclick="removeRegisteredItem(${idx})" style="width:26px;height:26px;font-size:0.75rem">✕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function removeRegisteredItem(idx) {
+  _itemsRegistrados.splice(idx, 1);
+  renderRegisteredItems();
+}
+
+function addClient() {
+  const list = document.getElementById('client-list');
+  const d = document.createElement('div');
+  d.className = 'client-item';
+  d.innerHTML = '<input placeholder="Nombre del cliente" class="client-input"/><button class="btn-remove" onclick="removeClient(this)">✕</button>';
+  list.appendChild(d);
+}
+
+function removeClient(btn) {
+  btn.parentElement.remove();
+}
+
+async function finalizarDespacho() {
+  if (_itemsRegistrados.length === 0) {
+    showToast('Debe ingresar al menos un producto a la lista', 'warning');
+    return;
+  }
+  
+  const clients = [...document.querySelectorAll('.client-input')].map(i => i.value.trim()).filter(Boolean);
+  if (clients.length === 0) {
+    showToast('Debe ingresar al menos un cliente de despacho', 'warning');
+    return;
+  }
+  
+  const nDocWms = document.getElementById('n_documento_wms').value.trim();
+  if (!nDocWms) {
+    showToast('Ingrese el Nº de Documento (WMS Bodega)', 'warning');
+    return;
+  }
+  
+  const fechaDespacho = document.getElementById('fecha_despacho').value;
+  const idViaje = document.getElementById('id_viaje').value;
+  
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Registrando Despacho...';
+  
+  try {
+    const batch = db.batch();
+    const hrRef = db.collection('hojas_ruta').doc();
+    const tripId = hrRef.id;
+    
+    // 1) Actualizar Inventario y Registrar Movimientos WMS
+    for (let item of _itemsRegistrados) {
+      const prodRef = db.collection('inventory').doc(item.producto_id);
+      
+      // Obtener el stock fresco de este producto
+      const pDoc = await prodRef.get();
+      if (!pDoc.exists) throw new Error(`El producto ${item.name} ya no existe en WMS.`);
+      const pData = pDoc.data();
+      const currentStock = pData.qty ?? pData.cantidad ?? 0;
+      
+      let newStock = currentStock;
+      
+      if (item.tipo === 'salida') {
+        if (item.cantidad > currentStock) {
+          throw new Error(`Stock insuficiente para ${item.name}. Disponible: ${currentStock}, Solicitado: ${item.cantidad}`);
+        }
+        newStock -= item.cantidad;
+        
+        // Registrar movimiento de salida
+        const mRef = db.collection('movimientos_bodega').doc();
+        batch.set(mRef, {
+          producto_id: item.producto_id,
+          producto_codigo: item.code,
+          producto_nombre: item.name,
+          tipo: 'salida',
+          cantidad: item.cantidad,
+          numero_documento: item.referencia,
+          referencia: `Despacho Bodega Silog: ${idViaje}`,
+          observaciones: `Salida de ruta activa en patente ${_turnoData.patente}`,
+          operario_uid: _uid,
+          operario_nombre: _name,
+          fecha: firebase.firestore.FieldValue.serverTimestamp(),
+          scan_validado: false
+        });
+      } else {
+        // Logística Inversa (Devolución)
+        if (item.clasificacion === 'stock_disponible') {
+          newStock += item.cantidad;
+          
+          // Registrar movimiento de ingreso por devolución
+          const mRef = db.collection('movimientos_bodega').doc();
+          batch.set(mRef, {
+            producto_id: item.producto_id,
+            producto_codigo: item.code,
+            producto_nombre: item.name,
+            tipo: 'devolucion',
+            cantidad: item.cantidad,
+            numero_documento: item.referencia,
+            referencia: `Devolución Stock: ${idViaje}`,
+            observaciones: `Re-ingreso a bodega de mercancía devuelta en ruta`,
+            operario_uid: _uid,
+            operario_nombre: _name,
+            fecha: firebase.firestore.FieldValue.serverTimestamp(),
+            scan_validado: false
+          });
+        } else {
+          // Merma: no ingresa al stock útil, crea documento en logistica_inversa para registro
+          const liRef = db.collection('logistica_inversa').doc();
+          batch.set(liRef, {
+            cliente: clients[0] || 'Cliente Final',
+            conductor_uid: _uid,
+            conductor_email: _email,
+            conductor_nombre: _name,
+            patente: _turnoData.patente || '',
+            producto_id: item.producto_id,
+            producto_codigo: item.code,
+            producto_nombre: item.name,
+            cantidad: item.cantidad,
+            motivo: `Devolución Merma / Dañado en ruta. Doc: ${item.referencia}`,
+            estado: 'reclasificado',
+            clasificacion: 'merma',
+            fecha_devolucion: firebase.firestore.FieldValue.serverTimestamp(),
+            fecha_recepcion: firebase.firestore.FieldValue.serverTimestamp(),
+            operario_uid: _uid
+          });
+        }
+      }
+      
+      // Actualizar stock de inventario
+      batch.update(prodRef, {
+        qty: newStock,
+        cantidad: newStock,
+        status: newStock === 0 ? 'no_disponible' : 'disponible',
+        litros_actuales: (pData.litros_por_unidad || 0) * newStock,
+        kg_actuales: (pData.kg_por_unidad || 0) * newStock,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: _uid
+      });
+    }
+    
+    // 2) Escribir hoja de ruta
+    const docsWms = _itemsRegistrados.map(i => i.referencia);
+    const uniqueDocsWms = [...new Set(docsWms)];
+    
+    const totalEntregas = _itemsRegistrados.filter(i => i.tipo === 'salida').reduce((sum, i) => sum + i.cantidad, 0);
+    const totalDevoluciones = _itemsRegistrados.filter(i => i.tipo === 'inversa').reduce((sum, i) => sum + i.cantidad, 0);
+    
+    batch.set(hrRef, {
+      turno_id: _activeTurnoId,
+      id_viaje: idViaje,
+      conductor_uid: _uid,
+      conductor_email: _email,
+      conductor_nombre: _name,
+      distribuidor: 'TotalEnergies',
+      nombre_distribuidor: 'TotalEnergies',
+      patente: (_turnoData.patente || '').toUpperCase(),
+      fecha: fechaDespacho,
+      fecha_despacho: fechaDespacho,
+      hora_inicio: firebase.firestore.FieldValue.serverTimestamp(),
+      hora_termino: null,
+      km_inicial: _turnoData.km_inicial_actual || _turnoData.km_inicial || 0,
+      km_final: null,
+      km_recorridos: 0,
+      total_entregas: totalEntregas,
+      total_devoluciones: totalDevoluciones,
+      clientes_despacho: clients,
+      n_guias: uniqueDocsWms.length,
+      cant_guias: uniqueDocsWms.length,
+      documentos_wms: uniqueDocsWms,
+      n_documento: nDocWms,
+      documentos_wms_str: nDocWms,
+      productos_despacho: _itemsRegistrados,
+      estado: 'pendiente',
+      created_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // 3) Escribir los Despachos individuales
+    clients.forEach((cName, idx) => {
+      const dRef = db.collection('despachos').doc();
+      batch.set(dRef, {
+        turno_id: _activeTurnoId,
+        cliente_nombre: cName,
+        cliente_direccion: '',
+        cliente_comuna: '',
+        guia_numero: uniqueDocsWms[idx] || uniqueDocsWms[0] || idViaje,
+        n_documento: nDocWms,
+        referencia: uniqueDocsWms[0] || idViaje,
+        distribuidor: 'TotalEnergies',
+        nombre_distribuidor: 'TotalEnergies',
+        estado: totalDevoluciones > 0 && totalEntregas === 0 ? 'devuelto' : 'entregado',
+        devolucion_motivo: totalDevoluciones > 0 ? 'Devolución de productos registrada en WMS' : '',
+        fecha: firebase.firestore.Timestamp.fromDate(new Date(fechaDespacho + 'T12:00:00')),
+        pod_timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        conductor_uid: _uid,
+        conductor_email: _email,
+        conductor_nombre: _name,
+        patente: (_turnoData.patente || '').toUpperCase()
+      });
+    });
+    
+    await batch.commit();
+    showToast('✅ Despacho Bodega registrado con éxito', 'success');
+    setTimeout(() => { window.location.href = 'turno.html'; }, 1500);
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '📋 Registrar Despacho Bodega';
+    showToast('Error: ' + e.message, 'error');
+    alert('Error al registrar despacho: ' + e.message);
+  }
+}
+
+function showToast(msg, type='info') {
+  const container = document.getElementById('toast-container');
+  if(!container) return;
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  container.appendChild(t);
+  setTimeout(() => t.classList.add('show'), 50);
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 300);
+  }, 4000);
+}
+
+function addClient() {
+  const list = document.getElementById('client-list');
+  const d = document.createElement('div');
+  d.className = 'client-item';
+  d.innerHTML = '<input placeholder="Nombre del cliente" class="client-input"/><button class="btn-remove" onclick="removeClient(this)">✕</button>';
+  list.appendChild(d);
+}
+
+function removeClient(btn) {
+  btn.parentElement.remove();
+}
+
+function sanitize(str) {
+  if(!str) return '';
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+</script>
+</body>
+</html>

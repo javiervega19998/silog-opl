@@ -260,7 +260,7 @@
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
 <script>
-let _uid='', _email='', _name='', _isViewer=false, _activeTab='form';
+let _uid='', _email='', _name='', _isViewer=false, _activeTab='form', _role='';
 
 requireAuth(async(user,data)=>{
   _uid=user.uid;
@@ -351,8 +351,8 @@ requireAuth(async(user,data)=>{
   }
   await loadDistribuidores();
 
-  const role = (data.rol || data.role || '').toLowerCase();
-  if (role === 'conductor') {
+  _role = (data.rol || data.role || '').toLowerCase();
+  if (_role === 'conductor') {
     const tbtnForm = document.getElementById('tbtn-form');
     if (tbtnForm) tbtnForm.style.display = 'none';
     showTab('history');
@@ -440,6 +440,9 @@ function previewPod(inp) {
 }
 
 function showTab(t){
+  if (_role === 'conductor' && t === 'form') {
+    t = 'history';
+  }
   _activeTab=t;
   ['form','history','admin'].forEach(id=>{
     const el=document.getElementById('tab-'+id);if(el)el.style.display=t===id?'block':'none';

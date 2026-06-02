@@ -158,6 +158,10 @@ select.field{appearance:auto;cursor:pointer}
             <div class="nc-icon">✅</div>
             <div class="nc-label">Checklist</div>
           </a>
+          <a class="nav-card" href="despacho_bodega.html">
+            <div class="nc-icon">🏭</div>
+            <div class="nc-label">Despacho Bodega</div>
+          </a>
           <a class="nav-card" href="viajes.html">
             <div class="nc-icon">📊</div>
             <div class="nc-label">Historial</div>
@@ -700,8 +704,9 @@ async function cerrarTurno() {
     }
 
     const fecha = new Date().toISOString().split('T')[0];
-    // Use turno_id as the document ID to guarantee uniqueness
-    const hojaDocRef = db.collection('hojas_ruta').doc(_turnoDocId);
+    
+    // Buscar hojas de ruta registradas durante el turno (ej: desde Despacho Bodega)
+    const existingHrSnap = await db.collection('hojas_ruta').where('turno_id', '==', _turnoDocId).get();
 
     const firstVehKmIni = tData.km_inicial || 0;
     const firstVehKmFin = firstVehKmIni + totalKmRecorridos;
@@ -712,21 +717,39 @@ async function cerrarTurno() {
         hora_cierre: firebase.firestore.FieldValue.serverTimestamp(),
       });
       transaction.update(vehicleDocRef, { km: kmFin, kilometraje: kmFin, estado: 'Disponible', conductor: null });
-      transaction.set(hojaDocRef, {
-        turno_id: _turnoDocId, conductor_uid: _uid, conductor_email: _email,
-        conductor_nombre: _name, distribuidor: distribuidor || tData.distribuidor || '',
-        comuna: tData.comuna || '',
-        patente: tData.patente, fecha: fecha,
-        hora_inicio: tData.hora_apertura || null,
-        hora_termino: firebase.firestore.FieldValue.serverTimestamp(),
-        km_inicial: firstVehKmIni, km_final: firstVehKmFin, km_recorridos: totalKmRecorridos,
-        entregas: entregas, total_entregas: entregas.length - devoluciones,
-        total_devoluciones: devoluciones, combustible: combustible, peaje: peaje,
-        litros_combustible: litros_combustible, clientes_despacho: clientes_despacho,
-        n_guias: entregas.length, estado: 'pendiente_revision', revisado_por: null,
-        created_at: firebase.firestore.FieldValue.serverTimestamp(),
-        cambios_vehiculo: tData.cambios_vehiculo || null
-      }, { merge: true });
+      
+      if (!existingHrSnap.empty) {
+        // Si existen hojas de ruta registradas en ruta, actualizar odómetros de cada una
+        existingHrSnap.forEach(doc => {
+          const hrData = doc.data();
+          const hrKmIni = hrData.km_inicial || kmIniActual;
+          const hrKmRec = kmFin - hrKmIni;
+          transaction.update(doc.ref, {
+            km_final: kmFin,
+            km_recorridos: hrKmRec > 0 ? hrKmRec : 0,
+            hora_termino: firebase.firestore.FieldValue.serverTimestamp(),
+            estado: 'pendiente_revision'
+          });
+        });
+      } else {
+        // Si no hay hojas de ruta de despacho previas, crear resumen predeterminado
+        const hojaDocRef = db.collection('hojas_ruta').doc(_turnoDocId);
+        transaction.set(hojaDocRef, {
+          turno_id: _turnoDocId, conductor_uid: _uid, conductor_email: _email,
+          conductor_nombre: _name, distribuidor: distribuidor || tData.distribuidor || '',
+          comuna: tData.comuna || '',
+          patente: tData.patente, fecha: fecha,
+          hora_inicio: tData.hora_apertura || null,
+          hora_termino: firebase.firestore.FieldValue.serverTimestamp(),
+          km_inicial: firstVehKmIni, km_final: firstVehKmFin, km_recorridos: totalKmRecorridos,
+          entregas: entregas, total_entregas: entregas.length - devoluciones,
+          total_devoluciones: devoluciones, combustible: combustible, peaje: peaje,
+          litros_combustible: litros_combustible, clientes_despacho: clientes_despacho,
+          n_guias: entregas.length, estado: 'pendiente_revision', revisado_por: null,
+          created_at: firebase.firestore.FieldValue.serverTimestamp(),
+          cambios_vehiculo: tData.cambios_vehiculo || null
+        }, { merge: true });
+      }
     });
 
     showToast('✅ Jornada finalizada con éxito','success');
