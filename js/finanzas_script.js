@@ -2687,7 +2687,7 @@ function exportHojaExcel(){
   data.push(['','','','INICIO:',hi,'TERMINO:',ht]); // Row 4: B4/C4 empty
   data.push(['','KM INICIAL:',h.km_inicial||'','KM FINAL:',h.km_final||'','KM RECORRIDOS:',h.km_recorridos||'']); // Row 5
   data.push(['','','','','','','']); // Row 6: blank
-  data.push(['','NÂ°','DOCUMENTO','LUGAR','ESTADO','OBSERVACIONES','COMUNA','VALOR DIARIO']); // Row 7: headers
+  data.push(['','NÂ°','DOCUMENTO','CLIENTE','ESTADO','OBSERVACIONES','COMUNA','VALOR DIARIO']); // Row 7: headers
   let totalValor=0;
   entregas.forEach(e=>{
     totalValor+=e.valor_diario||0;

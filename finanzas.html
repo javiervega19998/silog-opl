@@ -2588,11 +2588,11 @@ function exportHojaExcel(){
   data.push(['','PATENTE:',h.patente||'','INICIO:',hi,'TERMINO:',ht]); // Row 4
   data.push(['','KM INICIAL:',h.km_inicial||'','KM FINAL:',h.km_final||'','KM RECORRIDOS:',h.km_recorridos||'']); // Row 5
   data.push(['','','','','','','']); // Row 6: blank
-  data.push(['','N°','DOCUMENTO','LUGAR','OBSERVACIONES','COMUNA','VALOR DIARIO']); // Row 7: headers
+  data.push(['','N°','DOCUMENTO','CLIENTE','OBSERVACIONES','COMUNA','VALOR DIARIO']); // Row 7: headers
   let totalValor=0;
   entregas.forEach(e=>{
     totalValor+=e.valor_diario||0;
-    data.push(['',(e.correlativo||''),e.documento||'',e.direccion||e.cliente||'',e.observaciones||'',e.comuna||'',e.valor_diario||0]);
+    data.push(['',(e.correlativo||''),e.documento||'',e.cliente||e.direccion||'',e.observaciones||'',e.comuna||'',e.valor_diario||0]);
   });
   data.push(['','','','','','TOTAL',totalValor]);
   data.push(['','','','','','','']);
