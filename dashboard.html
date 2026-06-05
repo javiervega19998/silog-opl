@@ -206,13 +206,13 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
   <!-- NOTIF BANNER -->
   <div class="notif-banner" id="notif-banner" style="display:none" onclick="window.location.href='tareas.html'">
     <span style="font-size:1.4rem">🔔</span>
-    <p>Tienes <strong id="notif-count">0</strong> tareas pendientes por completar</p>
+    <p>Tienes <strong id="notif-count">0</strong> notificaciones por revisar</p>
     <span style="color:var(--text2)">→</span>
   </div>
 
   <!-- STATS -->
   <div class="stats-grid">
-    <div class="stat-card stat-orange"><span class="stat-icon">📋</span><div class="stat-value" id="stat-pending">—</div><div class="stat-label">Tareas Pendientes</div></div>
+    <div class="stat-card stat-orange"><span class="stat-icon">📋</span><div class="stat-value" id="stat-pending">—</div><div class="stat-label">Notificaciones</div></div>
     <div class="stat-card stat-green"><span class="stat-icon">✅</span><div class="stat-value" id="stat-done">—</div><div class="stat-label">Completadas Hoy</div></div>
     <div class="stat-card stat-blue"><span class="stat-icon">🚛</span><div class="stat-value" id="stat-vehicle">—</div><div class="stat-label">Estado Vehículo</div></div>
     <div class="stat-card stat-red"><span class="stat-icon">🛡️</span><div class="stat-value" id="stat-checklist">—</div><div class="stat-label">Checklist Diario</div></div>
@@ -249,8 +249,8 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
   <div class="admin-section" id="admin-quick-actions">
     <p class="section-title">⚡ Acceso Rápido Administrativo</p>
     <div class="quick-grid">
-      <a href="admin.html" class="aq-card"><div class="icon">👥</div><p>Gestionar Usuarios</p></a>
-      <a href="tareas.html" class="aq-card"><div class="icon">📋</div><p>Asignar Tareas</p></a>
+      <a href="admin.html" class="aq-card"><div class="icon">👥</div><p>Panel de Administración</p></a>
+      <a href="tareas.html" class="aq-card"><div class="icon">📋</div><p>Notificaciones y Asignación</p></a>
       <a href="vehiculos.html" class="aq-card"><div class="icon">🚛</div><p>Gestionar Flota</p></a>
       <a href="charlas.html" class="aq-card"><div class="icon">📚</div><p>Charlas de 5 Minutos</p></a>
     </div>
@@ -300,7 +300,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
       </a>
       <a href="tareas.html" class="module-card">
         <div class="module-icon">🔔</div>
-        <div class="module-name">Tareas Pendientes</div>
+        <div class="module-name">Notificaciones</div>
         <div class="module-desc">Mis tareas y notificaciones</div>
         <div class="badge-count" id="badge-tareas-cond" style="display:none">0</div>
       </a>
@@ -316,10 +316,10 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
         <div class="module-name">Turnos</div>
         <div class="module-desc">Ver turnos de conductores</div>
       </a>
-      <a href="gastos.html" class="module-card">
-        <div class="module-icon">💰</div>
-        <div class="module-name">Gastos en Ruta</div>
-        <div class="module-desc">Historial por chofer y vehículo</div>
+      <a href="bodega.html" class="module-card">
+        <div class="module-icon">🏭</div>
+        <div class="module-name">WMS Bodega</div>
+        <div class="module-desc">Escaneo, ingresos y logística inversa</div>
       </a>
       <a href="vehiculos.html" class="module-card">
         <div class="module-icon">🔧</div>
@@ -375,6 +375,11 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
         <div class="module-name">WMS Bodega</div>
         <div class="module-desc">Escaneo, ingresos y logística inversa</div>
       </a>
+      <a href="inventario.html" class="module-card">
+        <div class="module-icon">📦</div>
+        <div class="module-name">Inventario</div>
+        <div class="module-desc">Control de stock</div>
+      </a>
       <a href="recordatorios.html" class="module-card">
         <div class="module-icon">📌</div>
         <div class="module-name">Recordatorios</div>
@@ -413,11 +418,6 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
         <div class="module-name">Historial de Checklist</div>
         <div class="module-desc">Inspecciones de vehículos</div>
       </a>
-      <a href="gastos.html" class="module-card">
-        <div class="module-icon">💰</div>
-        <div class="module-name">Gastos en Ruta</div>
-        <div class="module-desc">Historial combustible y peajes</div>
-      </a>
       <a href="viajes.html" class="module-card">
         <div class="module-icon">📋</div>
         <div class="module-name">Viajes</div>
@@ -431,7 +431,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
       </a>
       <a href="tareas.html" class="module-card">
         <div class="module-icon">🔔</div>
-        <div class="module-name">Tareas Pendientes</div>
+        <div class="module-name">Notificaciones</div>
         <div class="module-desc">Mis tareas y notificaciones</div>
         <div class="badge-count" id="badge-tareas-fin" style="display:none">0</div>
       </a>
@@ -455,7 +455,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
       </a>
       <a href="tareas.html" class="module-card">
         <div class="module-icon">🔔</div>
-        <div class="module-name">Tareas Pendientes</div>
+        <div class="module-name">Notificaciones</div>
         <div class="module-desc">Mis tareas y notificaciones</div>
         <div class="badge-count" id="badge-tareas-bod" style="display:none">0</div>
       </a>

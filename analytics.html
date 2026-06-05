@@ -598,17 +598,16 @@ function getVehicleEmoji(marca, modelo) {
 }
 
 function getTurnoKm(t) {
+  if (t.estado !== 'cerrado') return 0;
   if (!t.km_final || !t.km_inicial) return 0;
-  const kmIniActual = t.km_inicial_actual || t.km_inicial || 0;
-  const accum = t.km_recorridos_acumulados || 0;
-  const diff = t.km_final - kmIniActual;
-  return accum + (diff > 0 ? diff : 0);
+  const km = t.km_final - t.km_inicial;
+  if (km <= 0 || km > 1500) return 0;
+  return km;
 }
 
 function renderRankVehiculos(turnos,despachos,gastos){
   const container=document.getElementById('rank-vehiculos');
   
-  // Agrupar datos por patente
   const vehData={};
   _vehiculos.forEach(v=>{
     vehData[v.patente]={
@@ -622,13 +621,12 @@ function renderRankVehiculos(turnos,despachos,gastos){
     };
   });
 
-  // Si no hay vehículos cargados en memoria, mostrar mensaje de vacío
   if(Object.keys(vehData).length === 0) {
     container.innerHTML = '<div class="empty" style="text-align:center;padding:28px;color:var(--text2);font-size:0.85rem">Sin vehículos registrados en la flota.</div>';
     return;
   }
 
-  // 1) Calcular totales HISTÓRICOS (overall) (viajes recorridos + discrepancias)
+  // 1) Calcular totales HISTÓRICOS (overall) (solo turnos cerrados)
   _turnos.forEach(t=>{
     const v=t.patente;
     if(v && vehData[v]){
@@ -637,30 +635,13 @@ function renderRankVehiculos(turnos,despachos,gastos){
     }
   });
 
-  _discrepancias.forEach(d=>{
-    const v=d.patente;
-    if(v && vehData[v]){
-      const diff = d.diferencia_km || 0;
-      if (diff > 0) vehData[v].overall_recorridos += diff;
-    }
-  });
-
-  // 2) Calcular totales del PERÍODO FILTRADO (viajes del periodo + discrepancias del periodo)
+  // 2) Calcular totales del PERÍODO FILTRADO (solo turnos cerrados)
   turnos.forEach(t=>{
     const v=t.patente;
     if(v && vehData[v]){
       vehData[v].turnos_count++;
       const km = getTurnoKm(t);
       if (km > 0) vehData[v].period_recorridos += km;
-    }
-  });
-
-  const periodDiscrepancias = filterByDaysPast(_discrepancias, _days);
-  periodDiscrepancias.forEach(d=>{
-    const v=d.patente;
-    if(v && vehData[v]){
-      const diff = d.diferencia_km || 0;
-      if (diff > 0) vehData[v].period_recorridos += diff;
     }
   });
 
@@ -681,9 +662,12 @@ function renderRankVehiculos(turnos,despachos,gastos){
     const period_km = d.period_recorridos;
     
     let rendimiento = 0;
-    if(d.period_litros > 0){
+    if(d.period_litros > 0 && period_km > 0){
       rendimiento = period_km / d.period_litros;
     }
+
+    const consumo_L100km = (d.period_litros > 0 && period_km > 0)
+      ? ((d.period_litros / period_km) * 100).toFixed(2) : "Sin datos";
 
     results.push({
       patente,
@@ -692,7 +676,8 @@ function renderRankVehiculos(turnos,despachos,gastos){
       period_km,
       odometer_total,
       litros: d.period_litros,
-      rendimiento: parseFloat(rendimiento.toFixed(1))
+      rendimiento: parseFloat(rendimiento.toFixed(1)),
+      consumo_L100km: consumo_L100km
     });
   });
 
@@ -705,6 +690,9 @@ function renderRankVehiculos(turnos,despachos,gastos){
     const progressWidth = Math.min((r.rendimiento/15)*100, 100);
     const emoji = getVehicleEmoji(r.marca, r.modelo);
 
+    const rendText = r.rendimiento > 0 ? `${r.rendimiento} Km/L` : 'Sin datos';
+    const l100Text = r.consumo_L100km !== 'Sin datos' ? `${r.consumo_L100km} L/100km` : 'Sin datos';
+
     return `
       <div class="rank-item" style="flex-direction:column; align-items:stretch; gap:6px; padding:12px; margin-bottom:8px; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.04)">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -716,14 +704,15 @@ function renderRankVehiculos(turnos,despachos,gastos){
             </div>
           </div>
           <div style="text-align:right;">
-            <span style="font-weight:800; font-size:1rem; color:${color}">${r.rendimiento} Km/L</span>
+            <span style="font-weight:800; font-size:1rem; color:${color}">${rendText}</span>
           </div>
         </div>
         
         <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text2); margin-top:2px;">
           <span>Período: <b>${r.period_km.toLocaleString('es-CL')} km</b></span>
           <span>Odómetro Total: <b>${r.odometer_total.toLocaleString('es-CL')} km</b></span>
-          <span>Consumo: <b>${Math.round(r.litros)} L</b></span>
+          <span>L/100km: <b>${l100Text}</b></span>
+          <span>Consumo: <b>${r.litros > 0 ? Math.round(r.litros) + ' L' : 'Sin datos'}</b></span>
         </div>
 
         <div style="height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; margin-top:4px;">

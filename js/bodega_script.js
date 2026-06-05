@@ -138,20 +138,52 @@ async function reclasificar(id, tipo, btn){
       clasificacion:tipo,
       operario_uid:_uid
     });
-    // If stock, create ingreso movement
+    // If stock, create ingreso movement and update inventory
     if(tipo==='stock_disponible'){
       const inv=_inversas.find(i=>i.id===id);
-      await db.collection('movimientos_bodega').add({
-        producto_id:'',tipo:'devolucion',cantidad:1,
-        ubicacion:'Pendiente asignar',
-        operario_uid:_uid,operario_nombre:_name,
-        referencia:`Dev: ${inv?.cliente||'—'}`,
-        scan_validado:false,
-        fecha:firebase.firestore.FieldValue.serverTimestamp()
-      });
+      const prodId = inv?.producto_id || '';
+      const cant = parseInt(inv?.cantidad) || 0;
+      
+      if (prodId && cant > 0) {
+        const prodDoc = await db.collection('inventory').doc(prodId).get();
+        if (prodDoc.exists) {
+          const prodData = prodDoc.data();
+          const currentStock = prodData.qty ?? prodData.cantidad ?? 0;
+          const newStock = currentStock + cant;
+          
+          await db.collection('movimientos_bodega').add({
+            producto_id: prodId,
+            producto_codigo: inv?.producto_codigo || prodData.code || prodData.sku || '',
+            producto_nombre: inv?.producto_nombre || prodData.name || prodData.nombre || '',
+            tipo: 'devolucion',
+            cantidad: cant,
+            ubicacion: 'Pendiente asignar',
+            operario_uid: _uid,
+            operario_nombre: _name,
+            referencia: `Dev: ${inv?.cliente || '—'}`,
+            scan_validado: false,
+            fecha: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          
+          const updateData = {
+            qty: newStock,
+            cantidad: newStock,
+            status: newStock === 0 ? 'no_disponible' : 'disponible',
+            litros_actuales: (prodData.litros_por_unidad || 0) * newStock,
+            kg_actuales: (prodData.kg_por_unidad || 0) * newStock,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedBy: _uid
+          };
+          await db.collection('inventory').doc(prodId).update(updateData);
+        } else {
+          console.warn("Product doc not found in inventory:", prodId);
+        }
+      } else {
+        console.warn("Invalid product_id or cantidad in logistica_inversa doc:", prodId, cant);
+      }
     }
     showToast(`✅ Clasificado como ${label}`,'success');
-    await loadInversas();
+    await Promise.all([loadInversas(), loadProductos(), typeof loadInventory === 'function' ? loadInventory() : Promise.resolve()]);
   }catch(e){
     showToast('Error: '+e.message,'error');
     if(btn) {

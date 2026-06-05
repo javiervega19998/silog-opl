@@ -2136,12 +2136,38 @@ function openHoja(id){
 
   // Render editable entregas
   const tbody = document.getElementById('hoja-entregas');
-  let entregas=_hojaActual.entregas||[];
-  if (entregas.length === 0 && _hojaActual.clientes_despacho && _hojaActual.clientes_despacho.length > 0) {
-    _hojaActual.clientes_despacho.forEach((cName, idx) => {
+  let entregas = [];
+  if (Array.isArray(_hojaActual.entregas)) {
+    entregas = [..._hojaActual.entregas];
+  } else if (typeof _hojaActual.entregas === 'string' && _hojaActual.entregas.trim() !== '') {
+    try {
+      const parsed = JSON.parse(_hojaActual.entregas);
+      if (Array.isArray(parsed)) entregas = parsed;
+    } catch(e) {
+      entregas = [{
+        correlativo: 1,
+        documento: _hojaActual.n_documento || '',
+        cliente: _hojaActual.entregas,
+        direccion: '',
+        estado: 'entregado',
+        observaciones: '',
+        comuna: _hojaActual.comuna || ''
+      }];
+    }
+  }
+
+  let clientesDespacho = [];
+  if (Array.isArray(_hojaActual.clientes_despacho)) {
+    clientesDespacho = _hojaActual.clientes_despacho;
+  } else if (typeof _hojaActual.clientes_despacho === 'string' && _hojaActual.clientes_despacho.trim() !== '') {
+    clientesDespacho = _hojaActual.clientes_despacho.split(',').map(s => s.trim()).filter(Boolean);
+  }
+
+  if (entregas.length === 0 && clientesDespacho.length > 0) {
+    clientesDespacho.forEach((cName, idx) => {
       entregas.push({
         correlativo: idx + 1,
-        documento: _hojaActual.documentos_wms ? _hojaActual.documentos_wms[idx] || _hojaActual.documentos_wms[0] : (_hojaActual.n_documento || ''),
+        documento: Array.isArray(_hojaActual.documentos_wms) ? _hojaActual.documentos_wms[idx] || _hojaActual.documentos_wms[0] : (_hojaActual.n_documento || ''),
         cliente: cName,
         direccion: '',
         estado: 'entregado',
@@ -2626,30 +2652,96 @@ function exportHojaExcel(){
 let _ingresosBodega=[];
 async function loadIngresosBodega(){
   try{
-    const snap=await db.collection('ingresos_bodega').orderBy('fecha','desc').get();
-    _ingresosBodega=[];snap.forEach(d=>_ingresosBodega.push({id:d.id,...d.data()}));
+    const [ingSnap, movSnap] = await Promise.all([
+      db.collection('ingresos_bodega').get(),
+      db.collection('movimientos_bodega').get()
+    ]);
+    
+    _ingresosBodega = [];
+    
+    ingSnap.forEach(d => {
+      const data = d.data();
+      _ingresosBodega.push({
+        id: d.id,
+        source: 'ingresos_bodega',
+        ...data,
+        rawFecha: data.fecha ? new Date(data.fecha) : new Date(0)
+      });
+    });
+    
+    movSnap.forEach(d => {
+      const m = d.data();
+      let fechaStr = '';
+      let rawF = new Date(0);
+      if (m.fecha) {
+        if (m.fecha.toDate) {
+          rawF = m.fecha.toDate();
+          fechaStr = rawF.toISOString().split('T')[0];
+        } else {
+          rawF = new Date(m.fecha);
+          fechaStr = typeof m.fecha === 'string' ? m.fecha.slice(0, 10) : '';
+        }
+      } else {
+        fechaStr = new Date().toISOString().split('T')[0];
+        rawF = new Date();
+      }
+      
+      _ingresosBodega.push({
+        id: d.id,
+        source: 'movimientos_bodega',
+        fecha: fechaStr,
+        concepto: 'wms_' + (m.tipo || 'movimiento'),
+        cliente: `${m.producto_nombre || 'Producto'} (Cant: ${m.cantidad || 0})`,
+        m2: null,
+        monto: 0,
+        descripcion: `Ref: ${m.referencia || '—'} · Operario: ${m.operario_nombre || '—'}`,
+        rawFecha: rawF
+      });
+    });
+    
+    _ingresosBodega.sort((a, b) => b.rawFecha - a.rawFecha);
+    
   }catch(e){
-    // Fallback sin index
-    const snap=await db.collection('ingresos_bodega').get();
-    _ingresosBodega=[];snap.forEach(d=>_ingresosBodega.push({id:d.id,...d.data()}));
-    _ingresosBodega.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    console.warn("Error blending ingresos and WMS movements:", e);
+    // Fallback simple
+    try {
+      const snap = await db.collection('ingresos_bodega').get();
+      _ingresosBodega = [];
+      snap.forEach(d => _ingresosBodega.push({ id: d.id, source: 'ingresos_bodega', ...d.data(), rawFecha: new Date() }));
+    } catch(err) {}
   }
   renderIngresosBodega();
 }
 function renderIngresosBodega(){
   const body=document.getElementById('bg-body');
   if(!_ingresosBodega.length){body.innerHTML='<tr><td colspan="7" class="txt-c" style="color:var(--text2);padding:20px">Sin movimientos registrados</td></tr>';updateBodegaStats();return;}
-  const labels={'ingreso_bodega':'Ingreso Bodega','ingreso_m2':'Ingreso M² Extras','costo_arriendo':'Costo Arriendo'};
+  const labels={
+    'ingreso_bodega':'Ingreso Bodega',
+    'ingreso_m2':'Ingreso M² Extras',
+    'costo_arriendo':'Costo Arriendo',
+    'wms_ingreso':'WMS: Ingreso',
+    'wms_salida':'WMS: Salida',
+    'wms_devolucion':'WMS: Devolución',
+    'wms_movimiento':'WMS: Movimiento'
+  };
   body.innerHTML=_ingresosBodega.map(m=>{
     const isGasto=m.concepto==='costo_arriendo';
+    const isWMS=m.source==='movimientos_bodega';
+    const montoText = isWMS ? '—' : fmt(m.monto);
+    const moneyClass = isWMS ? '' : (isGasto ? 'money-red' : 'money-green');
+    
+    const deleteBtn = isWMS 
+      ? `<span style="font-size:0.75rem;color:var(--text2)">WMS</span>` 
+      : `<button class="btn-sm" style="border-color:var(--danger);color:#FCA5A5;padding:4px 8px" onclick="deleteMovBodega('${sanitize(m.id)}')">🗑️</button>`;
+
     return `<tr>
       <td>${sanitize(m.fecha||'—')}</td>
       <td>${sanitize(labels[m.concepto]||m.concepto)}</td>
       <td>${sanitize(m.cliente||'—')}</td>
       <td class="txt-c">${sanitize(m.m2||'—')}</td>
-      <td class="txt-r money ${isGasto?'money-red':'money-green'}">${isGasto?'-':''}${fmt(m.monto)}</td>
+      <td class="txt-r money ${moneyClass}">${isGasto?'-':''}${montoText}</td>
       <td>${sanitize(m.descripcion||'')}</td>
-      <td class="txt-c"><button class="btn-sm" style="border-color:var(--danger);color:#FCA5A5;padding:4px 8px" onclick="deleteMovBodega('${sanitize(m.id)}')">🗑️</button></td>
+      <td class="txt-c">${deleteBtn}</td>
     </tr>`;
   }).join('');
   updateBodegaStats();

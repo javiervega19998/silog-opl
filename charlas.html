@@ -129,7 +129,29 @@ let _email='', _isAdmin=false, _readIds=new Set(), _currentEntry=null, _userName
 requireAuth(async(user,data)=>{
   _email=data.correo_electronico||data.email||user.email;
   _userName=data.nombre||data.name||_email;
+  const role=(data.rol||data.role||'conductor').toLowerCase();
   _isAdmin=isViewerRole(data.rol||data.role||'conductor');
+
+  // Exclusión rol administrativo (salvo Williams Vega)
+  if (role === 'administrativo' && _email !== 'williams.vega@silog.cl') {
+    const banner = document.getElementById('charla-hoy-banner');
+    if (banner) banner.style.display = 'none';
+    const grid = document.getElementById('charlas-grid');
+    if (grid) grid.style.display = 'none';
+    document.querySelectorAll('.section-title').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.progress-bar-wrap').forEach(el => el.style.display = 'none');
+    
+    const mainDiv = document.querySelector('.main');
+    if (mainDiv) {
+      const msg = document.createElement('div');
+      msg.style.padding = '40px 20px';
+      msg.style.textAlign = 'center';
+      msg.style.color = 'var(--text2)';
+      msg.textContent = 'Las charlas de seguridad no están asignadas al rol administrativo.';
+      mainDiv.appendChild(msg);
+    }
+    return;
+  }
 
   // Ocultar botón de Drive si es conductor (debe verse directo en app web)
   if(!_isAdmin){

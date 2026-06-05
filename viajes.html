@@ -359,6 +359,31 @@ requireAuth(async(user,data)=>{
   } else {
     showTab('form');
   }
+
+  // S1-06: Auto-rellenar y ocultar KM final si hay turno activo
+  try {
+    const activeTurnSnap = await db.collection('turnos')
+      .where('conductor_email', '==', _email)
+      .where('estado', '==', 'activo')
+      .limit(1).get();
+      
+    if (!activeTurnSnap.empty) {
+      const tDoc = activeTurnSnap.docs[0].data();
+      const kmInicialInput = document.getElementById('km_inicial');
+      const kmFinalInput = document.getElementById('km_final_viaje');
+      
+      if (kmInicialInput) {
+        kmInicialInput.value = tDoc.km_inicial_actual || tDoc.km_inicial || 0;
+        kmInicialInput.readOnly = true;
+      }
+      if (kmFinalInput) {
+        const parentRow = kmFinalInput.closest('.form-row') || kmFinalInput.parentElement;
+        if (parentRow) parentRow.style.display = 'none';
+      }
+    }
+  } catch(activeTurnErr) {
+    console.warn("Error checking active turn for viajes.html:", activeTurnErr);
+  }
 });
 
 async function loadDistribuidores(selectName = '') {
@@ -488,7 +513,9 @@ async function submitViaje(){
   const patente=document.getElementById('patente').value.trim().toUpperCase();
   const dist=document.getElementById('nombre_distribuidor').value.trim();
   const kmI=parseFloat(document.getElementById('km_inicial').value);
-  const kmF=parseFloat(document.getElementById('km_final_viaje').value);
+  const kmFField = document.getElementById('km_final_viaje');
+  const isKmFHidden = kmFField ? (kmFField.closest('.form-row')?.style.display === 'none' || kmFField.style.display === 'none' || kmFField.offsetParent === null) : false;
+  const kmF = isKmFHidden ? kmI : parseFloat(kmFField.value);
   const fechaDespacho=document.getElementById('fecha_despacho').value;
   const idViaje=document.getElementById('id_viaje').value.trim();
   
@@ -512,7 +539,7 @@ async function submitViaje(){
     conductorUid = _uid;
   }
   
-  if(!patente||!dist||!kmI||!kmF||!fechaDespacho||!idViaje||!conductorNombre){
+  if(!patente||!dist||isNaN(kmI)||isNaN(kmF)||!fechaDespacho||!idViaje||!conductorNombre){
     showToast('Completa los campos obligatorios del viaje','error');
     return;
   }

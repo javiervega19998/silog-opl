@@ -52,6 +52,16 @@ async function getUserData(user) {
       .where('correo_electronico', '==', user.email).limit(1).get();
     if (!q1.empty) {
       const data = q1.docs[0].data();
+      
+      // SYNC: Si el documento existe bajo email pero no bajo UID, lo copiamos al UID
+      // para que las Reglas de Firestore (que buscan por request.auth.uid) funcionen.
+      try {
+        await db.collection('users').doc(user.uid).set(data);
+        console.log('[auth] Synced user document to UID:', user.uid);
+      } catch(syncErr) {
+        console.warn('[auth] Failed to sync user doc to UID:', syncErr.message);
+      }
+
       data._ts = Date.now();
       const normalized = normalizeUserData(data);
       sessionStorage.setItem(cacheKey, JSON.stringify(normalized));

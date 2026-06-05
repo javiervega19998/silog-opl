@@ -513,10 +513,30 @@ function renderDiscrepanciasPage(docs) {
     const estadoLabel = isPend ? 'Pendiente' : sanitize(r.estado);
     const diffKm = r.diferencia_km || 0;
     const diffSign = diffKm > 0 ? `+${diffKm}` : `${diffKm}`;
-    const diffColor = diffKm > 0 ? 'var(--warning)' : 'var(--danger)';
+    
+    // Determinación de umbral y color de borde
+    let borderStyle = 'border-left: 5px solid var(--border);';
+    let diffColor = 'var(--text)';
+    
+    if (r.tipo === 'km_regresion' || diffKm < 0) {
+      borderStyle = 'border-left: 5px solid #a855f7;'; // Púrpura
+      diffColor = '#a855f7';
+    } else {
+      const absDiff = Math.abs(diffKm);
+      if (absDiff <= 10) {
+        borderStyle = 'border-left: 5px solid var(--success);'; // Verde
+        diffColor = 'var(--success)';
+      } else if (absDiff > 10 && absDiff <= 50) {
+        borderStyle = 'border-left: 5px solid var(--warning);'; // Amarillo
+        diffColor = 'var(--warning)';
+      } else {
+        borderStyle = 'border-left: 5px solid var(--danger);'; // Rojo
+        diffColor = 'var(--danger)';
+      }
+    }
     
     html += `
-      <div class="ck-item" style="${!isPend ? 'opacity:.8' : ''}">
+      <div class="ck-item" style="${borderStyle} ${!isPend ? 'opacity:.8' : ''}">
         <div class="ck-top">
           <div>
             <div class="ck-plate">🚛 ${sanitize(r.patente || '—')} <span class="pill ${badgeClass}" style="margin-left:8px;font-size:0.65rem">${estadoLabel}</span></div>
@@ -557,12 +577,61 @@ async function resolverDiscrepanciaModal(id) {
   }
   
   try {
-    await db.collection('km_discrepancias').doc(id).update({
-      estado: 'revisada',
-      justificacion: justificacion.trim(),
-      revisado_por: _email || 'admin'
-    });
-    showToast("✅ Discrepancia resuelta", "success");
+    const snap = await db.collection('km_discrepancias').doc(id).get();
+    if (!snap.exists) {
+      showToast("La discrepancia no existe", "error");
+      return;
+    }
+    const r = snap.data();
+    
+    let actualizoFlota = false;
+    const patente = r.patente;
+    const kmCorregir = r.km_inicial_nuevo || 0;
+    
+    if (patente && kmCorregir > 0) {
+      const vSnap = await db.collection('vehiculos').doc(patente).get();
+      if (vSnap.exists) {
+        const vData = vSnap.data();
+        const odoActual = vData.kilometraje || vData.km || 0;
+        
+        const quiereCorregir = confirm(`¿Deseas actualizar también el odómetro en flota del vehículo ${patente}?\nValor actual: ${odoActual} km\nNuevo valor: ${kmCorregir} km`);
+        
+        if (quiereCorregir) {
+          const batch = db.batch();
+          batch.update(db.collection('km_discrepancias').doc(id), {
+            estado: 'revisada',
+            justificacion: justificacion.trim(),
+            revisado_por: _email || 'admin'
+          });
+          
+          const vRef = db.collection('vehiculos').doc(patente);
+          batch.update(vRef, {
+            kilometraje: kmCorregir,
+            km: kmCorregir,
+            historial_vehiculo: firebase.firestore.FieldValue.arrayUnion({
+              fecha: new Date().toISOString(),
+              km_final: kmCorregir,
+              km_recorridos: kmCorregir - odoActual,
+              conductor: "correccion_discrepancia",
+              ajustado_por: _email || 'admin',
+              motivo: `Corrección por discrepancia de turno resuelta. ID: ${id}`
+            })
+          });
+          await batch.commit();
+          actualizoFlota = true;
+        }
+      }
+    }
+    
+    if (!actualizoFlota) {
+      await db.collection('km_discrepancias').doc(id).update({
+        estado: 'revisada',
+        justificacion: justificacion.trim(),
+        revisado_por: _email || 'admin'
+      });
+    }
+    
+    showToast(actualizoFlota ? "✅ Discrepancia resuelta y odómetro de flota corregido" : "✅ Discrepancia resuelta", "success");
     loadDiscrepancias();
     loadStats();
   } catch(e) {

@@ -117,8 +117,9 @@
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
 <script>
-let _isAdmin=false;
+let _isAdmin=false, _email='';
 requireAuth(async(user,data)=>{
+  _email=data.correo_electronico||data.email||user.email;
   _isAdmin=isViewerRole((data.rol||data.role));
   if(_isAdmin) document.getElementById('btn-add-v').style.display='block';
   loadVehicles();
@@ -204,8 +205,24 @@ async function saveVehicle(){
   };
   if(!docId) data.conductor = '';
   try{
-    if(docId) await db.collection('vehiculos').doc(docId).update(data);
-    else await db.collection('vehiculos').add(data);
+    if(docId) {
+      const snap = await db.collection('vehiculos').doc(docId).get();
+      const kmAnterior = snap.data()?.kilometraje || snap.data()?.km || 0;
+      
+      if (kmVal !== kmAnterior) {
+        data.historial_vehiculo = firebase.firestore.FieldValue.arrayUnion({
+          fecha: new Date().toISOString(),
+          km_final: kmVal,
+          km_recorridos: kmVal - kmAnterior,
+          conductor: "ajuste_manual",
+          ajustado_por: _email || 'admin',
+          motivo: "Corrección manual odómetro"
+        });
+      }
+      await db.collection('vehiculos').doc(docId).update(data);
+    } else {
+      await db.collection('vehiculos').add(data);
+    }
     closeModal();showToast('✅ Vehículo guardado','success');loadVehicles();
   }catch(e){showToast('Error: '+e.message,'error');}
 }
@@ -215,7 +232,17 @@ async function showHistory(id,plate){
   const hist=snap.data()?.historial_vehiculo||[];
   const div=document.getElementById('hist-content');
   if(!hist.length){div.innerHTML='<div style="color:var(--text2);text-align:center;padding:20px">Sin historial registrado.</div>';}
-  else{div.innerHTML=hist.map(e=>`<div class="hist-item"><div class="ev">🔧 ${e.evento_historial||'—'}</div><div class="dt">📅 ${e.fecha_evento_historial?formatDate(e.fecha_evento_historial):'—'} · 👤 ${e.nombre_evento_historial||'—'} · ${e.kilometraje_evento_historial?.toLocaleString('es-CL')||'—'} km</div></div>`).join('');}
+  else{
+    div.innerHTML=hist.map(e=>{
+      const fecha = e.fecha_evento_historial || e.fecha || '—';
+      const formattedDate = (typeof fecha === 'string') ? fecha.slice(0, 10) : formatDate(fecha);
+      const evento = e.evento_historial || e.motivo || (e.turno_id ? 'Cierre de Turno' : 'Ajuste Manual');
+      const nombre = e.nombre_evento_historial || e.conductor || e.ajustado_por || '—';
+      const km = e.kilometraje_evento_historial || e.km_final || 0;
+      const kmRec = e.km_recorridos !== undefined ? ` (${e.km_recorridos > 0 ? '+' : ''}${e.km_recorridos} km)` : '';
+      return `<div class="hist-item"><div class="ev">🔧 ${evento}</div><div class="dt">📅 ${formattedDate} · 👤 ${nombre} · ${km.toLocaleString('es-CL')} km${kmRec}</div></div>`;
+    }).join('');
+  }
   document.getElementById('modal-hist').classList.add('open');
 }
 async function deleteVehicle(id, patente){

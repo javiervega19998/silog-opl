@@ -230,11 +230,19 @@ let _userEmail='', _userName='', _isAdmin=false, _allDocs=[];
 requireAuth(async(user,data)=>{
   _userEmail = data.correo_electronico||data.email||user.email;
   _userName  = data.name||data.nombre||'';
+  const role = (data.rol||data.role||'conductor').toLowerCase();
   _isAdmin   = isViewerRole(data.rol||data.role||'conductor');
   document.getElementById('user-name').textContent = _userName;
   document.getElementById('nombre_conductor').value = _userName;
   // Mostrar pestaña admin
   if(_isAdmin) document.getElementById('tb-all').style.display='block';
+
+  // Exclusión rol administrativo (salvo Williams Vega)
+  if (role === 'administrativo' && _userEmail !== 'williams.vega@silog.cl') {
+    document.getElementById('tb-form').style.display = 'none';
+    showTab('history');
+  }
+
   // Pre-rellenar patente si tiene vehículo asignado
   const vs = await db.collection('vehiculos').where('conductor','==',_userEmail).limit(1).get();
   if(!vs.empty) document.getElementById('patente').value = vs.docs[0].data().patente||'';

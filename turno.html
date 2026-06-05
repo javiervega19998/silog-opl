@@ -527,13 +527,17 @@ async function iniciarTurno() {
       
       const lastKm = vData.kilometraje || vData.km || 0;
       
+      let tipoDiscrepancia = 'km_gap';
       if (kmIni < lastKm) {
-        throw new Error(`El kilometraje inicial (${kmIni} km) no puede ser menor al kilometraje actual del vehículo (${lastKm} km)`);
-      }
-      
-      if (kmIni > lastKm) {
         registrarDiscrepancia = true;
+        diferencia = lastKm - kmIni;
+        tipoDiscrepancia = 'km_regresion';
+      } else if (kmIni > lastKm) {
         diferencia = kmIni - lastKm;
+        if (diferencia > 10) {
+          registrarDiscrepancia = true;
+          tipoDiscrepancia = diferencia > 500 ? 'km_excesivo' : 'km_gap';
+        }
       }
       
       if (vData.estado === 'En Ruta' && vData.conductor !== _email) {
@@ -553,7 +557,7 @@ async function iniciarTurno() {
       transaction.update(vehicleDocRef, { estado: 'En Ruta', conductor: _email, km: kmIni, kilometraje: kmIni });
     });
 
-    // Registrar discrepancia de KM si corresponde (sólo excesos)
+    // Registrar discrepancia de KM si corresponde
     if (registrarDiscrepancia) {
       try {
         await db.collection('km_discrepancias').add({
@@ -568,17 +572,21 @@ async function iniciarTurno() {
           turno_nuevo_id: newTurnoId,
           km_inicial_nuevo: kmIni,
           diferencia_km: diferencia,
-          tipo: 'exceso',
+          tipo: tipoDiscrepancia,
           estado: 'pendiente',
           justificacion: null,
           revisado_por: null,
         });
 
         // Registrar notificación para personal administrativo
+        const msg = tipoDiscrepancia === 'km_regresion'
+          ? `Regresión de kilometraje detectada para el vehículo ${patente.toUpperCase()}: Conductor ${_name} ingresó ${kmIni} km, el kilometraje actual en flota era ${currentVehicleKm} km (-${diferencia} km).`
+          : `Discrepancia de kilometraje detectada para el vehículo ${patente.toUpperCase()}: Conductor ${_name} ingresó ${kmIni} km, el kilometraje actual en flota era ${currentVehicleKm} km (+${diferencia} km).`;
+
         await db.collection('notificaciones').add({
           tipo: 'discrepancia_km',
           patente: patente.toUpperCase(),
-          mensaje: `Discrepancia de kilometraje detectada para el vehículo ${patente.toUpperCase()}: Conductor ${_name} ingresó ${kmIni} km, el kilometraje actual en flota era ${currentVehicleKm} km (Exceso de +${diferencia} km).`,
+          mensaje: msg,
           fecha: firebase.firestore.FieldValue.serverTimestamp(),
           leida: false,
           turno_id: newTurnoId,
@@ -719,7 +727,20 @@ async function cerrarTurno() {
         km_final: kmFin, estado: 'cerrado',
         hora_cierre: firebase.firestore.FieldValue.serverTimestamp(),
       });
-      transaction.update(vehicleDocRef, { km: kmFin, kilometraje: kmFin, estado: 'Disponible', conductor: null });
+      transaction.update(vehicleDocRef, { 
+        km: kmFin, 
+        kilometraje: kmFin, 
+        estado: 'Disponible', 
+        conductor: null,
+        historial_vehiculo: firebase.firestore.FieldValue.arrayUnion({
+          fecha: new Date().toISOString(),
+          km_final: kmFin,
+          km_recorridos: kmFin - kmIniActual,
+          conductor: _email,
+          turno_id: _turnoDocId,
+          motivo: 'Cierre de Turno'
+        })
+      });
       
       if (!existingHrSnap.empty) {
         // Si existen hojas de ruta registradas en ruta, actualizar odómetros de cada una
@@ -836,11 +857,130 @@ async function cerrarTurno() {
       }
     }
 
+    // 🏭 Generar Movimientos WMS automáticamente (solo TotalEnergies)
+    try {
+      await generarMovimientosWMS(_turnoDocId, activeVeh);
+    } catch(wmsErr) {
+      console.warn("WMS Sinc Err:", wmsErr);
+    }
+
     alert(`Jornada finalizada exitosamente.\nKilómetros recorridos en este vehículo: ${kmFin - kmIniActual} km.\nTotal kilómetros acumulados: ${totalKmRecorridos} km.`);
     setTimeout(()=>window.location.href='dashboard.html',1500);
   } catch(e) {
     showToast('Error: '+e.message,'error');
     btn.disabled=false; btn.innerHTML='🔴 Finalizar Jornada';
+  }
+}
+
+async function generarMovimientosWMS(turnoId, patente) {
+  try {
+    const hrSnap = await db.collection('hojas_ruta')
+      .where('turno_id', '==', turnoId)
+      .limit(1).get();
+      
+    if (hrSnap.empty) return;
+    const hrDoc = hrSnap.docs[0];
+    const hrData = hrDoc.data();
+    
+    const dist = (hrData.distribuidor || hrData.nombre_distribuidor || '').toLowerCase();
+    if (!dist.includes('total')) return;
+    
+    const items = hrData.productos_despacho || [];
+    if (items.length === 0) return;
+    
+    const movSnap = await db.collection('movimientos_bodega')
+      .where('referencia', '==', `Despacho Bodega Silog: ${hrData.id_viaje}`)
+      .limit(1).get();
+      
+    if (!movSnap.empty) {
+      console.log('Movimientos WMS ya estaban registrados para este turno.');
+      return;
+    }
+    
+    const batch = db.batch();
+    for (let item of items) {
+      const prodRef = db.collection('inventory').doc(item.producto_id);
+      const pDoc = await prodRef.get();
+      if (!pDoc.exists) continue;
+      
+      const pData = pDoc.data();
+      const currentStock = pData.qty ?? pData.cantidad ?? 0;
+      let newStock = currentStock;
+      
+      if (item.tipo === 'salida') {
+        newStock = Math.max(0, currentStock - item.cantidad);
+        
+        const mRef = db.collection('movimientos_bodega').doc();
+        batch.set(mRef, {
+          producto_id: item.producto_id,
+          producto_codigo: item.code || '',
+          producto_nombre: item.name || '',
+          tipo: 'salida',
+          cantidad: item.cantidad,
+          numero_documento: item.referencia || '',
+          referencia: `Despacho Bodega Silog: ${hrData.id_viaje}`,
+          observaciones: `Salida automática al cierre de turno ${turnoId}`,
+          operario_uid: _uid,
+          operario_nombre: _name,
+          fecha: firebase.firestore.FieldValue.serverTimestamp(),
+          scan_validado: false
+        });
+      } else if (item.tipo === 'inversa') {
+        if (item.clasificacion === 'stock_disponible') {
+          newStock = currentStock + item.cantidad;
+          
+          const mRef = db.collection('movimientos_bodega').doc();
+          batch.set(mRef, {
+            producto_id: item.producto_id,
+            producto_codigo: item.code || '',
+            producto_nombre: item.name || '',
+            tipo: 'devolucion',
+            cantidad: item.cantidad,
+            numero_documento: item.referencia || '',
+            referencia: `Devolución Stock: ${hrData.id_viaje}`,
+            observaciones: `Re-ingreso automático por devolución al cierre de turno`,
+            operario_uid: _uid,
+            operario_nombre: _name,
+            fecha: firebase.firestore.FieldValue.serverTimestamp(),
+            scan_validado: false
+          });
+        } else {
+          const liRef = db.collection('logistica_inversa').doc();
+          batch.set(liRef, {
+            cliente: hrData.clientes_despacho?.[0] || 'Cliente Final',
+            conductor_uid: _uid,
+            conductor_email: _email,
+            conductor_nombre: _name,
+            patente: patente.toUpperCase(),
+            producto_id: item.producto_id,
+            producto_codigo: item.code || '',
+            producto_nombre: item.name || '',
+            cantidad: item.cantidad,
+            motivo: `Devolución Merma / Dañado en ruta. Doc: ${item.referencia || ''}`,
+            estado: 'reclasificado',
+            clasificacion: 'merma',
+            fecha_devolucion: firebase.firestore.FieldValue.serverTimestamp(),
+            fecha_recepcion: firebase.firestore.FieldValue.serverTimestamp(),
+            operario_uid: _uid
+          });
+        }
+      }
+      
+      batch.update(prodRef, {
+        qty: newStock,
+        cantidad: newStock,
+        status: newStock === 0 ? 'no_disponible' : 'disponible',
+        litros_actuales: (pData.litros_por_unidad || 0) * newStock,
+        kg_actuales: (pData.kg_por_unidad || 0) * newStock,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: _uid
+      });
+    }
+    
+    await batch.commit();
+    showToast('🏭 Movimientos WMS sincronizados', 'success');
+  } catch(err) {
+    console.error('Error generando movimientos WMS al cierre:', err);
   }
 }
 </script>

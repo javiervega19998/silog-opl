@@ -31,6 +31,11 @@ function userRol() {
     function canManageUsers() {
       return userRol() in ['admin', 'administrativo', 'administrativo.conductor'];
     }
+    // Any valid role
+    function isAnyRole() {
+      let r = userRol();
+      return r == 'admin' || r == 'administrativo' || r == 'administrativo.conductor' || r == 'conductor' || r == 'bodeguero' || r == 'finanzas' || r == 'gestion';
+    }
 
     // â”€â”€ Usuarios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Admin y Administrativo pueden crear/editar/eliminar usuarios; lectura solo para usuarios autenticados
@@ -142,19 +147,14 @@ function userRol() {
       allow delete: if isAuth() && isViewer();
     }
 
-    // â”€â”€ LogÃ­stica Inversa (Devoluciones â†’ Bodega) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Logística Inversa (Devoluciones → Bodega) ──
     match /logistica_inversa/{id} {
-      allow create: if isAuth();
-      allow read:   if isAuth();
-      allow update: if isAuth() && (isViewer() || isBodeguero());
-      allow delete: if isAuth() && isViewer();
+      allow read, write: if isAuth() && isAnyRole();
     }
 
-    // â”€â”€ Movimientos de Bodega â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Movimientos de Bodega ──
     match /movimientos_bodega/{id} {
-      allow create: if isAuth();
-      allow read:   if isAuth();
-      allow update, delete: if isAuth() && (isViewer() || isBodeguero());
+      allow read, write: if isAuth() && isAnyRole();
     }
 
     // ── Config Inversa (Logística Inversa) ──
