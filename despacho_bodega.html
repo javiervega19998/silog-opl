@@ -892,6 +892,7 @@ async function finalizarDespacho() {
       const dRef = db.collection('despachos').doc();
       batch.set(dRef, {
         turno_id: _activeTurnoId,
+        correlativo: idx + 1,
         cliente_nombre: cName,
         cliente_direccion: '',
         cliente_comuna: '',

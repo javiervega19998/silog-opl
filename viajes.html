@@ -245,6 +245,12 @@
           <option value="observada">⚠️ Observada</option>
         </select>
       </div>
+      <div class="form-row" style="margin-bottom:12px">
+        <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Documento Firmado por Cliente (POD)</label>
+        <input type="file" id="edit-pod-documento" accept="application/pdf,image/*" class="field" onchange="previewEditPod(this)"/>
+        <iframe id="edit-pdf-pod-preview" style="width:100%; height:200px; border-radius:8px; margin-top:8px; border:1px solid var(--border); display:none;"></iframe>
+        <img id="edit-img-pod-preview" style="width:100%; max-height:150px; object-fit:contain; border-radius:8px; margin-top:8px; display:none;"/>
+      </div>
       <div style="display:flex;gap:10px;margin-top:20px">
         <button class="btn-save" style="flex:1;padding:12px;background:linear-gradient(135deg,var(--primary),#2563EB);border:none;border-radius:10px;color:#fff;font-size:.9rem;font-weight:700;cursor:pointer" onclick="saveEditedTrip()">💾 Guardar</button>
         <button class="btn-back" style="flex:1;padding:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;cursor:pointer;font-size:.9rem" onclick="closeEditModal()">✕ Cancelar</button>
@@ -946,6 +952,24 @@ async function loadAdminViajes(isMore = false){
   }
 }
 
+function previewEditPod(inp) {
+  const file = inp.files[0];
+  const pdfPrev = document.getElementById('edit-pdf-pod-preview');
+  const imgPrev = document.getElementById('edit-img-pod-preview');
+  if(!pdfPrev || !imgPrev) return;
+  pdfPrev.style.display = 'none';
+  imgPrev.style.display = 'none';
+  if (!file) return;
+  
+  if (file.type === 'application/pdf') {
+    pdfPrev.src = URL.createObjectURL(file);
+    pdfPrev.style.display = 'block';
+  } else if (file.type.startsWith('image/')) {
+    imgPrev.src = URL.createObjectURL(file);
+    imgPrev.style.display = 'block';
+  }
+}
+
 async function openEditModal(tripId) {
   const modal = document.getElementById('modal-edit-trip');
   try {
@@ -965,6 +989,22 @@ async function openEditModal(tripId) {
     document.getElementById('edit-litros').value = r.litros_combustible ?? 0;
     document.getElementById('edit-peaje').value = r.peaje ?? 0;
     document.getElementById('edit-estado').value = r.estado || 'pendiente';
+    
+    document.getElementById('edit-pod-documento').value = '';
+    const pdfPrev = document.getElementById('edit-pdf-pod-preview');
+    const imgPrev = document.getElementById('edit-img-pod-preview');
+    pdfPrev.style.display = 'none';
+    imgPrev.style.display = 'none';
+    
+    if (r.pod_doc_url) {
+      if (r.pod_doc_url.toLowerCase().includes('.pdf') || (r.pod_doc_name && r.pod_doc_name.toLowerCase().includes('.pdf'))) {
+        pdfPrev.src = r.pod_doc_url;
+        pdfPrev.style.display = 'block';
+      } else {
+        imgPrev.src = r.pod_doc_url;
+        imgPrev.style.display = 'block';
+      }
+    }
     
     modal.style.display = 'flex';
   } catch(e) {
@@ -1001,10 +1041,21 @@ async function saveEditedTrip() {
   btn.innerHTML = '<span class="spinner"></span> Guardando...';
 
   try {
+    let podUrl = '';
+    let podName = '';
+    const podFile = document.getElementById('edit-pod-documento').files[0];
+    if (podFile) {
+      const ref = storage.ref(`pods/${Date.now()}_${podFile.name}`);
+      await ref.put(podFile);
+      podUrl = await ref.getDownloadURL();
+      podName = podFile.name;
+    }
+
     // Batch único para toda la operación — garantiza atomicidad
     const masterBatch = db.batch();
     const hrRef = db.collection('hojas_ruta').doc(tripId);
-    masterBatch.update(hrRef, {
+    
+    const updateData = {
       patente,
       nombre_distribuidor: distribuidor,
       distribuidor,
@@ -1020,7 +1071,12 @@ async function saveEditedTrip() {
       peaje,
       estado,
       revisado_at: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
+    if (podUrl) {
+      updateData.pod_doc_url = podUrl;
+      updateData.pod_doc_name = podName;
+    }
+    masterBatch.update(hrRef, updateData);
 
     // Sincronizar KM editado con Gestionar Flota (Vehiculos) en el mismo batch
     try {

@@ -47,6 +47,28 @@
 /* Historial */
 .hist-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px}
 .hist-item .ev{font-size:.82rem;font-weight:600}.hist-item .dt{font-size:.72rem;color:var(--text2);margin-top:2px}
+/* Historial KM Table */
+.hist-section-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin:16px 0 10px;display:flex;align-items:center;gap:6px}
+.hist-section-title:first-child{margin-top:0}
+.km-table{width:100%;border-collapse:separate;border-spacing:0;font-size:.78rem}
+.km-table thead th{background:var(--surface2);color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-size:.68rem;padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);position:sticky;top:0}
+.km-table thead th:first-child{border-radius:8px 0 0 0}.km-table thead th:last-child{border-radius:0 8px 0 0}
+.km-table tbody tr{transition:background .15s}.km-table tbody tr:hover{background:rgba(27,75,155,.1)}
+.km-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.km-table .td-date{color:var(--text);font-weight:500;white-space:nowrap}
+.km-table .td-conductor{color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.km-table .td-km{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.km-table .td-delta{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.km-table .delta-pos{color:var(--success)}.km-table .delta-neg{color:var(--danger)}.km-table .delta-zero{color:var(--text2)}
+.km-table .badge-estado{font-size:.65rem;padding:2px 8px;border-radius:12px;font-weight:600}
+.badge-cerrado{background:rgba(16,185,129,.12);color:#6EE7B7}
+.badge-abierto{background:rgba(244,121,32,.15);color:var(--accent)}
+.hist-empty{color:var(--text2);text-align:center;padding:24px;font-size:.82rem}
+.hist-summary{display:flex;gap:8px;margin-bottom:14px}
+.hist-chip{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center}
+.hist-chip .hval{font-size:1rem;font-weight:800;line-height:1.2}
+.hist-chip .hlbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:600}
+.hist-chip .hval-accent{color:var(--accent)}.hist-chip .hval-success{color:var(--success)}.hist-chip .hval-primary{color:#60A5FA}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 #toast-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
@@ -102,9 +124,9 @@
 
 <!-- Modal detalle historial -->
 <div class="modal-overlay" id="modal-hist">
-  <div class="modal">
+  <div class="modal" style="max-width:650px">
     <h3 id="hist-title">📋 Historial del Vehículo</h3>
-    <div id="hist-content"></div>
+    <div id="hist-content" style="max-height:60vh;overflow-y:auto"></div>
     <button class="btn-cancel" onclick="document.getElementById('modal-hist').classList.remove('open')" style="width:100%;margin-top:16px">Cerrar</button>
   </div>
 </div>
@@ -228,22 +250,141 @@ async function saveVehicle(){
 }
 async function showHistory(id,plate){
   document.getElementById('hist-title').textContent='📋 Historial · '+plate;
-  const snap=await db.collection('vehiculos').doc(id).get();
-  const hist=snap.data()?.historial_vehiculo||[];
   const div=document.getElementById('hist-content');
-  if(!hist.length){div.innerHTML='<div style="color:var(--text2);text-align:center;padding:20px">Sin historial registrado.</div>';}
-  else{
-    div.innerHTML=hist.map(e=>{
-      const fecha = e.fecha_evento_historial || e.fecha || '—';
-      const formattedDate = (typeof fecha === 'string') ? fecha.slice(0, 10) : formatDate(fecha);
-      const evento = e.evento_historial || e.motivo || (e.turno_id ? 'Cierre de Turno' : 'Ajuste Manual');
-      const nombre = e.nombre_evento_historial || e.conductor || e.ajustado_por || '—';
-      const km = e.kilometraje_evento_historial || e.km_final || 0;
-      const kmRec = e.km_recorridos !== undefined ? ` (${e.km_recorridos > 0 ? '+' : ''}${e.km_recorridos} km)` : '';
-      return `<div class="hist-item"><div class="ev">🔧 ${evento}</div><div class="dt">📅 ${formattedDate} · 👤 ${nombre} · ${km.toLocaleString('es-CL')} km${kmRec}</div></div>`;
-    }).join('');
-  }
+  div.innerHTML='<div style="text-align:center;padding:24px"><span class="spinner"></span> Cargando historial…</div>';
   document.getElementById('modal-hist').classList.add('open');
+
+  try {
+    // 1) Cargar turnos de este vehículo desde Firestore
+    const turnosSnap = await db.collection('turnos')
+      .where('patente', '==', plate.toUpperCase())
+      .get();
+
+    // Cargar mapa de nombres de conductores
+    const userSnap = await db.collection('users').get();
+    const nameMap = {};
+    userSnap.forEach(d => {
+      const u = d.data();
+      const email = (u.correo_electronico || u.email || '').toLowerCase();
+      const fullName = u.nombre_completo || ((u.nombre || '') + ' ' + (u.apellido || '')).trim() || u.nombre || u.name || '';
+      if (email) nameMap[email] = fullName;
+      nameMap[d.id] = fullName;
+    });
+
+    const turnos = [];
+    turnosSnap.forEach(d => {
+      const t = d.data();
+      // Resolver fecha
+      let fechaObj = null;
+      if (t.fecha && t.fecha.toDate) fechaObj = t.fecha.toDate();
+      else if (t.hora_cierre && t.hora_cierre.toDate) fechaObj = t.hora_cierre.toDate();
+      else if (typeof t.fecha === 'string') {
+        try { fechaObj = new Date(t.fecha); } catch(e) {}
+      }
+
+      // Resolver nombre conductor
+      const email = (t.conductor_email || '').toLowerCase().trim();
+      const conductorName = t.conductor_nombre || nameMap[email] || nameMap[t.conductor_uid] || email || '—';
+
+      turnos.push({
+        fecha: fechaObj,
+        conductor: conductorName,
+        km_inicial: t.km_inicial || t.km_inicial_actual || 0,
+        km_final: t.km_final || null,
+        estado: t.estado || 'desconocido',
+        turno_id: d.id,
+      });
+    });
+
+    // Ordenar por fecha descendente (recientes primero)
+    turnos.sort((a, b) => {
+      const da = a.fecha ? a.fecha.getTime() : 0;
+      const db2 = b.fecha ? b.fecha.getTime() : 0;
+      return db2 - da;
+    });
+
+    // 2) Cargar historial manual del vehículo
+    const vehSnap = await db.collection('vehiculos').doc(id).get();
+    const manualHist = vehSnap.data()?.historial_vehiculo || [];
+
+    // 3) Calcular resumen
+    const cerrados = turnos.filter(t => t.estado === 'cerrado' && t.km_final);
+    const totalKm = cerrados.reduce((sum, t) => sum + Math.max(0, (t.km_final || 0) - (t.km_inicial || 0)), 0);
+    const totalTurnos = cerrados.length;
+    const conductoresUnicos = [...new Set(cerrados.map(t => t.conductor))];
+
+    // 4) Renderizar
+    let html = '';
+
+    // Summary chips
+    html += `<div class="hist-summary">
+      <div class="hist-chip"><div class="hval hval-accent">${totalTurnos}</div><div class="hlbl">Turnos</div></div>
+      <div class="hist-chip"><div class="hval hval-success">${totalKm.toLocaleString('es-CL')}</div><div class="hlbl">KM Recorridos</div></div>
+      <div class="hist-chip"><div class="hval hval-primary">${conductoresUnicos.length}</div><div class="hlbl">Conductores</div></div>
+    </div>`;
+
+    // KM History table from turnos
+    html += '<div class="hist-section-title">🛣️ Historial de Kilometraje</div>';
+
+    if (turnos.length === 0) {
+      html += '<div class="hist-empty">Sin registros de turnos para este vehículo.</div>';
+    } else {
+      html += `<table class="km-table">
+        <thead><tr>
+          <th>Fecha</th>
+          <th>Conductor</th>
+          <th style="text-align:right">KM Inicial</th>
+          <th style="text-align:right">KM Final</th>
+          <th style="text-align:right">Recorrido</th>
+        </tr></thead><tbody>`;
+
+      for (const t of turnos) {
+        const fechaStr = t.fecha ? t.fecha.toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        const kmIni = t.km_inicial;
+        const kmFin = t.km_final;
+        const delta = (kmFin !== null && kmFin !== undefined) ? kmFin - kmIni : null;
+        const deltaClass = delta === null ? 'delta-zero' : delta > 0 ? 'delta-pos' : delta < 0 ? 'delta-neg' : 'delta-zero';
+        const deltaStr = delta !== null ? `${delta > 0 ? '+' : ''}${delta.toLocaleString('es-CL')}` : '—';
+        const badgeClass = t.estado === 'cerrado' ? 'badge-cerrado' : 'badge-abierto';
+        const kmFinStr = kmFin !== null && kmFin !== undefined ? kmFin.toLocaleString('es-CL') : `<span class="badge-estado ${badgeClass}">${t.estado === 'abierto' ? 'En curso' : t.estado}</span>`;
+
+        html += `<tr>
+          <td class="td-date">${fechaStr}</td>
+          <td class="td-conductor" title="${sanitize(t.conductor)}">${sanitize(t.conductor)}</td>
+          <td class="td-km">${kmIni.toLocaleString('es-CL')}</td>
+          <td class="td-km">${kmFinStr}</td>
+          <td class="td-delta ${deltaClass}">${deltaStr}</td>
+        </tr>`;
+      }
+
+      html += '</tbody></table>';
+    }
+
+    // Manual adjustments section
+    if (manualHist.length > 0) {
+      html += '<div class="hist-section-title" style="margin-top:20px">🔧 Ajustes Manuales</div>';
+      // Sort manual hist by date desc
+      const sortedManual = [...manualHist].sort((a, b) => {
+        const da = a.fecha ? new Date(a.fecha).getTime() : 0;
+        const db2 = b.fecha ? new Date(b.fecha).getTime() : 0;
+        return db2 - da;
+      });
+      html += sortedManual.map(e => {
+        const fecha = e.fecha_evento_historial || e.fecha || '—';
+        const formattedDate = (typeof fecha === 'string') ? fecha.slice(0, 10) : formatDate(fecha);
+        const evento = e.evento_historial || e.motivo || 'Ajuste Manual';
+        const nombre = e.nombre_evento_historial || e.conductor || e.ajustado_por || '—';
+        const km = e.kilometraje_evento_historial || e.km_final || 0;
+        const kmRec = e.km_recorridos !== undefined ? ` (${e.km_recorridos > 0 ? '+' : ''}${e.km_recorridos} km)` : '';
+        return `<div class="hist-item"><div class="ev">🔧 ${sanitize(evento)}</div><div class="dt">📅 ${formattedDate} · 👤 ${sanitize(nombre)} · ${km.toLocaleString('es-CL')} km${kmRec}</div></div>`;
+      }).join('');
+    }
+
+    div.innerHTML = html;
+  } catch(e) {
+    div.innerHTML = `<div class="hist-empty">Error al cargar historial: ${sanitize(e.message)}</div>`;
+    console.error('showHistory error:', e);
+  }
 }
 async function deleteVehicle(id, patente){
   if(!confirm(`¿Eliminar el vehículo ${patente}? Esta acción no se puede deshacer.`)) return;

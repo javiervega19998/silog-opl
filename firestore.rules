@@ -20,9 +20,6 @@ function userRol() {
       let r = userRol();
       return r != 'conductor' && r != 'bodeguero' && r != '';
     }
-    function isAdmin() {
-      return userRol() == 'admin';
-    }
     // Bodeguero access
     function isBodeguero() {
       return userRol() in ['bodeguero', 'admin'];

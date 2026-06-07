@@ -22,7 +22,7 @@ firebase.initializeApp(firebaseConfig);
 // Referencias globales
 const auth     = firebase.auth();
 const db       = firebase.firestore();
-const storage  = typeof firebase.storage === 'function' ? firebase.storage() : null;
+const storage  = firebase.storage();
 // Functions apuntando a la región donde están desplegadas las Cloud Functions (si está disponible)
 const functions = typeof firebase.app().functions === 'function' ? firebase.app().functions('us-central1') : null;
 

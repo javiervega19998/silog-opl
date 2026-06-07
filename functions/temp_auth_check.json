@@ -1,0 +1,55 @@
+{"users": [
+{
+  "localId": "OxeQSDVrPqhnMUKdg1eh5BD655H2",
+  "email": "finanzas@silogspa.cl",
+  "emailVerified": false,
+  "passwordHash": "GQJl7ENeWFyJ5SflPR5B09sxvoMrfAbpWVBFC2voQpqE4bIh8UnDT2mhfh/7msGjZhUKH5Uc00/tYQWIoTHAEg==",
+  "salt": "b9LqFJJO/UrrTg==",
+  "lastSignedInAt": "1780589295914",
+  "createdAt": "1779758993567",
+  "customAttributes": "{\"rol\":\"administrativo\",\"area\":\"Administración & Finanzas\"}",
+  "providerUserInfo": []
+},
+{
+  "localId": "RbbGgZJUFYeVdFKjvJYqx2kJFnr2",
+  "email": "javier.vega.g1998@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "ZZDXTO8XqpfeDomnHpPrig6Zxqh3aIBxQqE+11wtkXR6vfKcvBLJMPWrgBIb7k8AsFUF6nFClnl8FXL2grG4+A==",
+  "salt": "ih5mW1ePtg3X1w==",
+  "lastSignedInAt": "1780857560829",
+  "createdAt": "1779679476551",
+  "customAttributes": "{\"rol\":\"admin\",\"area\":\"Administracion\"}",
+  "providerUserInfo": []
+},
+{
+  "localId": "hKFwXDoo6AQWQJq0AtzxZxaqaaX2",
+  "email": "juliocmartinezt21@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "YdTrnlfyoUygnlkmKjVpO1v2u7bVMhMYuG9ikMBefPKrH/Yf+C9zH/UdxPcz7x8i7cSuucRbYjaShEcjzyXPUw==",
+  "salt": "qMB6+E1ocRz5NA==",
+  "lastSignedInAt": "1780437595174",
+  "createdAt": "1780342586068",
+  "customAttributes": "{\"rol\":\"conductor\",\"area\":\"Operaciones\"}",
+  "providerUserInfo": []
+},
+{
+  "localId": "ozuEAboiqOUByG8CyimLDMAZwzh1",
+  "email": "administracion@silogspa.cl",
+  "emailVerified": false,
+  "passwordHash": "NlXbTA6yp+XiAZYT5BlnyxDwhUpNiR1wh3wBjuS4NSfMa7Aer80vxlsSb8JgFscjZJSeYGOb+1OiZ1jvn2rgBg==",
+  "salt": "gVJsSyUZ6Qmn9g==",
+  "lastSignedInAt": "1780857238109",
+  "createdAt": "1779679478029",
+  "customAttributes": "{\"rol\":\"administrativo.conductor\",\"area\":\"Administracion\"}",
+  "providerUserInfo": []
+},
+{
+  "localId": "vepvyWDG6oQTP8daJt5snW8NNDP2",
+  "email": "operaciones@silogspa.cl",
+  "emailVerified": false,
+  "passwordHash": "KscQppVbcamsNfkdFJwY8bFAlI3vRqT/j/Jw5HGUGA49K6UMBDTzJgm/Ciyj4oTESS3N9WlordDYDH6jC+JCdQ==",
+  "salt": "JmcEDcgvNeznag==",
+  "createdAt": "1779675855153",
+  "disabled": false,
+  "providerUserInfo": []
+}]}

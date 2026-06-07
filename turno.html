@@ -194,6 +194,12 @@ select.field{appearance:auto;cursor:pointer}
           <label>Kilometraje Final</label>
           <input class="field" type="number" id="km-final" placeholder="Ej: 61250" inputmode="numeric"/>
         </div>
+        <div class="form-group" id="row-pod-cierre">
+          <label>Foto Hoja de Ruta Firmada (POD)</label>
+          <input type="file" id="pod-cierre-file" accept="image/*,application/pdf" class="field" onchange="previewPodCierre(this)"/>
+          <img id="pod-cierre-preview" style="width:100%; max-height:150px; object-fit:contain; border-radius:8px; margin-top:8px; display:none;"/>
+          <iframe id="pod-cierre-pdf-preview" style="width:100%; height:200px; border-radius:8px; margin-top:8px; border:1px solid var(--border); display:none;"></iframe>
+        </div>
         <button class="btn-xl btn-close-turno" id="btn-cerrar" onclick="cerrarTurno()">
           🔴 Finalizar Jornada
         </button>
@@ -329,6 +335,24 @@ function showCierreForm() {
   document.getElementById('tab-apertura').style.display = 'none';
   document.getElementById('tab-cierre').style.display = 'block';
   document.getElementById('tab-cierre').scrollIntoView({behavior:'smooth'});
+}
+
+function previewPodCierre(inp) {
+  const file = inp.files[0];
+  const pdfPrev = document.getElementById('pod-cierre-pdf-preview');
+  const imgPrev = document.getElementById('pod-cierre-preview');
+  if(!pdfPrev || !imgPrev) return;
+  pdfPrev.style.display = 'none';
+  imgPrev.style.display = 'none';
+  if (!file) return;
+  
+  if (file.type === 'application/pdf') {
+    pdfPrev.src = URL.createObjectURL(file);
+    pdfPrev.style.display = 'block';
+  } else if (file.type.startsWith('image/')) {
+    imgPrev.src = URL.createObjectURL(file);
+    imgPrev.style.display = 'block';
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -663,6 +687,24 @@ async function cerrarTurno() {
       btn.disabled = false; btn.innerHTML = '🔴 Finalizar Jornada';
       return;
     }
+    
+    btn.innerHTML = '<span class="spinner"></span> Subiendo documento...';
+    
+    let podUrl = '';
+    let podName = '';
+    const podFile = document.getElementById('pod-cierre-file').files[0];
+    if (podFile) {
+      try {
+        const ref = storage.ref(`pods/${Date.now()}_${podFile.name}`);
+        await ref.put(podFile);
+        podUrl = await ref.getDownloadURL();
+        podName = podFile.name;
+      } catch(uploadErr) {
+        console.warn("Error uploading POD from turno.html:", uploadErr);
+        showToast('⚠️ Error al subir foto de Hoja de Ruta: ' + uploadErr.message, 'warning');
+      }
+    }
+
     btn.innerHTML='<span class="spinner"></span> Cerrando turno…';
 
     const vSnap = await db.collection('vehiculos').where('patente','==',activeVeh.toUpperCase().trim()).limit(1).get();
@@ -748,17 +790,22 @@ async function cerrarTurno() {
           const hrData = doc.data();
           const hrKmIni = hrData.km_inicial || kmIniActual;
           const hrKmRec = kmFin - hrKmIni;
-          transaction.update(doc.ref, {
+          const updateData = {
             km_final: kmFin,
             km_recorridos: hrKmRec > 0 ? hrKmRec : 0,
             hora_termino: firebase.firestore.FieldValue.serverTimestamp(),
             estado: 'pendiente_revision'
-          });
+          };
+          if (podUrl) {
+            updateData.pod_doc_url = podUrl;
+            updateData.pod_doc_name = podName;
+          }
+          transaction.update(doc.ref, updateData);
         });
       } else {
         // Si no hay hojas de ruta de despacho previas, crear resumen predeterminado
         const hojaDocRef = db.collection('hojas_ruta').doc(_turnoDocId);
-        transaction.set(hojaDocRef, {
+        const hojaData = {
           turno_id: _turnoDocId, conductor_uid: _uid, conductor_email: _email,
           conductor_nombre: _name, distribuidor: distribuidor || tData.distribuidor || 'SIN DISTRIBUIDOR', nombre_distribuidor: distribuidor || tData.distribuidor || 'SIN DISTRIBUIDOR',
           comuna: tData.comuna || '',
@@ -772,7 +819,12 @@ async function cerrarTurno() {
           n_guias: entregas.length, estado: 'pendiente_revision', revisado_por: null,
           created_at: firebase.firestore.FieldValue.serverTimestamp(),
           cambios_vehiculo: tData.cambios_vehiculo || null
-        }, { merge: true });
+        };
+        if (podUrl) {
+          hojaData.pod_doc_url = podUrl;
+          hojaData.pod_doc_name = podName;
+        }
+        transaction.set(hojaDocRef, hojaData, { merge: true });
       }
     });
 
