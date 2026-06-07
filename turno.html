@@ -216,6 +216,28 @@ select.field{appearance:auto;cursor:pointer}
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
 <script>
+
+// ── Compresión de imagen antes de upload ──────────────────
+async function compressImage(file, maxWidth, quality) {
+  maxWidth = maxWidth || 1200; quality = quality || 0.7;
+  return new Promise(function(resolve) {
+    if (!file || !file.type || !file.type.startsWith('image/')) { resolve(file); return; }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(function(blob) { resolve(blob || file); }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 let _uid='', _email='', _name='', _role='', _turnoActivo=null, _turnoDocId=null;
 let _lastTurnoCerrado=null, _lastVehicleKmRef=0;
 
@@ -696,7 +718,7 @@ async function cerrarTurno() {
     if (podFile) {
       try {
         const ref = storage.ref(`pods/${Date.now()}_${podFile.name}`);
-        await ref.put(podFile);
+        await ref.put((await compressImage(podFile)));
         podUrl = await ref.getDownloadURL();
         podName = podFile.name;
       } catch(uploadErr) {
@@ -1036,5 +1058,7 @@ async function generarMovimientosWMS(turnoId, patente) {
   }
 }
 </script>
+<script src="js/constants.js?v=1"></script>
+<script src="js/utils.js?v=1"></script>
+<script src="js/theme.js?v=1"></script>
 </body>
-</html>

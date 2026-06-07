@@ -30,14 +30,11 @@ const functions = typeof firebase.app().functions === 'function' ? firebase.app(
 firebase.firestore().settings({ ignoreUndefinedProperties: true, merge: true });
 
 // Habilitar Persistencia Offline en Firestore para Operaciones en Terreno
-// TEMPORALMENTE DESHABILITADO PARA PREVENIR BLOQUEOS EN NAVEGACIÓN PRIVADA / SAFARI
-/*
 db.enablePersistence({ synchronizeTabs: true })
   .catch(function(err) {
     if (err.code == 'failed-precondition') {
-      console.warn("Firestore offline persistence failed: multiple tabs open.");
+      console.warn('[Firestore] Offline: múltiples pestañas abiertas, persistencia deshabilitada en esta pestaña.');
     } else if (err.code == 'unimplemented') {
-      console.warn("Firestore offline persistence unimplemented in browser.");
+      console.warn('[Firestore] Offline: navegador no compatible con persistencia.');
     }
   });
-*/

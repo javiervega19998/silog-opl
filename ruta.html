@@ -197,6 +197,12 @@ textarea.field{resize:vertical;min-height:60px}
       <input type="checkbox" id="update-delivery-gps" style="width:20px;height:20px;cursor:pointer;"/>
     </div>
 
+    <div style="margin-top:10px;margin-bottom:14px">
+      <label style="display:block;font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:600">✍️ Firma del Cliente (opcional)</label>
+      <canvas id="firma-canvas" width="400" height="130" style="background:#0a1628;border:1px dashed var(--border);border-radius:8px;cursor:crosshair;touch-action:none;width:100%;display:block;"></canvas>
+      <button type="button" onclick="clearSignature()" style="margin-top:5px;background:transparent;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:.75rem;font-family:inherit">🗑️ Limpiar firma</button>
+    </div>
+
     <button class="btn-save" style="background:linear-gradient(135deg,var(--success),#059669)" onclick="confirmarEntrega()">✅ Confirmar Entrega</button>
   </div>
 </div>
@@ -282,6 +288,28 @@ textarea.field{resize:vertical;min-height:60px}
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
 <script>
+
+// ── Compresión de imagen antes de upload ──────────────────
+async function compressImage(file, maxWidth, quality) {
+  maxWidth = maxWidth || 1200; quality = quality || 0.7;
+  return new Promise(function(resolve) {
+    if (!file || !file.type || !file.type.startsWith('image/')) { resolve(file); return; }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(function(blob) { resolve(blob || file); }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 let _uid='',_email='',_name='',_turnoId='',_turnoData=null,_despachos=[],_clientes=[],_isViewer=false;
 let _currentPodDespacho=null, _podFile=null, _devFile=null;
 let _distribuidoresInversa = ['DISTRIBUIDOR TOTAL'];
@@ -811,10 +839,46 @@ function onDevolucionPhotoChange(e){
 }
 
 async function uploadFile(file,path){
+  const compressed = await compressImage(file);
   const ref=storage.ref(path);
-  await ref.put(file);
+  await ref.put(compressed);
   return await ref.getDownloadURL();
 }
+
+// ── Firma Digital del Cliente ─────────────────────────────
+let _sigCtx=null,_sigDrawing=false;
+function initSignaturePad(){
+  const c=document.getElementById('firma-canvas');
+  if(!c)return;
+  _sigCtx=c.getContext('2d');
+  _sigCtx.strokeStyle='#E8EEF8';_sigCtx.lineWidth=2.5;_sigCtx.lineCap='round';_sigCtx.lineJoin='round';
+  const getPos=(e)=>{const r=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(c.width/r.width),y:(t.clientY-r.top)*(c.height/r.height)};};
+  c.addEventListener('mousedown',e=>{_sigDrawing=true;const p=getPos(e);_sigCtx.beginPath();_sigCtx.moveTo(p.x,p.y);});
+  c.addEventListener('mousemove',e=>{if(!_sigDrawing)return;const p=getPos(e);_sigCtx.lineTo(p.x,p.y);_sigCtx.stroke();});
+  c.addEventListener('mouseup',()=>_sigDrawing=false);
+  c.addEventListener('mouseleave',()=>_sigDrawing=false);
+  c.addEventListener('touchstart',e=>{e.preventDefault();_sigDrawing=true;const p=getPos(e);_sigCtx.beginPath();_sigCtx.moveTo(p.x,p.y);},{passive:false});
+  c.addEventListener('touchmove',e=>{e.preventDefault();if(!_sigDrawing)return;const p=getPos(e);_sigCtx.lineTo(p.x,p.y);_sigCtx.stroke();},{passive:false});
+  c.addEventListener('touchend',()=>_sigDrawing=false);
+}
+function clearSignature(){
+  if(!_sigCtx)return;
+  const c=document.getElementById('firma-canvas');
+  if(c)_sigCtx.clearRect(0,0,c.width,c.height);
+}
+function getSignatureBlob(){
+  return new Promise(resolve=>{
+    const c=document.getElementById('firma-canvas');
+    if(!c||!_sigCtx)return resolve(null);
+    const d=_sigCtx.getImageData(0,0,c.width,c.height).data;
+    const empty=!Array.from(d).some((v,i)=>i%4!==3&&v!==0);
+    if(empty)return resolve(null);
+    c.toBlob(b=>resolve(b),'image/png');
+  });
+}
+// Init the pad when the delivery modal opens
+document.addEventListener('DOMContentLoaded',()=>{ setTimeout(initSignaturePad,500); });
+
 
 async function confirmarEntrega(){
   if(!_currentPodDespacho)return;
@@ -841,10 +905,22 @@ async function confirmarEntrega(){
     }
 
     const url=await uploadFile(_podFile,`pod/${_turnoId}/${_currentPodDespacho.id}_${Date.now()}.jpg`);
-    
+
+    // Subir firma digital si fue capturada
+    let firmaUrl = null;
+    try {
+      const sigBlob = await getSignatureBlob();
+      if (sigBlob) {
+        const firmaRef = storage.ref(`firmas/${_currentPodDespacho.id}_${Date.now()}.png`);
+        await firmaRef.put(sigBlob);
+        firmaUrl = await firmaRef.getDownloadURL();
+      }
+    } catch(sigErr) { console.warn('Firma no subida:', sigErr.message); }
+
     let updateData = {
       estado:'entregado',
       pod_foto_url:url,
+      firma_url: firmaUrl || null,
       pod_timestamp:firebase.firestore.FieldValue.serverTimestamp(),
       devolucion_motivo:'',
       devolucion_detalle:'',
@@ -1222,8 +1298,7 @@ async function confirmarCambioVehiculo() {
   }
 }
 </script>
+<script src="js/constants.js?v=1"></script>
+<script src="js/utils.js?v=1"></script>
+<script src="js/theme.js?v=1"></script>
 </body>
-</html>
-
-
-

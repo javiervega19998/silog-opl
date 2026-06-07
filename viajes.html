@@ -266,6 +266,28 @@
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
 <script>
+
+// ── Compresión de imagen antes de upload ──────────────────
+async function compressImage(file, maxWidth, quality) {
+  maxWidth = maxWidth || 1200; quality = quality || 0.7;
+  return new Promise(function(resolve) {
+    if (!file || !file.type || !file.type.startsWith('image/')) { resolve(file); return; }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(function(blob) { resolve(blob || file); }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 let _uid='', _email='', _name='', _isViewer=false, _activeTab='form', _role='';
 
 requireAuth(async(user,data)=>{
@@ -605,7 +627,7 @@ async function submitViaje(){
     const fotoFile=document.getElementById('foto_combustible').files[0];
     if(hasFuel&&fotoFile){
       const ref=storage.ref(`facturas/${Date.now()}_${fotoFile.name}`);
-      await ref.put(fotoFile);fotoUrl=await ref.getDownloadURL();
+      await ref.put(await compressImage(fotoFile));fotoUrl=await ref.getDownloadURL();
     }
     
     // Adjuntar POD Document para TotalEnergies
@@ -614,7 +636,7 @@ async function submitViaje(){
     const podFile = document.getElementById('pod_documento').files[0];
     if (dist.toLowerCase().includes('total') && podFile) {
       const ref = storage.ref(`pods/${Date.now()}_${podFile.name}`);
-      await ref.put(podFile);
+      await ref.put(await compressImage(podFile));
       podUrl = await ref.getDownloadURL();
       podName = podFile.name;
     }
@@ -1046,7 +1068,7 @@ async function saveEditedTrip() {
     const podFile = document.getElementById('edit-pod-documento').files[0];
     if (podFile) {
       const ref = storage.ref(`pods/${Date.now()}_${podFile.name}`);
-      await ref.put(podFile);
+      await ref.put(await compressImage(podFile));
       podUrl = await ref.getDownloadURL();
       podName = podFile.name;
     }
@@ -1227,5 +1249,7 @@ function clearFilterDate(type) {
   else if(type === 'admin') loadAdminViajes();
 }
 </script>
+<script src="js/constants.js?v=1"></script>
+<script src="js/utils.js?v=1"></script>
+<script src="js/theme.js?v=1"></script>
 </body>
-</html>

@@ -76,7 +76,8 @@ function userRol() {
     // â”€â”€ Notificaciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /notificaciones/{id} {
       allow create: if isAuth();
-      allow read, update, delete: if isAuth() && isViewer();
+      allow read: if isAuth();
+      allow update, delete: if isAuth() && isViewer();
     }
 
     // â”€â”€ VehÃ­culos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -215,6 +216,13 @@ function userRol() {
       allow read:   if isAuth() && isViewer();
       allow update: if isAuth() && isViewer();
       allow delete: if isAuth() && isViewer();
+    }
+
+    // ── Registro de Auditoría ──────────────────────────────────────
+    match /audit_log/{id} {
+      allow create: if isAuth();
+      allow read: if isAuth() && isViewer();
+      allow update, delete: if false;
     }
   }
 }

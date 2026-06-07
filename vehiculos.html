@@ -81,6 +81,7 @@
 <nav class="nav">
   <div class="nav-brand"><span>SILOG</span> SpA</div>
   <div class="nav-right">
+    <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">☀️</button>
     <button class="btn-accent" id="btn-add-v" onclick="openModal()" style="display:none">+ Agregar Vehículo</button>
     <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
   </div>
@@ -394,8 +395,7 @@ async function deleteVehicle(id, patente){
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 </script>
+<script src="js/constants.js?v=1"></script>
+<script src="js/utils.js?v=1"></script>
+<script src="js/theme.js?v=1"></script>
 </body>
-</html>
-
-
-

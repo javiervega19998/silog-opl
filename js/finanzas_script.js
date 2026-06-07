@@ -1,3 +1,20 @@
+
+// ── Búsqueda Global ──────────────────────────────────────────
+function onGlobalSearch(q) {
+  q = (q || '').toLowerCase().trim();
+  // Buscar en tabla centro de costos
+  const rows = document.querySelectorAll('#centro-costos-body tr, #hojas-ruta-body tr, #tabla-gastos-body tr');
+  rows.forEach(function(row) {
+    const text = row.textContent.toLowerCase();
+    row.style.display = (!q || text.includes(q)) ? '' : 'none';
+  });
+  // Buscar en prefacturas
+  const fRows = document.querySelectorAll('#facturas-body tr');
+  fRows.forEach(function(row) {
+    const text = row.textContent.toLowerCase();
+    row.style.display = (!q || text.includes(q)) ? '' : 'none';
+  });
+}
 let _uid='',_email='',_allCostos=[],_allFacturas=[],_clientes=[],_allGastosRaw=[],_allMovBodega=[],_userFullNameMap={};
 let _lastHRDoc=null,_hasMoreHR=true,_loadingMoreHR=false;
 

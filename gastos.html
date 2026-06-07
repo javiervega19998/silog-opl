@@ -125,6 +125,28 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
 <script>
+
+// ── Compresión de imagen antes de upload ──────────────────
+async function compressImage(file, maxWidth, quality) {
+  maxWidth = maxWidth || 1200; quality = quality || 0.7;
+  return new Promise(function(resolve) {
+    if (!file || !file.type || !file.type.startsWith('image/')) { resolve(file); return; }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(function(blob) { resolve(blob || file); }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 let _uid='',_email='',_name='',_turnoId='',_gastos=[];
 let _fuelFile=null, _tollFile=null;
 let _isViewer = false;
@@ -308,7 +330,7 @@ async function registrarGasto(tipo){
 
   try{
     const ref=storage.ref(`gastos/${_turnoId}/${tipo}_${Date.now()}.jpg`);
-    await ref.put(file);
+    await ref.put((await compressImage(file)));
     const fotoUrl=await ref.getDownloadURL();
 
     await db.collection('gastos_ruta').add({
@@ -366,8 +388,7 @@ function renderGastos(){
   document.getElementById('total-amount').textContent='$'+total.toLocaleString('es-CL');
 }
 </script>
+<script src="js/constants.js?v=1"></script>
+<script src="js/utils.js?v=1"></script>
+<script src="js/theme.js?v=1"></script>
 </body>
-</html>
-
-
-

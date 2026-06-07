@@ -1,8 +1,35 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+    // Fotos de entrega (POD - Proof of Delivery)
+    match /pods/{fileName} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.resource.size < 5 * 1024 * 1024;
+    }
+    // Fotos de boletas y gastos en ruta
+    match /gastos/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.resource.size < 5 * 1024 * 1024;
+    }
+    // Fotos de facturas
+    match /facturas/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.resource.size < 5 * 1024 * 1024;
+    }
+    // Firmas digitales
+    match /firmas/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.resource.size < 2 * 1024 * 1024;
+    }
+    // Fotos de perfil
+    match /users/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Backups (solo Cloud Functions / admin)
+    match /backups/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
   }
 }
