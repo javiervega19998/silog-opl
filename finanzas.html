@@ -147,6 +147,7 @@ select.field{appearance:auto;cursor:pointer}
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       <button class="btn-sm" style="background:var(--accent);border-color:var(--accent);color:#fff" onclick="openManualGastoModal()">➕ Gasto por Servicio</button>
       <button class="btn-sm" style="background:var(--success);border-color:var(--success);color:#fff" onclick="openManualIngresoModal()">➕ Ingreso Especial/Flete</button>
+      <button class="btn-sm" style="background:var(--danger);border-color:var(--danger);color:#fff" onclick="openLegalesModal()">⚖️ Legales/Remuneraciones</button>
     </div>
 
     <div class="tbl-wrap">
@@ -437,6 +438,8 @@ select.field{appearance:auto;cursor:pointer}
         <option value="agua">🚰 Agua</option>
         <option value="gas">🔥 Gas</option>
         <option value="arriendo">🏢 Arriendo</option>
+        <option value="telefonia_movil">📱 Telefonía Móvil</option>
+        <option value="internet">🌐 Internet</option>
       </select>
     </div>
     
@@ -486,6 +489,40 @@ select.field{appearance:auto;cursor:pointer}
     </div>
     
     <button class="btn-save" onclick="guardarManualIngreso()" style="background:var(--success); border-color:var(--success);">💾 Registrar Ingreso</button>
+  </div>
+</div>
+
+<!-- MODAL: Legales / Remuneraciones -->
+<div class="modal-overlay" id="modal-legales">
+  <div class="modal" style="max-width: 600px;">
+    <div class="modal-title">⚖️ Registrar Legales / Remuneraciones <button class="modal-close" onclick="closeLegalesModal()">✕</button></div>
+    
+    <div class="row-2">
+      <div class="form-group"><label>Fecha</label><input class="field" type="date" id="ml-fecha" readonly/></div>
+      <div class="form-group"><label>Valor Gasto (Líquido) $ CLP</label><input class="field" type="number" id="ml-monto" placeholder="Ej: 500000"/></div>
+    </div>
+    
+    <div class="form-group">
+      <label>Concepto</label>
+      <select class="field" id="ml-concepto" onchange="onLegalesConceptoChange()">
+        <option value="Remuneración">Remuneración</option>
+        <option value="Previred">Previred</option>
+        <option value="IVA">IVA</option>
+        <option value="__nuevo__">+ Agregar Nuevo Concepto</option>
+      </select>
+    </div>
+    
+    <div class="row-2" id="ml-personal-fields" style="display: flex;">
+      <div class="form-group" style="flex:1"><label>Nombre del Personal</label><input class="field" type="text" id="ml-nombre" placeholder="Juan Pérez"/></div>
+      <div class="form-group" style="flex:1"><label>Cargo</label><input class="field" type="text" id="ml-cargo" placeholder="Conductor / Administrativo"/></div>
+    </div>
+    
+    <div class="form-group">
+      <label>Descripción / Detalle Adicional</label>
+      <input class="field" type="text" id="ml-descripcion" placeholder="Detalle adicional..."/>
+    </div>
+    
+    <button class="btn-save" onclick="guardarLegales()" style="background:var(--danger); border-color:var(--danger);">💾 Registrar Gasto Legal/Personal</button>
   </div>
 </div>
 

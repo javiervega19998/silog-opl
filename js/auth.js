@@ -36,25 +36,39 @@ function normalizeUserData(raw) {
 // -- Obtiene datos del usuario desde Firestore ---------------
 async function getUserData(user) {
   try {
-    const cacheKey = 'silog_user_' + user.uid;
-    // 1) Por UID
-    let snap = await db.collection('users').doc(user.uid).get();
-    if (snap.exists) {
+    let snap;
+    try {
+      snap = await db.collection('users').doc(user.uid).get({ source: 'cache' });
+    } catch(e) {
+      snap = await db.collection('users').doc(user.uid).get({ source: 'server' });
+    }
+
+    if (snap && snap.exists) {
       const data = snap.data();
       data._ts = Date.now();
-      const normalized = normalizeUserData(data);
-      sessionStorage.setItem(cacheKey, JSON.stringify(normalized));
-      localStorage.setItem('silog_last_user', JSON.stringify(normalized));
-      return normalized;
+      return normalizeUserData(data);
     }
+
     // 2) Por correo_electronico
-    const q1 = await db.collection('users')
-      .where('correo_electronico', '==', user.email).limit(1).get();
+    let q1;
+    try {
+      q1 = await db.collection('users').where('correo_electronico', '==', user.email).limit(1).get({ source: 'cache' });
+      if (q1.empty) throw new Error('Not in cache');
+    } catch(e) {
+      q1 = await db.collection('users').where('correo_electronico', '==', user.email).limit(1).get({ source: 'server' });
+    }
+
     if (!q1.empty) {
       const data = q1.docs[0].data();
       
+      // Validación de Seguridad: Prevenir escalada de privilegios
+      const validRoles = ['admin', 'administrativo', 'administrativo.conductor', 'conductor', 'bodeguero', 'finanzas', 'gestion', 'departamento de operaciones'];
+      if (!data.rol || !validRoles.includes(data.rol.toLowerCase())) {
+        console.warn(`[auth] Rol inválido o comprometido detectado (${data.rol}). Degradando a 'conductor'.`);
+        data.rol = 'conductor';
+      }
+      
       // SYNC: Si el documento existe bajo email pero no bajo UID, lo copiamos al UID
-      // para que las Reglas de Firestore (que buscan por request.auth.uid) funcionen.
       try {
         await db.collection('users').doc(user.uid).set(data);
         console.log('[auth] Synced user document to UID:', user.uid);
@@ -63,10 +77,7 @@ async function getUserData(user) {
       }
 
       data._ts = Date.now();
-      const normalized = normalizeUserData(data);
-      sessionStorage.setItem(cacheKey, JSON.stringify(normalized));
-      localStorage.setItem('silog_last_user', JSON.stringify(normalized));
-      return normalized;
+      return normalizeUserData(data);
     }
   } catch (e) {
     console.warn('[auth] getUserData error:', e.message);
@@ -190,8 +201,6 @@ async function updateUserProfile(uid, updates) {
   await db.collection('users').doc(uid).update(updates);
   if (currentUserData && currentUser && currentUser.uid === uid) {
     currentUserData = { ...currentUserData, ...updates };
-    sessionStorage.setItem('silog_user_' + uid, JSON.stringify(currentUserData));
-    localStorage.setItem('silog_last_user', JSON.stringify(currentUserData));
   }
 }
 
@@ -218,9 +227,8 @@ function renderNavbar(userData) {
 // -- Cerrar sesion -------------------------------------------
 function logout() {
   if (!confirm('Cerrar sesion? Asegurate de haber guardado tu trabajo.')) return;
-  if (currentUser) sessionStorage.removeItem('silog_user_' + currentUser.uid);
-  localStorage.removeItem('silog_last_user');
-  localStorage.removeItem('silog_dashboard_cache');
+  localStorage.clear();
+  sessionStorage.clear();
   auth.signOut().then(() => { window.location.href = '/index.html'; });
 }
 

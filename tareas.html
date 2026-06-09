@@ -225,10 +225,14 @@ async function loadTasks(tab){
   document.getElementById('task-container').innerHTML='<div class="empty">Cargando…</div>';
   try{
     let snap;
-    if(tab==='assign'&&_isAdmin){
-      snap=await db.collection('tareas').where('asignado_por','==',_email).get();
+    if (_isAdmin) {
+      if (tab === 'assign') {
+        snap = await db.collection('tareas').where('asignado_por', '==', _email).get();
+      } else {
+        snap = await db.collection('tareas').get(); // El admin ve TODAS las tareas de la empresa
+      }
     } else {
-      snap=await db.collection('tareas').where('asignado_a','==',_email).get();
+      snap = await db.collection('tareas').where('asignado_a', '==', _email).get();
     }
     // Filtrar y ordenar en JS para evitar índices compuestos
     let docs=[];

@@ -394,3 +394,14 @@ exports.fixUserProfile = onCall(
     return { success: true, email: targetEmail, uid, results };
   }
 );
+
+// ═══════════════════════════════════════════════════════════════
+// 6. MÓDULOS DE SEGURIDAD (Refactorización Paso 2)
+// ═══════════════════════════════════════════════════════════════
+const inventoryFuncs = require('./src/inventory');
+const distribuidoresFuncs = require('./src/distribuidores');
+const notificacionesFuncs = require('./src/notificaciones');
+
+exports.updateInventory = inventoryFuncs.updateInventory;
+exports.manageDistribuidores = distribuidoresFuncs.manageDistribuidores;
+exports.manageNotificaciones = notificacionesFuncs.manageNotificaciones;

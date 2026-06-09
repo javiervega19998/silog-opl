@@ -1,5 +1,7 @@
 
 
+import { updateInventory } from './js/services.js';
+
   document.getElementById('inv-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('btn-save-inv');
@@ -27,23 +29,24 @@
       nombre:        document.getElementById('item-name').value.trim(),
       status:        status,
       notes:         document.getElementById('item-notes').value.trim(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedBy: currentUser.uid,
     };
+
+    if (editingId) {
+      data.id = editingId; // Añadir ID para indicar que es una actualización
+    }
+
     try {
+      await updateInventory(data);
       if (editingId) {
-        await db.collection('inventory').doc(editingId).update(data);
         showToast('Ítem actualizado ✅', 'success');
       } else {
-        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        data.createdBy = currentUser.uid;
-        await db.collection('inventory').add(data);
         showToast('Ítem agregado ✅', 'success');
       }
       closeModal();
       loadInventory();
     } catch(err) {
-      showToast('Error al guardar: ' + err.message, 'error');
+      // El error ya fue manejado (mostrado) en el servicio, aquí solo capturamos para evitar crasheos si hay más lógica
+      console.warn("La operación fue abortada en el servicio.");
     }
     btn.disabled = false; btn.textContent = 'Guardar';
   });

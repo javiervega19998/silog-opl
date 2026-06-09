@@ -12,7 +12,13 @@ service cloud.firestore {
 function userRol() {
       let uidPath = /databases/$(database)/documents/users/$(request.auth.uid);
       let r = exists(uidPath) ? get(uidPath).data.rol : "conductor";
-      return r != null ? r.lower() : "conductor";
+      let rolLower = r != null ? r.lower() : "conductor";
+      let validRoles = ['admin', 'administrativo', 'administrativo.conductor', 'conductor', 'bodeguero', 'finanzas', 'gestion', 'departamento de operaciones'];
+      return rolLower in validRoles ? rolLower : 'conductor';
+    }
+
+    function isAdmin() {
+      return userRol() == 'admin' || userRol() == 'departamento de operaciones';
     }
 
     // Admin + Administrativo + Administrativo.Conductor + Finanzas + Gestion
@@ -76,7 +82,7 @@ function userRol() {
     // â”€â”€ Notificaciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /notificaciones/{id} {
       allow create: if isAuth();
-      allow read: if isAuth();
+      allow read: if isAuth() && (isViewer() || resource.data.usuario_id == request.auth.uid || resource.data.destinatario == request.auth.uid);
       allow update, delete: if isAuth() && isViewer();
     }
 
@@ -87,7 +93,7 @@ function userRol() {
       allow create, delete: if isAuth() && isViewer();
       allow update: if isAuth() && (
         isViewer() || 
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'conductor', 'km', 'kilometraje']))
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'conductor', 'km', 'kilometraje', 'historial_vehiculo']))
       );
     }
 
@@ -99,19 +105,20 @@ function userRol() {
       allow delete: if isAuth() && isViewer();
     }
 
-    // â”€â”€ Inventario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // Bodeguero + Viewer pueden escribir
+    // ── Inventario ────────────────────────────────────────────────
+    // Bodeguero + Viewer + Conductor pueden escribir
     match /inventory/{id} {
-      allow read:  if isAuth();
-      allow write: if isAuth();
+      allow read: if isAuth();
+      allow create, update: if isAuth() && (isBodeguero() || isViewer() || userRol() == 'conductor');
+      allow delete: if isAuth() && isAdmin();
     }
 
-    // â”€â”€ Correos / Formularios / Planillas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Correos / Formularios / Planillas ──
     match /correos/{id}     { allow read, write: if isAuth() && isViewer(); }
     match /formularios/{id} { allow read, write: if isAuth() && isViewer(); }
     match /planillas/{id}   { allow read, write: if isAuth() && isViewer(); }
 
-    // â”€â”€ Turnos (Apertura/Cierre de Jornada) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Turnos (Apertura/Cierre de Jornada) ──
     match /turnos/{id} {
       allow create: if isAuth() && (isViewer() || request.resource.data.conductor_uid == request.auth.uid);
       allow read:   if isAuth();
@@ -119,7 +126,7 @@ function userRol() {
       allow delete: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
     }
 
-    // â”€â”€ Despachos (Entregas por turno) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Despachos (Entregas por turno) ──
     match /despachos/{id} {
       allow create: if isAuth() && (isViewer() || request.resource.data.conductor_uid == request.auth.uid);
       allow read:   if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
@@ -127,14 +134,14 @@ function userRol() {
       allow delete: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
     }
 
-    // â”€â”€ Gastos en Ruta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Gastos en Ruta ──
     match /gastos_ruta/{id} {
       allow create: if isAuth() && (isViewer() || request.resource.data.conductor_uid == request.auth.uid);
       allow read:   if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
       allow update, delete: if isAuth() && (isViewer() || resource.data.conductor_uid == request.auth.uid);
     }
 
-    // â”€â”€ Clientes (Directorio) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Clientes (Directorio) ──
     match /clientes/{id} {
       allow read:  if isAuth();
       allow create: if isAuth();
@@ -147,12 +154,14 @@ function userRol() {
 
     // ── Logística Inversa (Devoluciones → Bodega) ──
     match /logistica_inversa/{id} {
-      allow read, write: if isAuth() && isAnyRole();
+      allow read, create, update: if isAuth() && isAnyRole();
+      allow delete: if isAuth() && isAdmin();
     }
 
     // ── Movimientos de Bodega ──
     match /movimientos_bodega/{id} {
-      allow read, write: if isAuth() && isAnyRole();
+      allow read, create, update: if isAuth() && isAnyRole();
+      allow delete: if isAuth() && isAdmin();
     }
 
     // ── Config Inversa (Logística Inversa) ──
@@ -205,8 +214,8 @@ function userRol() {
 
     // â”€â”€ Distribuidores (Lista dinÃ¡mica) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /distribuidores/{id} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
+      allow read: if isAuth();
+      allow create: if isAuth() && isViewer();
       allow update, delete: if isAuth() && isViewer();
     }
 

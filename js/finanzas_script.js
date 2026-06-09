@@ -333,7 +333,7 @@ async function loadCentroCostos(){
     let manualServicios = [];
     contabilidadSnap.forEach(d => {
       const g = d.data();
-      if (g.tipo === 'servicio') {
+      if (g.tipo === 'servicio' || g.tipo === 'legal_remuneracion') {
         const fStr = g.fecha || '';
         if (!fStr) return;
         if (periodo && fStr.slice(0, 7) !== periodo) return;
@@ -342,13 +342,20 @@ async function loadCentroCostos(){
         const parts = fStr.split('-');
         const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
         
-        const m = {
-          'luz':'💡 Luz',
-          'agua':'🚰 Agua',
-          'gas':'🔥 Gas',
-          'arriendo':'🏢 Arriendo'
-        };
-        const concept = m[g.subtipo] || g.subtipo || 'Servicio';
+        let concept = g.subtipo || 'Servicio';
+        if (g.tipo === 'servicio') {
+          const m = {
+            'luz':'💡 Luz',
+            'agua':'🚰 Agua',
+            'gas':'🔥 Gas',
+            'arriendo':'🏢 Arriendo',
+            'telefonia_movil':'📱 Telef. Móvil',
+            'internet':'🌐 Internet'
+          };
+          concept = m[g.subtipo] || g.subtipo || 'Servicio';
+        } else if (g.tipo === 'legal_remuneracion') {
+          concept = g.descripcion || `⚖️ ${g.subtipo}`;
+        }
         
         manualServicios.push({
           id: d.id,
@@ -363,7 +370,7 @@ async function loadCentroCostos(){
           combustible: g.monto_neto || g.monto || 0,
           peaje: 0,
           total: -(g.monto_neto || g.monto || 0),
-          tipo: 'gasto_servicio'
+          tipo: g.tipo
         });
       }
     });
@@ -505,6 +512,29 @@ async function eliminarPreFactura(id) {
     await loadCentroCostos();
   } catch(e) {
     showToast('Error al eliminar: ' + e.message, 'error');
+  }
+}
+
+/**
+ * Cambia el estado de una pre-factura en Firestore.
+ * Llamada desde los botones 📧 (enviada) y ✅ (pagada) de la tabla de Pre-Facturas.
+ * @param {string} id     - ID del documento en /prefacturas
+ * @param {string} estado - Nuevo estado: 'enviada' | 'pagada' | 'borrador'
+ */
+async function cambiarEstado(id, estado) {
+  const etiquetas = { borrador: 'Borrador', enviada: 'Enviada', pagada: 'Pagada' };
+  try {
+    await db.collection('prefacturas').doc(id).update({
+      estado,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: _email || _uid || 'sistema'
+    });
+    showToast(`✅ Pre-Factura marcada como "${etiquetas[estado] || estado}"`, 'success');
+    await loadFacturas();
+    await loadCentroCostos();
+  } catch (e) {
+    console.error('[Finanzas] cambiarEstado error:', e);
+    showToast('❌ No se pudo actualizar el estado: ' + e.message, 'error');
   }
 }
 
@@ -891,6 +921,100 @@ async function guardarManualIngreso() {
     });
     showToast('✅ Servicio Especial/Flete registrado exitosamente', 'success');
     closeManualIngresoModal();
+    await loadCentroCostos();
+  } catch(e) {
+    showToast('Error al registrar: ' + e.message, 'error');
+  }
+}
+
+// ═══ FORMULARIO: Legales / Remuneraciones ═══
+function openLegalesModal() {
+  document.getElementById('modal-legales').classList.add('open');
+  document.getElementById('ml-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('ml-monto').value = '';
+  document.getElementById('ml-concepto').value = 'Remuneración';
+  document.getElementById('ml-nombre').value = '';
+  document.getElementById('ml-cargo').value = '';
+  document.getElementById('ml-descripcion').value = '';
+  onLegalesConceptoChange();
+}
+
+function closeLegalesModal() {
+  document.getElementById('modal-legales').classList.remove('open');
+}
+
+function onLegalesConceptoChange() {
+  const conceptoSel = document.getElementById('ml-concepto');
+  let val = conceptoSel.value;
+  if (val === '__nuevo__') {
+    const custom = prompt('Ingrese el nuevo concepto:');
+    if (custom && custom.trim()) {
+      const opt = document.createElement('option');
+      opt.value = custom.trim();
+      opt.textContent = custom.trim();
+      conceptoSel.insertBefore(opt, conceptoSel.options[conceptoSel.options.length - 1]);
+      conceptoSel.value = custom.trim();
+      val = custom.trim();
+    } else {
+      conceptoSel.value = 'Remuneración';
+      val = 'Remuneración';
+    }
+  }
+  
+  const pFields = document.getElementById('ml-personal-fields');
+  if (val.toLowerCase().includes('remuneraci') || val.toLowerCase().includes('previred')) {
+    pFields.style.display = 'flex';
+  } else {
+    pFields.style.display = 'none';
+  }
+}
+
+async function guardarLegales() {
+  const fecha = document.getElementById('ml-fecha').value;
+  const monto = parseInt(document.getElementById('ml-monto').value) || 0;
+  const concepto = document.getElementById('ml-concepto').value;
+  const descripcion = document.getElementById('ml-descripcion').value.trim();
+  
+  if (monto <= 0) {
+    showToast('Ingrese un valor de gasto válido', 'error');
+    return;
+  }
+  if (!fecha) {
+    showToast('Seleccione una fecha', 'error');
+    return;
+  }
+  
+  let personalNombre = '';
+  let personalCargo = '';
+  if (document.getElementById('ml-personal-fields').style.display !== 'none') {
+    personalNombre = document.getElementById('ml-nombre').value.trim();
+    personalCargo = document.getElementById('ml-cargo').value.trim();
+    if (!personalNombre) {
+      showToast('Debe especificar el Nombre del Personal', 'error');
+      return;
+    }
+  }
+  
+  const finalDesc = personalNombre 
+    ? `${concepto} - ${personalNombre} (${personalCargo}) ${descripcion ? ' | ' + descripcion : ''}`
+    : `${concepto} ${descripcion ? ' | ' + descripcion : ''}`;
+    
+  try {
+    await db.collection('gastos_contabilidad').add({
+      tipo: 'legal_remuneracion',
+      subtipo: concepto,
+      monto_neto: monto,
+      monto: monto,
+      fecha: fecha,
+      personal_nombre: personalNombre,
+      personal_cargo: personalCargo,
+      descripcion: finalDesc,
+      creado_por: _email || 'sistema',
+      created_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    showToast('✅ Gasto Legal/Remuneraciones registrado exitosamente', 'success');
+    closeLegalesModal();
     await loadCentroCostos();
   } catch(e) {
     showToast('Error al registrar: ' + e.message, 'error');

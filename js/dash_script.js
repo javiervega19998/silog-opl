@@ -7,100 +7,10 @@ document.getElementById('greeting-date').textContent=new Date().toLocaleDateStri
 // Renderizado rápido optimista desde caché local (ejecutado de inmediato para evitar pantallas en blanco)
 (function renderOptimisticUI() {
   try {
-    const cachedUser = localStorage.getItem('silog_last_user');
-    if (cachedUser) {
-      const data = JSON.parse(cachedUser);
-      if (data) {
-        // 1) Renderizar navbar y saludo básico de inmediato
-        const displayName = data.nombre || data.name || data.email || 'Usuario';
-        const initials = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-        
-        const avatarEl = document.getElementById('user-avatar');
-        const nameEl   = document.getElementById('user-name');
-        const roleEl   = document.getElementById('user-role');
-        if (avatarEl) {
-          if (data.foto_perfil) {
-            avatarEl.innerHTML = `<img src="${data.foto_perfil}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;
-            avatarEl.style.overflow = 'hidden';
-          } else {
-            avatarEl.textContent = initials;
-            avatarEl.style.overflow = '';
-          }
-        }
-        if (nameEl) nameEl.textContent = displayName;
-        if (roleEl) {
-          roleEl.textContent = ['admin','administrativo','administrativo.conductor'].includes((data.role||'').toLowerCase())
-            ? `Administrador · ${data.area || 'Operaciones'}`
-            : `Conductor · ${data.area || 'Operaciones'}`;
-        }
-
-        const greetingName = document.getElementById('greeting-name');
-        if (greetingName) greetingName.textContent = displayName;
-
-        // Pre-llenar inputs de perfil
-        const pNombre = document.getElementById('p-nombre');
-        const pApellido = document.getElementById('p-apellido');
-        const pRut = document.getElementById('p-rut');
-        const pTel = document.getElementById('p-telefono');
-        const pArea = document.getElementById('p-area');
-        if(pNombre) pNombre.value = data.nombre || '';
-        if(pApellido) pApellido.value = data.apellido || '';
-        if(pRut) pRut.value = data.rut || '';
-        if(pTel) pTel.value = data.telefono || data.phone || '';
-        if(pArea && data.area) pArea.value = data.area;
-
-        const btnDelete = document.getElementById('btn-delete-photo');
-        if (btnDelete) btnDelete.style.display = data.foto_perfil ? 'inline-block' : 'none';
-
-        const panelAv = document.getElementById('panel-avatar-preview');
-        if (panelAv) {
-          if (data.foto_perfil) {
-            panelAv.innerHTML = `<img src="${data.foto_perfil}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;
-          } else {
-            panelAv.textContent = initials;
-          }
-        }
-
-        // 2) Mostrar secciones correspondientes por rol y área de inmediato
-        const role = (data.role || 'conductor').toLowerCase();
-        const area = (data.area || '').toLowerCase();
-        const showSec = id => { const el = document.getElementById(id); if (el) el.style.display = 'block'; };
-        
-        if (role === 'admin') {
-          showSec('sec-conductor'); showSec('sec-operaciones'); showSec('sec-gestion'); showSec('sec-finanzas'); showSec('sec-bodega'); showSec('sec-admin-full');
-          document.querySelectorAll('.admin-section').forEach(el => el.style.display = 'block');
-          const fleetEl = document.getElementById('global-fleet-summary'); if (fleetEl) fleetEl.style.display = 'block';
-        } else if (role === 'conductor' || role === 'administrativo.conductor') {
-          showSec('sec-conductor');
-          const email = (data.correo_electronico || data.email || '').toLowerCase().trim();
-          if (email === 'juliocmartinezt21@gmail.com') {
-            const el = document.getElementById('module-charlas-conductor');
-            if (el) el.style.display = 'flex';
-          }
-          if (role === 'administrativo.conductor') {
-            showSec('sec-operaciones'); showSec('sec-gestion'); showSec('sec-finanzas');
-            document.querySelectorAll('.admin-section').forEach(el => el.style.display = 'block');
-            const fleetEl = document.getElementById('global-fleet-summary'); if (fleetEl) fleetEl.style.display = 'block';
-          } else {
-            // Conductor estricto: ocultar resumen flota y asegurar que no vea partes administrativas
-            const fleetEl = document.getElementById('global-fleet-summary'); if (fleetEl) fleetEl.style.display = 'none';
-          }
-        } else if (role === 'administrativo' || role.includes('admin') || role.includes('finanz')) {
-          showSec('sec-gestion'); showSec('sec-operaciones'); showSec('sec-finanzas'); showSec('sec-bodega');
-          document.querySelectorAll('.admin-section').forEach(el => el.style.display = 'block');
-          const fleetEl = document.getElementById('global-fleet-summary'); if (fleetEl) fleetEl.style.display = 'block';
-        } else if (role === 'bodeguero') {
-          showSec('sec-bodega');
-          const fleetEl = document.getElementById('global-fleet-summary'); if (fleetEl) fleetEl.style.display = 'none';
-        } else {
-          // Fallback cache: rol desconocido - FAIL CLOSED (solo conductor)
-          console.warn('[SILOG CACHE] Rol no reconocido:', role, '| Acceso restringido a vista conductor');
-          showSec('sec-conductor');
-          const fleetEl = document.getElementById('global-fleet-summary'); if (fleetEl) fleetEl.style.display = 'none';
-        }
-      }
-    }
-
+    // 1) Renderizar navbar y saludo requiere currentUserData
+    // Como eliminamos localStorage (PII), esto se delega a requireAuth en auth.js.
+    // Solo cargamos la caché del dashboard si existe.
+    
     // 3) Restaurar caché del Dashboard (Contenido general, estadísticas y listas)
     const cachedDashboard = localStorage.getItem('silog_dashboard_cache');
     if (cachedDashboard) {
@@ -278,14 +188,9 @@ async function saveProfile(){
     };
     if(_userDocRef) await _userDocRef.update(updates);
     else await db.collection('users').doc(_uid).set(updates,{merge:true});
-    // Actualizar caché de localStorage inmediatamente
-    const cachedUser = localStorage.getItem('silog_last_user');
-    if (cachedUser) {
-      try {
-        const parsed = JSON.parse(cachedUser);
-        const updated = { ...parsed, ...updates, name: nombre_completo };
-        localStorage.setItem('silog_last_user', JSON.stringify(updated));
-      } catch(e) {}
+    // Actualizar caché en memoria inmediatamente
+    if (window.currentUserData) {
+      Object.assign(window.currentUserData, updates, { name: nombre_completo });
     }
     // Limpiar caché de sesión para forzar recarga en otros módulos
     sessionStorage.removeItem('silog_user_' + _uid);
@@ -318,14 +223,9 @@ async function uploadPhoto(event){
     // Guardar en Firestore
     if(_userDocRef) await _userDocRef.update({foto_perfil:url});
     else await db.collection('users').doc(_uid).set({foto_perfil:url},{merge:true});
-    // Actualizar caché de localStorage inmediatamente
-    const cachedUser = localStorage.getItem('silog_last_user');
-    if (cachedUser) {
-      try {
-        const parsed = JSON.parse(cachedUser);
-        const updated = { ...parsed, foto_perfil: url };
-        localStorage.setItem('silog_last_user', JSON.stringify(updated));
-      } catch(e) {}
+    // Actualizar caché en memoria inmediatamente
+    if (window.currentUserData) {
+      window.currentUserData.foto_perfil = url;
     }
     // Limpiar caché de sesión para forzar recarga en otros módulos
     sessionStorage.removeItem('silog_user_' + _uid);
@@ -357,14 +257,9 @@ async function deletePhoto(){
     const updates = { foto_perfil: firebase.firestore.FieldValue.delete() };
     if(_userDocRef) await _userDocRef.update(updates);
     else await db.collection('users').doc(_uid).set(updates, {merge:true});
-    // Actualizar caché de localStorage inmediatamente
-    const cachedUser = localStorage.getItem('silog_last_user');
-    if (cachedUser) {
-      try {
-        const parsed = JSON.parse(cachedUser);
-        delete parsed.foto_perfil;
-        localStorage.setItem('silog_last_user', JSON.stringify(parsed));
-      } catch(e) {}
+    // Actualizar caché en memoria inmediatamente
+    if (window.currentUserData) {
+      delete window.currentUserData.foto_perfil;
     }
     // Limpiar caché de sesión
     sessionStorage.removeItem('silog_user_' + _uid);
