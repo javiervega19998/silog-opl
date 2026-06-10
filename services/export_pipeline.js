@@ -6,7 +6,7 @@
  * transformaciones adicionales.
  *
  * Columnas:  Tipo_Registro | Proveedor | Fecha | ID_Referencia |
- *            Patente_Vehiculo | Ruta_Comuna | Cliente | Producto_SKU |
+ *            Patente_Vehiculo | Ruta_Comuna | Cliente | Producto_Cdigo |
  *            Volumen_Lts | Peso_Kg | Stock_Actual | Gasto_Asociado
  */
 
@@ -22,7 +22,7 @@ const HEADERS = [
   'Patente_Vehiculo',
   'Ruta_Comuna',
   'Cliente',
-  'Producto_SKU',
+  'Producto_Cdigo',
   'Volumen_Lts',
   'Peso_Kg',
   'Stock_Actual',
@@ -52,8 +52,8 @@ function csv(val) {
   return (s.includes(',') || s.includes(';')) ? `"${s}"` : s;
 }
 
-function fila(tipo, proveedor, fecha, id, patente, ruta, cliente, sku, lts, kg, stock, gasto) {
-  return [tipo, proveedor, fecha, id, patente, ruta, cliente, sku, lts, kg, stock, gasto].map(csv).join(',');
+function fila(tipo, proveedor, fecha, id, patente, ruta, cliente, Cdigo, lts, kg, stock, gasto) {
+  return [tipo, proveedor, fecha, id, patente, ruta, cliente, Cdigo, lts, kg, stock, gasto].map(csv).join(',');
 }
 
 function triggerDownload(content, filename) {
@@ -102,7 +102,7 @@ function filasViajes(datosFlota) {
       (r.patente || '').toUpperCase(),
       rutaComunas,
       r.cliente_nombre || '',   // cliente del viaje si existe
-      'N/A',                    // sin SKU en viajes
+      'N/A',                    // sin Cdigo en viajes
       '',                       // sin litros a nivel de viaje
       '',                       // sin kg a nivel de viaje
       '',                       // sin stock a nivel de viaje
@@ -159,7 +159,7 @@ async function filasInventarioTE() {
       '',                           // sin patente
       '',                           // sin ruta
       '',                           // sin cliente
-      item.sku || item.code || '',
+      item.Cdigo || item.code || '',
       litrosSalidos,
       kgSalidos,
       stock,
@@ -228,7 +228,7 @@ async function filasDistribucionTE() {
       (hr.patente || '').toUpperCase(),
       comuna,
       cliente,
-      '',                          // sin SKU a nivel de despacho
+      '',                          // sin Cdigo a nivel de despacho
       litros ? litros.toFixed(2) : 0,
       kg     ? kg.toFixed(2)     : 0,
       '',                          // sin stock a nivel de despacho

@@ -365,9 +365,9 @@ body {
     <h3 id="wms-action-title">📤 Salida de Bodega WMS</h3>
     
     <div class="form-row">
-      <label>Validar por Código / SKU / Barras</label>
+      <label>Validar por Código / Cdigo / Barras</label>
       <div style="display:flex;gap:6px">
-        <input type="text" class="field" id="item-codigo" placeholder="Ej: SKU-001 o Código de Barras"/>
+        <input type="text" class="field" id="item-codigo" placeholder="Ej: Cdigo-001 o Código de Barras"/>
         <button type="button" class="btn-back" onclick="validarProducto()" style="padding:0 16px">🔍 Validar</button>
       </div>
       <div id="valid-feedback" class="feedback-card" style="display:none"></div>
@@ -502,7 +502,7 @@ async function loadWmsProducts() {
     _productos.forEach(p => {
       const o = document.createElement('option');
       o.value = p.id;
-      o.textContent = `${p.name||p.nombre||p.id} ${p.sku?'('+p.sku+')':''}  — Stock: ${p.qty??p.cantidad??0}`;
+      o.textContent = `${p.name||p.nombre||p.id} ${p.Cdigo?'('+p.Cdigo+')':''}  — Stock: ${p.qty??p.cantidad??0}`;
       sel.appendChild(o);
     });
   } catch(e) {
@@ -539,7 +539,7 @@ function validarProducto() {
   
   const prod = _productos.find(p => 
     (p.code || '').toLowerCase() === val || 
-    (p.sku || '').toLowerCase() === val || 
+    (p.Cdigo || '').toLowerCase() === val || 
     (p.codigo_barras || '').toLowerCase() === val || 
     (p.id || '').toLowerCase() === val
   );
@@ -554,7 +554,7 @@ function validarProducto() {
     feedback.innerHTML = `
       <strong>✅ Producto Validado:</strong> ${prod.nombre || prod.name || 'Sin Nombre'}<br>
       <span style="font-size:0.72rem;color:var(--text2)">
-        SKU: ${prod.sku || '—'} | Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'}
+        Cdigo: ${prod.Cdigo || '—'} | Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'}
       </span>
     `;
     showToast(`✅ Código validado: ${prod.nombre || prod.name}`, 'success');
@@ -568,7 +568,7 @@ function validarProducto() {
       <strong>❌ Código no registrado:</strong> "${codeInp.value.trim()}"<br><br>
       <div style="background:var(--bg);padding:12px;border-radius:8px;border:1px dashed var(--warning)">
         <h4 style="margin-bottom:8px;color:var(--warning)">📦 Registrar Nuevo Producto</h4>
-        <div class="form-row"><label>SKU (Código)</label><input id="new-sku" class="field" value="${codeInp.value.trim().toUpperCase().replace(/\s/g, '')}" oninput="this.value=this.value.toUpperCase().replace(/\\s/g, '')"/></div>
+        <div class="form-row"><label>Cdigo (Código)</label><input id="new-Cdigo" class="field" value="${codeInp.value.trim().toUpperCase().replace(/\s/g, '')}" oninput="this.value=this.value.toUpperCase().replace(/\\s/g, '')"/></div>
         <div class="form-row"><label>Nombre del Producto</label><input id="new-name" class="field" placeholder="Ej: Nuevo Lubricante"/></div>
         <div class="row-2">
           <div class="form-row"><label>Litros x Unid.</label><input type="number" id="new-liters" class="field" value="0" step="any"/></div>
@@ -591,15 +591,15 @@ function validarProducto() {
 }
 
 async function _crearProductoEnCaliente() {
-  const sku = document.getElementById('new-sku').value.trim();
+  const Cdigo = document.getElementById('new-Cdigo').value.trim();
   const name = document.getElementById('new-name').value.trim();
   const litros = parseFloat(document.getElementById('new-liters').value) || 0;
   const kg = parseFloat(document.getElementById('new-kilos').value) || 0;
   const unit = document.getElementById('new-unit').value || 'unidad';
   const qty = 0; // REGLA: siempre 0 (disponible=0, noDisponible=0, total=0)
   
-  if(!sku || !name) {
-    showToast('Complete SKU y Nombre', 'warning');
+  if(!Cdigo || !name) {
+    showToast('Complete Cdigo y Nombre', 'warning');
     return;
   }
 
@@ -610,13 +610,13 @@ async function _crearProductoEnCaliente() {
   try {
     // Usar la función de Tarea 1: checkProductExists
     if (typeof checkProductExists === 'function') {
-      await checkProductExists(name, sku);
+      await checkProductExists(name, Cdigo);
     }
     
-    const docRef = db.collection('inventory').doc(sku); // Asumiendo código como ID o autogenerar
+    const docRef = db.collection('inventory').doc(Cdigo); // Asumiendo código como ID o autogenerar
     await docRef.set({
-      code: sku,
-      sku: sku,
+      code: Cdigo,
+      Cdigo: Cdigo,
       name: name,
       nombre: name,
       litros_por_unidad: litros,
@@ -640,7 +640,7 @@ async function _crearProductoEnCaliente() {
     await loadWmsProducts();
     
     // Auto-seleccionar y validar
-    document.getElementById('item-codigo').value = sku;
+    document.getElementById('item-codigo').value = Cdigo;
     validarProducto();
     
     // Enfocar el input de cantidad (Flujo post-creación Tarea 1)
@@ -664,7 +664,7 @@ function onSelectProductDropdown() {
   
   const prod = _productos.find(p => p.id === prodId);
   if (prod) {
-    codeInp.value = prod.sku || prod.code || prod.id;
+    codeInp.value = prod.Cdigo || prod.code || prod.id;
     const stock = prod.qty ?? prod.cantidad ?? 0;
     feedback.style.display = 'block';
     feedback.style.border = '1px solid var(--primary)';
@@ -673,7 +673,7 @@ function onSelectProductDropdown() {
     feedback.innerHTML = `
       <strong>ℹ️ Producto Seleccionado:</strong> ${prod.nombre || prod.name}<br>
       <span style="font-size:0.72rem;color:var(--text2)">
-        SKU: ${prod.sku || '—'} | Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'}
+        Cdigo: ${prod.Cdigo || '—'} | Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'}
       </span>
     `;
   }
@@ -706,7 +706,7 @@ function agregarProductoAListado() {
   // Agregar al arreglo local
   _itemsRegistrados.push({
     producto_id: prodId,
-    code: prod.sku || prod.code || prod.id,
+    code: prod.Cdigo || prod.code || prod.id,
     name: prod.name || prod.nombre,
     cantidad: cant,
     tipo: _mode,

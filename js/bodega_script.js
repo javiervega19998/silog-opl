@@ -100,25 +100,44 @@ function renderInversas(){
     const badgeCls={recepcion_pendiente:'badge-pend',recibido:'badge-recv',reclasificado:'badge-done'}[g.estadoGlobal]||'badge-pend';
     const badgeTxt={recepcion_pendiente:'⏳ Pendiente',recibido:'📥 Recibido',reclasificado:'✅ Reclasificado'}[g.estadoGlobal]||g.estadoGlobal;
     
+    // Agrupar productos idénticos (por código) dentro de este grupo de devolución
+    const productosAgrupados = {};
+    g.items.forEach(inv => {
+      const code = inv.producto_codigo || 'SIN-CODIGO';
+      if (!productosAgrupados[code]) {
+        productosAgrupados[code] = {
+          ids: [],
+          producto_nombre: inv.producto_nombre,
+          producto_codigo: inv.producto_codigo,
+          cantidadTotal: 0,
+          estado: inv.estado,
+          clasificacion: inv.clasificacion
+        };
+      }
+      productosAgrupados[code].ids.push(inv.id);
+      productosAgrupados[code].cantidadTotal += (parseInt(inv.cantidad) || 0);
+    });
+
     // Generar las filas de los productos dentro del acordeón
-    const itemsHtml = g.items.map(inv => {
+    const itemsHtml = Object.values(productosAgrupados).map(invGroup => {
       let actions = '';
-      if(inv.estado==='recepcion_pendiente'){
-        actions = `<button class="inv-btn" style="padding:4px 8px;font-size:0.75rem" onclick="confirmarRecepcion('${inv.id}', this)">📥 Confirmar</button>`;
-      } else if(inv.estado==='recibido'){
+      const idsStr = invGroup.ids.join(',');
+      if(invGroup.estado==='recepcion_pendiente'){
+        actions = `<button class="inv-btn" style="padding:4px 8px;font-size:0.75rem" onclick="confirmarRecepcionMulti('${idsStr}', this)">📥 Confirmar</button>`;
+      } else if(invGroup.estado==='recibido'){
         actions = `
-          <button class="inv-btn inv-btn-stock" style="padding:4px 8px;font-size:0.75rem" onclick="reclasificar('${inv.id}','stock_disponible', this)">📦 Stock</button>
-          <button class="inv-btn inv-btn-merma" style="padding:4px 8px;font-size:0.75rem" onclick="reclasificar('${inv.id}','merma', this)">🗑️ Merma</button>
+          <button class="inv-btn inv-btn-stock" style="padding:4px 8px;font-size:0.75rem" onclick="reclasificarMulti('${idsStr}','stock_disponible', this)">📦 Stock</button>
+          <button class="inv-btn inv-btn-merma" style="padding:4px 8px;font-size:0.75rem" onclick="reclasificarMulti('${idsStr}','merma', this)">🗑️ Merma</button>
         `;
       } else {
-        actions = `<span style="font-size:.75rem;color:var(--text2)">Clasificado: <b style="color:${inv.clasificacion==='merma'?'var(--danger)':'var(--success)'}">${inv.clasificacion==='merma'?'🗑️ Merma':'📦 Stock'}</b></span>`;
+        actions = `<span style="font-size:.75rem;color:var(--text2)">Clasificado: <b style="color:${invGroup.clasificacion==='merma'?'var(--danger)':'var(--success)'}">${invGroup.clasificacion==='merma'?'🗑️ Merma':'📦 Stock'}</b></span>`;
       }
 
       return `
         <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg); padding:8px; margin-bottom:6px; border-radius:6px; border:1px solid var(--border);">
           <div>
-            <strong style="font-size:0.8rem">${sanitize(inv.producto_nombre || 'Producto')}</strong><br>
-            <small style="color:var(--text2)">Cant: <b>${inv.cantidad}</b> | Cód: ${sanitize(inv.producto_codigo||'')}</small>
+            <strong style="font-size:0.8rem">${sanitize(invGroup.producto_nombre || 'Producto')}</strong><br>
+            <small style="color:var(--text2)">Cant Total: <b style="color:var(--accent)">${invGroup.cantidadTotal}</b> | Cód: ${sanitize(invGroup.producto_codigo||'')}</small>
           </div>
           <div style="display:flex; gap:6px; align-items:center">
             ${actions}
@@ -204,6 +223,21 @@ async function _confirmarRecepcion(id, btn){
 }
 window.confirmarRecepcion = withOnceClick(_confirmarRecepcion);
 
+window.confirmarRecepcionMulti = async function(idsStr, btn) {
+  const ids = idsStr.split(',');
+  if(btn) btn.disabled = true;
+  const originalHtml = btn ? btn.innerHTML : '';
+  if(btn) btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await Promise.all(ids.map(id => _confirmarRecepcion(id, null)));
+    showToast('Recepción confirmada en lote', 'success');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    if(btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+  }
+};
+
 async function _reclasificar(id, tipo, btn){
   const label=tipo==='merma'?'MERMA':'STOCK DISPONIBLE';
   if(!confirm(`¿Clasificar como ${label}?`))return;
@@ -273,6 +307,77 @@ async function _reclasificar(id, tipo, btn){
   }
 }
 window.reclasificar = withOnceClick(_reclasificar);
+
+window.reclasificarMulti = async function(idsStr, tipo, btn) {
+  const ids = idsStr.split(',');
+  const label=tipo==='merma'?'MERMA':'STOCK DISPONIBLE';
+  if(!confirm(`¿Clasificar como ${label} para ${ids.length} items?`))return;
+  if(btn) btn.disabled = true;
+  const originalHtml = btn ? btn.innerHTML : '';
+  if(btn) btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    // Para evitar múltiples confirmaciones, bypass confirm inside _reclasificar by extracting core logic, 
+    // or set a flag. Simplest is to map promises but we must suppress inner confirms.
+    // Instead of overriding, we'll implement the loop directly to avoid the inner confirm alert:
+    await Promise.all(ids.map(async id => {
+      await db.collection('logistica_inversa').doc(id).update({
+        estado:'reclasificado',
+        clasificacion:tipo,
+        operario_uid:_uid
+      });
+      if(tipo==='stock_disponible'){
+        const inv=_inversas.find(i=>i.id===id);
+        const prodId = inv?.producto_id || '';
+        const cant = parseInt(inv?.cantidad) || 0;
+        if(prodId && cant>0){
+          await db.runTransaction(async(t)=>{
+            const pref=db.collection('inventory').doc(prodId);
+            const pdoc=await t.get(pref);
+            let dqty=0;
+            if(pdoc.exists){
+              const pd=pdoc.data();
+              dqty=pd.disponible??pd.qty??pd.cantidad??0;
+            }
+            t.update(pref,{disponible:dqty+cant});
+            t.set(db.collection('movimientos_bodega').doc(),{
+              tipo:'ingreso',
+              subtipo:'devolucion',
+              producto_id:prodId,
+              producto_nombre:inv.producto_nombre,
+              cantidad:cant,
+              operario_uid:_uid,
+              operario_email:_email,
+              operario_nombre:_name,
+              referencia:inv.documento_asociado||inv.motivo,
+              fecha:firebase.firestore.FieldValue.serverTimestamp()
+            });
+          });
+        }
+      } else {
+        const inv=_inversas.find(i=>i.id===id);
+        if(inv && inv.producto_id && parseInt(inv.cantidad)>0){
+          await db.collection('movimientos_bodega').add({
+            tipo:'merma',
+            subtipo:'devolucion_rechazada',
+            producto_id:inv.producto_id,
+            producto_nombre:inv.producto_nombre,
+            cantidad:parseInt(inv.cantidad)||0,
+            operario_uid:_uid,
+            operario_email:_email,
+            operario_nombre:_name,
+            referencia:inv.documento_asociado||inv.motivo,
+            fecha:firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      }
+    }));
+    showToast(`Clasificado como ${label} en lote`, 'success');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    if(btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+  }
+};
 
 // ═══ PRODUCTOS ═══
 async function loadProductos(){
@@ -798,9 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const disp = parseInt(document.getElementById('item-qty')?.value) || 0;
       const noDisp = parseInt(document.getElementById('item-nodisp')?.value) || 0;
       const qty = disp + noDisp;
-      let status = document.getElementById('item-status').value;
-      if (qty === 0) status = 'no_disponible';
-      
+      const status = disp > 0 ? 'disponible' : (noDisp > 0 ? 'no_disponible' : 'agotado');
       const litrosPorUnidad = parseFloat(document.getElementById('item-litros-por-unidad').value) || 0;
       const kgPorUnidad = parseFloat(document.getElementById('item-kg-por-unidad').value) || 0;
 
@@ -828,20 +931,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.editingId) {
           await db.collection('inventory').doc(window.editingId).update(data);
           showToast('Ítem actualizado ✅', 'success');
+          closeModal();
         } else {
           data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
           data.createdBy = _uid;
           await db.collection('inventory').add(data);
           showToast('Ítem agregado ✅', 'success');
+          
+          // Form reset after creation
+          const form = document.getElementById('inv-form');
+          if (form) form.reset();
+          const nodispEl = document.getElementById('item-nodisp');
+          if (nodispEl) nodispEl.value = 0;
+          const codeEl = document.getElementById('item-code');
+          if (codeEl) setTimeout(() => codeEl.focus(), 100);
         }
-        closeModal();
         await loadInventory();
         await loadProductos();
         checkLowStock();
       } catch(err) {
         showToast('Error al guardar: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Guardar';
       }
-      btn.disabled = false; btn.textContent = 'Guardar';
     });
   }
 });
@@ -1152,4 +1264,4 @@ function dlXLSX(sheets,filename){
   XLSX.writeFile(wb,`${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
   showToast('📥 Excel descargado','success');
 }
-
+

@@ -6,11 +6,10 @@ import { updateInventory } from './js/services.js';
     e.preventDefault();
     const btn = document.getElementById('btn-save-inv');
     btn.disabled = true; btn.textContent = 'Guardando...';
-    const disp = parseInt(document.getElementById('item-qty').value) || 0;
-    const noDisp = parseInt(document.getElementById('item-nodisp').value) || 0;
+    const disp = parseInt(document.getElementById('item-qty')?.value) || 0;
+    const noDisp = parseInt(document.getElementById('item-nodisp')?.value) || 0;
     const qty = disp + noDisp;
-    let status = document.getElementById('item-status').value;
-    if (qty === 0) status = 'no_disponible';
+    const status = disp > 0 ? 'disponible' : (noDisp > 0 ? 'no_disponible' : 'agotado');
     
     const litrosPorUnidad = parseFloat(document.getElementById('item-litros-por-unidad').value) || 0;
     const kgPorUnidad = parseFloat(document.getElementById('item-kg-por-unidad').value) || 0;
@@ -42,16 +41,24 @@ import { updateInventory } from './js/services.js';
       await updateInventory(data);
       if (window.editingId) {
         if(window.showToast) window.showToast('Ítem actualizado ✅', 'success');
+        if (window.closeModal) window.closeModal();
       } else {
         if(window.showToast) window.showToast('Ítem agregado ✅', 'success');
+        // Form reset after creation
+        const form = document.getElementById('inv-form');
+        if (form) form.reset();
+        const nodispEl = document.getElementById('item-nodisp');
+        if (nodispEl) nodispEl.value = 0;
+        const codeEl = document.getElementById('item-code');
+        if (codeEl) setTimeout(() => codeEl.focus(), 100);
       }
-      if (window.closeModal) window.closeModal();
       if (window.loadInventory) window.loadInventory();
     } catch(err) {
       // El error ya fue manejado (mostrado) en el servicio, aquí solo capturamos para evitar crasheos si hay más lógica
-      console.warn("La operación fue abortada en el servicio.");
+      console.warn("La operación fue abortada en el servicio.", err);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar';
     }
-    btn.disabled = false; btn.textContent = 'Guardar';
   });
 
   // Filter tabs

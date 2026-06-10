@@ -180,9 +180,9 @@ select.field{appearance:auto;cursor:pointer}
     <div class="card">
       <h3>➕ Ingreso a Bodega</h3>
       <div class="form-group">
-        <label>Validar por Código / SKU / Barras</label>
+        <label>Validar por Código / Cdigo / Barras</label>
         <div style="display:flex;gap:6px">
-          <input type="text" class="field" id="ing-codigo" placeholder="Ej: PKG-20250001 o SKU-001" style="flex:1"/>
+          <input type="text" class="field" id="ing-codigo" placeholder="Ej: PKG-20250001 o COD-001" style="flex:1"/>
           <button type="button" class="btn btn-outline" onclick="validarCodigo('ingreso')" style="font-size:0.8rem;padding:0 14px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:10px;cursor:pointer;">🔍 Validar</button>
         </div>
         <div id="ing-valid-feedback" style="font-size:0.75rem;margin-top:6px;display:none;padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border)"></div>
@@ -218,9 +218,9 @@ select.field{appearance:auto;cursor:pointer}
     <div class="card">
       <h3>➖ Salida de Bodega</h3>
       <div class="form-group">
-        <label>Validar por Código / SKU / Barras</label>
+        <label>Validar por Código / Cdigo / Barras</label>
         <div style="display:flex;gap:6px">
-          <input type="text" class="field" id="sal-codigo" placeholder="Ej: PKG-20250001 o SKU-001" style="flex:1"/>
+          <input type="text" class="field" id="sal-codigo" placeholder="Ej: PKG-20250001 o COD-001" style="flex:1"/>
           <button type="button" class="btn btn-outline" onclick="validarCodigo('salida')" style="font-size:0.8rem;padding:0 14px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:10px;cursor:pointer;">🔍 Validar</button>
         </div>
         <div id="sal-valid-feedback" style="font-size:0.75rem;margin-top:6px;display:none;padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border)"></div>
@@ -300,8 +300,8 @@ select.field{appearance:auto;cursor:pointer}
 <script src="js/constants.js?v=1"></script>
 <script src="js/utils.js?v=1"></script>
 <script src="js/theme.js?v=1"></script>
-<script src="js/inventory-helpers.js?v=4"></script>
-<script src="js/bodega_script.js?v=11"></script>
+<script src="js/inventory-helpers.js?v=5"></script>
+<script src="js/bodega_script.js?v=12"></script>
 <!-- Modal: Add/Edit Item -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
   <div class="modal">
@@ -355,17 +355,7 @@ select.field{appearance:auto;cursor:pointer}
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">Estado</label>
-        <select class="form-control" id="item-status">
-          <option value="disponible">Disponible</option>
-          <option value="en_transito">En Tránsito</option>
-          <option value="entregado">Entregado</option>
-          <option value="agotado">Agotado</option>
-          <option value="no_disponible">No Disponible</option>
-          <option value="dañado">Dañado</option>
-        </select>
-      </div>
+
       <div class="form-group">
         <label class="form-label">Observaciones</label>
         <textarea class="form-control" id="item-notes" rows="2" placeholder="Notas adicionales..."></textarea>
