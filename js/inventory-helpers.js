@@ -52,7 +52,7 @@ function renderItems(items) {
           const total = item.total ?? (disp + noDisp);
           return `
           <tr>
-            <td><code style="color:#F47920;font-size:0.8rem">${item.code || '—'}</code>${item.sku?`<br><span style="font-size:.68rem;color:#8A9DC0">${item.sku}</span>`:''}</td>
+            <td><code style="color:#F47920;font-size:0.8rem">${item.code || '—'}</code></td>
             <td><strong style="font-size:0.88rem">${item.name || item.nombre || '—'}</strong>${item.notes ? `<br><span style="font-size:0.72rem;color:#8899BB">${item.notes}</span>` : ''}</td>
             <td><b style="color:var(--success)">${disp}</b>
               ${disp>0 && disp<=3 ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#F59E0B;font-weight:600">⚠️ CRÍTICO</span>':''}
@@ -134,7 +134,7 @@ function editItem(id) {
   if (!item) return;
   document.getElementById('item-id').value       = id;
   document.getElementById('item-code').value     = item.code || '';
-  document.getElementById('item-sku').value      = item.sku || '';
+
   document.getElementById('item-name').value     = item.name || item.nombre || '';
   document.getElementById('item-barcode').value  = item.codigo_barras || '';
   document.getElementById('item-qty').value      = item.qty ?? item.cantidad ?? 1;
@@ -247,7 +247,7 @@ function exportResumen() {
   const rows = [['RESUMEN DE INVENTARIO - SILOG SpA','','','','','',''],
     ['Fecha de generación:', new Date().toLocaleString('es-CL'),'','','','',''],
     [],
-    ['Código','SKU','Producto','Disponible','En Tránsito','Total','Unidad','Alerta']];
+    ['Código','Producto','Disponible','En Tránsito','Total','Unidad','Alerta']];
   
   const sorted = [...allItems].sort((a,b) => (a.name||a.nombre||'').localeCompare(b.name||b.nombre||''));
   sorted.forEach(i => {
@@ -256,7 +256,7 @@ function exportResumen() {
     const total = i.total ?? (disp + noDisp);
     const alerta = (i.stock_minimo||0)>0 && disp<=(i.stock_minimo||0) ? '⚠️ BAJO STOCK' : '';
     
-    rows.push([i.code||'', i.sku||'', i.name||i.nombre||'', disp, noDisp, total, i.unit||'', alerta]);
+    rows.push([i.code||'', i.name||i.nombre||'', disp, noDisp, total, i.unit||'', alerta]);
   });
   
   const totalDisp = allItems.reduce((s,i) => s + (i.disponible ?? i.qty ?? i.cantidad ?? 0), 0);
@@ -792,16 +792,15 @@ async function checkProductExists(nombre, codigo) {
       window.allItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
-    const exists = window.allItems.find(i => 
-      (i.code || '').toUpperCase() === normCodigo || 
-      (i.sku || '').toUpperCase() === normCodigo ||
+    const exists = inventorySnap.docs.map(d=>d.data()).find(i => 
+      (i.code || '').toUpperCase() === normCodigo ||
       (i.name || '').toLowerCase() === normNombre || 
       (i.nombre || '').toLowerCase() === normNombre
     );
 
     if (exists) {
-      if ((exists.code || '').toUpperCase() === normCodigo || (exists.sku || '').toUpperCase() === normCodigo) {
-        throw new Error(`El código/SKU "${normCodigo}" ya está registrado.`);
+      if ((exists.code || '').toUpperCase() === normCodigo) {
+        throw new Error(`El código "${normCodigo}" ya está registrado.`);
       } else {
         throw new Error(`El producto con nombre "${exists.name || exists.nombre}" ya existe.`);
       }

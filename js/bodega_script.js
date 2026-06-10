@@ -233,7 +233,7 @@ async function _reclasificar(id, tipo, btn){
           
           await db.collection('movimientos_bodega').add({
             producto_id: prodId,
-            producto_codigo: inv?.producto_codigo || prodData.code || prodData.sku || '',
+            producto_codigo: inv?.producto_codigo || prodData.code || '',
             producto_nombre: inv?.producto_nombre || prodData.name || prodData.nombre || '',
             tipo: 'devolucion',
             cantidad: cant,
@@ -291,7 +291,7 @@ function populateProductSelects(){
     _productos.forEach(p=>{
       const o=document.createElement('option');
       o.value=p.id;
-      o.textContent=`${p.name||p.nombre||p.id} ${p.sku?'('+p.sku+')':''}  — Stock: ${p.qty??p.cantidad??0}`;
+      o.textContent=`${p.name||p.nombre||p.id} - Stock: ${p.qty??p.cantidad??0}`;
       sel.appendChild(o);
     });
   });
@@ -313,7 +313,7 @@ function validarCodigo(dir) {
       feedbackEl.style.border = '1px solid var(--danger)';
       feedbackEl.style.color = '#FCA5A5';
       feedbackEl.style.background = 'rgba(239, 68, 68, 0.08)';
-      feedbackEl.innerHTML = '⚠️ Por favor, ingresa un código (SKU, Código de barras o ID).';
+      feedbackEl.innerHTML = '⚠️ Por favor, ingresa un código o Código de barras.';
     }
     return;
   }
@@ -321,9 +321,8 @@ function validarCodigo(dir) {
   // Search in _productos
   const prod = _productos.find(p => 
     (p.code || '').toLowerCase() === val || 
-    (p.sku || '').toLowerCase() === val || 
     (p.codigo_barras || '').toLowerCase() === val || 
-    (p.id || '').toLowerCase() === val
+    p.id.toLowerCase() === val
   );
   
   if (prod) {
@@ -341,7 +340,7 @@ function validarCodigo(dir) {
     feedbackEl.innerHTML = `
       <strong>✅ Producto Validado:</strong> ${prod.nombre || prod.name || 'Sin Nombre'}<br>
       <span style="font-size:0.72rem;color:var(--text2)">
-        SKU: ${prod.sku || '—'} | Barras: ${prod.codigo_barras || '—'}<br>
+        Código: ${prod.code || '—'} | Barras: ${prod.codigo_barras || '—'}<br>
         Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'}
       </span>
     `;
@@ -390,9 +389,9 @@ function seleccionarProductoDropdown(dir) {
   
   const prod = _productos.find(p => p.id === prodId);
   if (prod) {
-    // Put code/sku/barcode in input
+    // Put code/barcode in input
     if (codigoInput) {
-      codigoInput.value = prod.sku || prod.code || prod.codigo_barras || prod.id;
+      codigoInput.value = prod.code || prod.codigo_barras || prod.id;
     }
     
     // Display feedback card
@@ -404,7 +403,7 @@ function seleccionarProductoDropdown(dir) {
     feedbackEl.innerHTML = `
       <strong>ℹ️ Producto Seleccionado:</strong> ${prod.nombre || prod.name || 'Sin Nombre'}<br>
       <span style="font-size:0.72rem;color:var(--text2)">
-        SKU: ${prod.sku || '—'} | Barras: ${prod.codigo_barras || '—'}<br>
+        Código: ${prod.code || '—'} | Barras: ${prod.codigo_barras || '—'}<br>
         Stock Disponible: <b>${stock}</b> ${prod.unit || 'un'}
       </span>
     `;
@@ -471,12 +470,12 @@ function buscarProducto(code){
   if(!code){showToast('Ingresa un código','error');return;}
   code=code.trim();
   const prod=_productos.find(p=>
-    p.sku===code||p.codigo_barras===code||p.nombre===code||p.id===code
+    p.code===code||p.codigo_barras===code||p.nombre===code||p.id===code
   );
   const result=document.getElementById('scan-result');
   result.style.display='block';
   if(prod){
-    document.getElementById('sr-code').textContent=prod.sku||prod.codigo_barras||prod.id;
+    document.getElementById('sr-code').textContent=prod.code||prod.codigo_barras||prod.id;
     document.getElementById('sr-name').textContent=prod.name||prod.nombre||'—';
     document.getElementById('sr-detail').textContent=`Stock: ${prod.qty??prod.cantidad??0} ${prod.unit||'un'} · Min: ${prod.stock_minimo||0}`;
     showToast('✅ Producto encontrado','success');
@@ -506,7 +505,7 @@ function openModalWithCode(code) {
   
   // Pre-cargar el código en los campos relevantes
   document.getElementById('item-code').value = code;
-  document.getElementById('item-sku').value = code;
+  document.getElementById('item-code').value = code;
   document.getElementById('item-barcode').value = code;
   
   // Mostrar modal
@@ -785,8 +784,8 @@ document.addEventListener('DOMContentLoaded', () => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      currentFilter = tab.dataset.filter;
-      applyFilter();
+      window.currentFilter = tab.dataset.filter;
+      if (window.applyFilter) window.applyFilter();
     });
   });
 
@@ -805,11 +804,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const data = {
         code:          document.getElementById('item-code').value.trim(),
-        sku:           document.getElementById('item-sku').value.trim(),
         name:          document.getElementById('item-name').value.trim(),
         codigo_barras: document.getElementById('item-barcode').value.trim(),
         qty:           qty,
         cantidad:      qty,
+        disponible:    qty,
         stock_minimo:  parseInt(document.getElementById('item-min').value) || 0,
         unit:          document.getElementById('item-unit').value,
         litros_por_unidad: litrosPorUnidad,
@@ -823,8 +822,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updatedBy: _uid,
       };
       try {
-        if (editingId) {
-          await db.collection('inventory').doc(editingId).update(data);
+        if (window.editingId) {
+          await db.collection('inventory').doc(window.editingId).update(data);
           showToast('Ítem actualizado ✅', 'success');
         } else {
           data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -1150,72 +1149,4 @@ function dlXLSX(sheets,filename){
   XLSX.writeFile(wb,`${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
   showToast('📥 Excel descargado','success');
 }
-
-// ═══ EVENTOS INVENTARIO ═══
-document.addEventListener('DOMContentLoaded', () => {
-  const invForm = document.getElementById('inv-form');
-  if (invForm) {
-    invForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('btn-save-inv');
-      if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
-      const qty = parseInt(document.getElementById('item-qty').value) || 0;
-      let status = document.getElementById('item-status').value;
-      if (qty === 0) status = 'no_disponible';
-      
-      const litrosPorUnidad = parseFloat(document.getElementById('item-litros-por-unidad').value) || 0;
-      const kgPorUnidad = parseFloat(document.getElementById('item-kg-por-unidad').value) || 0;
-
-      const data = {
-        code:          document.getElementById('item-code').value.trim(),
-        sku:           document.getElementById('item-sku').value.trim(),
-        name:          document.getElementById('item-name').value.trim(),
-        codigo_barras: document.getElementById('item-barcode').value.trim(),
-        qty:           qty,
-        cantidad:      qty,
-        stock_minimo:  parseInt(document.getElementById('item-min').value) || 0,
-        unit:          document.getElementById('item-unit').value,
-        litros_por_unidad: litrosPorUnidad,
-        kg_por_unidad:     kgPorUnidad,
-        litros_actuales:   litrosPorUnidad * qty,
-        kg_actuales:       kgPorUnidad * qty,
-        nombre:        document.getElementById('item-name').value.trim(),
-        status:        status,
-        notes:         document.getElementById('item-notes').value.trim(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedBy: _uid,
-      };
-      try {
-        if (window.editingId) {
-          await db.collection('inventory').doc(window.editingId).update(data);
-          showToast('Ítem actualizado ✅', 'success');
-        } else {
-          data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-          data.createdBy = _uid;
-          await db.collection('inventory').add(data);
-          showToast('Ítem agregado ✅', 'success');
-        }
-        closeModal();
-        await loadInventory();
-      } catch(err) {
-        showToast('Error al guardar: ' + err.message, 'error');
-      }
-      if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
-    });
-  }
-
-  // Filter tabs
-  document.querySelectorAll('.filter-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      window.currentFilter = tab.dataset.filter;
-      applyFilter();
-    });
-  });
-
-  const searchInv = document.getElementById('search-inv');
-  if (searchInv) {
-    searchInv.addEventListener('input', applyFilter);
-  }
-});
+

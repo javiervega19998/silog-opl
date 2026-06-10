@@ -15,11 +15,11 @@ import { updateInventory } from './js/services.js';
 
     const data = {
       code:          document.getElementById('item-code').value.trim(),
-      sku:           document.getElementById('item-sku').value.trim(),
       name:          document.getElementById('item-name').value.trim(),
       codigo_barras: document.getElementById('item-barcode').value.trim(),
       qty:           qty,
       cantidad:      qty,
+      disponible:    qty,
       stock_minimo:  parseInt(document.getElementById('item-min').value) || 0,
       unit:          document.getElementById('item-unit').value,
       litros_por_unidad: litrosPorUnidad,
@@ -56,8 +56,8 @@ import { updateInventory } from './js/services.js';
     tab.addEventListener('click', () => {
       document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      currentFilter = tab.dataset.filter;
-      applyFilter();
+      window.currentFilter = tab.dataset.filter;
+      if (window.applyFilter) window.applyFilter();
     });
   });
   document.getElementById('search-inv').addEventListener('input', applyFilter);
