@@ -6,7 +6,9 @@ import { updateInventory } from './js/services.js';
     e.preventDefault();
     const btn = document.getElementById('btn-save-inv');
     btn.disabled = true; btn.textContent = 'Guardando...';
-    const qty = parseInt(document.getElementById('item-qty').value) || 0;
+    const disp = parseInt(document.getElementById('item-qty').value) || 0;
+    const noDisp = parseInt(document.getElementById('item-nodisp').value) || 0;
+    const qty = disp + noDisp;
     let status = document.getElementById('item-status').value;
     if (qty === 0) status = 'no_disponible';
     
@@ -19,7 +21,8 @@ import { updateInventory } from './js/services.js';
       codigo_barras: document.getElementById('item-barcode').value.trim(),
       qty:           qty,
       cantidad:      qty,
-      disponible:    qty,
+      disponible:    disp,
+      no_disponible: noDisp,
       stock_minimo:  parseInt(document.getElementById('item-min').value) || 0,
       unit:          document.getElementById('item-unit').value,
       litros_por_unidad: litrosPorUnidad,

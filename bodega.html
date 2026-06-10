@@ -324,10 +324,14 @@ select.field{appearance:auto;cursor:pointer}
         <label class="form-label">Código de Barras</label>
         <input type="text" class="form-control" id="item-barcode" placeholder="Ej: 7801234567890"/>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
         <div class="form-group">
-          <label class="form-label">Cantidad</label>
-          <input type="number" class="form-control" id="item-qty" min="0" value="1"/>
+          <label class="form-label">Disponible</label>
+          <input type="number" class="form-control" id="item-qty" min="0" value="0"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">No Disp.</label>
+          <input type="number" class="form-control" id="item-nodisp" min="0" value="0"/>
         </div>
         <div class="form-group">
           <label class="form-label">Stock Mín.</label>

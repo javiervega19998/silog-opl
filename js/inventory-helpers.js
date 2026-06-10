@@ -43,12 +43,12 @@ function renderItems(items) {
       <table>
         <thead><tr>
           <th>Código</th><th>Nombre</th>
-          <th>Disponible</th><th>En Tránsito</th><th>Total</th>
+          <th>Disponible</th><th>No Disponible</th><th>Total</th>
           <th>Un. Medida</th><th>Acciones</th>
         </tr></thead>
         <tbody>${items.map(item => {
           const disp = item.disponible ?? item.qty ?? item.cantidad ?? 0;
-          const noDisp = item.noDisponible ?? 0;
+          const noDisp = item.no_disponible ?? item.noDisponible ?? 0;
           const total = item.total ?? (disp + noDisp);
           return `
           <tr>
@@ -137,7 +137,9 @@ function editItem(id) {
 
   document.getElementById('item-name').value     = item.name || item.nombre || '';
   document.getElementById('item-barcode').value  = item.codigo_barras || '';
-  document.getElementById('item-qty').value      = item.qty ?? item.cantidad ?? 1;
+  document.getElementById('item-qty').value      = item.disponible ?? item.qty ?? item.cantidad ?? 1;
+  const noDispEl = document.getElementById('item-nodisp');
+  if(noDispEl) noDispEl.value = item.no_disponible ?? item.noDisponible ?? 0;
   document.getElementById('item-min').value      = item.stock_minimo || 0;
   document.getElementById('item-unit').value     = item.unit || 'unidad';
   document.getElementById('item-litros-por-unidad').value = item.litros_por_unidad || 0;
@@ -247,7 +249,7 @@ function exportResumen() {
   const rows = [['RESUMEN DE INVENTARIO - SILOG SpA','','','','','',''],
     ['Fecha de generación:', new Date().toLocaleString('es-CL'),'','','','',''],
     [],
-    ['Código','Producto','Disponible','En Tránsito','Total','Unidad','Alerta']];
+    ['Código','Producto','Disponible','No Disponible','Total','Unidad','Alerta']];
   
   const sorted = [...allItems].sort((a,b) => (a.name||a.nombre||'').localeCompare(b.name||b.nombre||''));
   sorted.forEach(i => {
@@ -266,7 +268,7 @@ function exportResumen() {
   rows.push([]);
   rows.push(['','','TOTAL PRODUCTOS', allItems.length,'','','','']);
   rows.push(['','','TOTAL DISPONIBLE', totalDisp,'','','','']);
-  rows.push(['','','TOTAL EN TRÁNSITO', totalNoDisp,'','','','']);
+  rows.push(['','','TOTAL NO DISPONIBLE', totalNoDisp,'','','','']);
   rows.push(['','','TOTAL GLOBAL', totalGlobal,'','','','']);
   
   dlXLSX([{name: 'Resumen Inventario', data: rows}], 'SILOG_Resumen_Inventario');
@@ -339,7 +341,7 @@ async function exportConsolidado() {
 
     // --- SHEET 1: Stock de Inventario ---
     const h1 = [
-      ['CÓDIGO PRODUCTO','NOMBRE PRODUCTO','Litros x Unidad','KG x UNIDAD','DISPONIBLE','EN TRÁNSITO','TOTAL','LITROS ACTUALES','KG ACTUALES']
+      ['CÓDIGO PRODUCTO','NOMBRE PRODUCTO','Litros x Unidad','KG x UNIDAD','DISPONIBLE','NO DISPONIBLE','TOTAL','LITROS ACTUALES','KG ACTUALES']
     ];
     const sorted = [...allItems].sort((a,b) => (a.name||a.nombre||'').localeCompare(b.name||b.nombre||''));
     sorted.forEach(i => {
