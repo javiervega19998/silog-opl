@@ -42,9 +42,13 @@ function renderItems(items) {
     <div class="table-wrap" ${tableStyle}>
       <table>
         <thead><tr>
-          <th>Código</th><th>Nombre</th>
-          <th>Stock Total</th><th>✅ Disponible</th><th>⛔ No Disponible</th>
-          <th>Unidad</th><th>Acciones</th>
+          <th style="white-space:nowrap; text-align:left;">Código</th>
+          <th style="white-space:nowrap; text-align:left;">Nombre</th>
+          <th style="white-space:nowrap; text-align:center;">Stock Total</th>
+          <th style="white-space:nowrap; text-align:center;">Disponible</th>
+          <th style="white-space:nowrap; text-align:center;">No Disponible</th>
+          <th style="white-space:nowrap; text-align:left;">Unidad</th>
+          <th style="white-space:nowrap; text-align:center;">Acciones</th>
         </tr></thead>
         <tbody>${items.map(item => {
           const disp = item.disponible ?? item.qty ?? item.cantidad ?? 0;
@@ -58,16 +62,13 @@ function renderItems(items) {
           }
           return `
           <tr ${rowStyle}>
-            <td><code style="color:#F47920;font-size:0.8rem">${item.code || '—'}</code></td>
-            <td><strong style="font-size:0.88rem">${item.name || item.nombre || '—'}</strong>${item.notes ? `<br><span style="font-size:0.72rem;color:#8899BB">${item.notes}</span>` : ''}</td>
-            <td><span class="badge-sm" style="background:#e2e8f0;color:#475569">${total}</span></td>
-            <td><b style="color:${disp > (item.stock_minimo || 3) ? 'var(--success)' : (disp === 0 ? 'var(--danger)' : 'var(--warning)')}">${disp}</b>
-              ${disp>0 && disp<=(item.stock_minimo || 3) ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#F59E0B;font-weight:600">⚠️ CRÍTICO</span>':''}
-              ${disp===0 ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#EF4444;font-weight:600">⚠️ SIN STOCK</span>':''}
-            </td>
-            <td><b style="color:${noDisp > 0 ? '#F47920' : 'var(--text2)'}">${noDisp}</b></td>
-            <td style="font-size:0.85rem;color:#8899BB;font-weight:500">${item.unit || '—'}</td>
-            <td>
+            <td style="white-space:nowrap;"><code>${item.code || '—'}</code></td>
+            <td style="white-space:nowrap;"><strong>${item.name || item.nombre || '—'}</strong>${item.notes ? ` <span style="font-size:0.75rem;color:#8899BB;margin-left:8px;">(${item.notes})</span>` : ''}</td>
+            <td style="white-space:nowrap; text-align:center; font-weight:600;">${total}</td>
+            <td style="white-space:nowrap; text-align:center; font-weight:600;">${disp}</td>
+            <td style="white-space:nowrap; text-align:center; font-weight:600;">${noDisp}</td>
+            <td style="white-space:nowrap; font-size:0.85rem;color:#8899BB;font-weight:500">${item.unit || '—'}</td>
+            <td style="white-space:nowrap; text-align:center;">
               <button class="btn btn-outline btn-sm" onclick="editItem('${item.id}')" style="margin-right:4px">✏️</button>
               ${userRole === 'admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}')">🗑️</button>` : ''}
             </td>
