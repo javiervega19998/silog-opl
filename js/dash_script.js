@@ -640,8 +640,10 @@ async function cleanupFinalizados() {
   }
 }
 
-  // P9: Estadísticas de administración y Flota (Global para todos)
-  promises.push(loadAdminStats());
+  // P9: Estadísticas de administración y Flota (Solo para administración/visores)
+  if (_isViewer) {
+    promises.push(loadAdminStats());
+  }
 
   // Esperar la resolución de todas las consultas en paralelo
   await Promise.allSettled(promises);

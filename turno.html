@@ -918,15 +918,22 @@ window.cerrarTurno = withOnceClick(_cerrarTurno);
 async function cerrarJornada(turnoId, conductorInfo) {
   try {
     // a. Leer todos los despachos donde jornadaId==jornadaId y estado=='en_transito'
-    const despachosSnap = await db.collection('despachos')
+    let despachosQuery = db.collection('despachos')
       .where('turno_id', '==', turnoId)
-      .where('estado', '==', 'en_transito')
-      .get();
+      .where('estado', '==', 'en_transito');
+    if (conductorInfo && conductorInfo.id) {
+      despachosQuery = despachosQuery.where('conductor_uid', '==', conductorInfo.id);
+    }
+    const despachosSnap = await despachosQuery.get();
       
     if (despachosSnap.empty) return;
 
     // Buscar la hoja de ruta para extraer los productos, ya que el despacho WMS los guarda allí
-    const hrSnap = await db.collection('hojas_ruta').where('turno_id', '==', turnoId).limit(1).get();
+    let hrQuery = db.collection('hojas_ruta').where('turno_id', '==', turnoId);
+    if (conductorInfo && conductorInfo.id) {
+      hrQuery = hrQuery.where('conductor_uid', '==', conductorInfo.id);
+    }
+    const hrSnap = await hrQuery.limit(1).get();
     if (hrSnap.empty) return;
     const hrData = hrSnap.docs[0].data();
     const productos = hrData.productos_despacho || [];
