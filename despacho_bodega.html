@@ -434,7 +434,7 @@ body {
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
 <script src="js/utils.js?v=1"></script>
-<script src="js/inventory-helpers.js?v=2"></script>
+<script src="js/inventory-helpers.js?v=8"></script>
 <script>
 let _uid='', _email='', _name='', _role='', _activeTurnoId='', _turnoData=null, _mode='salida';
 let _productos = [];
@@ -798,80 +798,80 @@ async function _finalizarDespacho() {
     const hrRef = db.collection('hojas_ruta').doc();
     const tripId = hrRef.id;
     
-    // 1) Actualizar Inventario SÓLO PARA LOGÍSTICA INVERSA (Tarea 1). Salidas van a 'en_transito' (Tarea 2)
+    // 1) Actualizar Inventario y crear Movimientos_Bodega
     for (let item of _itemsRegistrados) {
       const prodRef = db.collection('inventory').doc(item.producto_id);
-      
-      if (item.tipo === 'salida') {
-        // TAREA 2: Flujo Despacho -> En Tránsito. 
-        // No descontar inventario ni crear movimiento aquí. Se hará en cerrarJornada().
-        continue;
-      }
-
-      // Logística Inversa (Devolución)
       const pDoc = await prodRef.get();
       if (!pDoc.exists) continue;
+      
       const pData = pDoc.data();
-      const currentStock = pData.qty ?? pData.cantidad ?? 0;
-      let newStock = currentStock;
+      let disp = parseInt(pData.disponible) ?? parseInt(pData.qty) ?? parseInt(pData.cantidad) ?? 0;
+      let noDisp = parseInt(pData.no_disponible) ?? parseInt(pData.noDisponible) ?? 0;
+      
+      const mRef = db.collection('movimientos_bodega').doc();
 
-      if (item.clasificacion === 'stock_disponible') {
-        newStock += item.cantidad;
+      if (item.tipo === 'salida') {
+        // Despacho: Descuenta del stock disponible
+        disp = Math.max(0, disp - item.cantidad);
         
-        // Registrar movimiento de ingreso por devolución (logistica_inversa)
-        const mRef = db.collection('movimientos').doc();
         batch.set(mRef, {
-          tipo: 'logistica_inversa',
-          productoId: item.producto_id,
-          codigoProducto: item.code,
-          nombreProducto: item.name,
+          tipo: 'salida',
+          subtipo: 'despacho_ruta',
+          producto_id: item.producto_id,
+          producto_codigo: item.code || pData.code || '',
+          producto_nombre: item.name || pData.name || '',
           cantidad: item.cantidad,
-          unidad: pData.unit || 'unidad',
-          clasificacion: 'stock_disponible',
-          nDocumento: item.referencia,
-          despachoId: idViaje,
-          conductor: { id: _uid, nombre: _name },
-          patente: _turnoData.patente || '',
-          cliente: clients[0] || '',
-          comunaOrigen: document.getElementById('comuna_ruta').value || '',
-          valorServicio: 0,
-          observaciones: 'Re-ingreso a bodega de mercancía devuelta en ruta',
-          fecha: firebase.firestore.FieldValue.serverTimestamp(),
-          jornadaId: _activeTurnoId
+          referencia: item.referencia || `Despacho Viaje ${idViaje}`,
+          operario_uid: _uid,
+          operario_nombre: _name,
+          operario_email: _email,
+          fecha: firebase.firestore.FieldValue.serverTimestamp()
         });
+
       } else {
-        // Merma: registrar en logistica_inversa
-        const mRef = db.collection('movimientos').doc();
-        batch.set(mRef, {
-          tipo: 'logistica_inversa',
-          productoId: item.producto_id,
-          codigoProducto: item.code,
-          nombreProducto: item.name,
-          cantidad: item.cantidad,
-          unidad: pData.unit || 'unidad',
-          clasificacion: 'merma',
-          nDocumento: item.referencia,
-          despachoId: idViaje,
-          conductor: { id: _uid, nombre: _name },
-          patente: _turnoData.patente || '',
-          cliente: clients[0] || '',
-          comunaOrigen: document.getElementById('comuna_ruta').value || '',
-          valorServicio: 0,
-          observaciones: 'Merma / Dañado reportado en ruta',
-          fecha: firebase.firestore.FieldValue.serverTimestamp(),
-          jornadaId: _activeTurnoId
-        });
+        // Logística Inversa (Devolución)
+        if (item.clasificacion === 'stock_disponible') {
+          disp += item.cantidad; // Suman al Disponible
+          batch.set(mRef, {
+            tipo: 'ingreso',
+            subtipo: 'devolucion',
+            producto_id: item.producto_id,
+            producto_codigo: item.code || pData.code || '',
+            producto_nombre: item.name || pData.name || '',
+            cantidad: item.cantidad,
+            referencia: item.referencia || `Devolución Viaje ${idViaje}`,
+            operario_uid: _uid,
+            operario_nombre: _name,
+            operario_email: _email,
+            fecha: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        } else {
+          // Merma
+          noDisp += item.cantidad; // Suman al No Disponible
+          batch.set(mRef, {
+            tipo: 'merma',
+            subtipo: 'devolucion_rechazada',
+            producto_id: item.producto_id,
+            producto_codigo: item.code || pData.code || '',
+            producto_nombre: item.name || pData.name || '',
+            cantidad: item.cantidad,
+            referencia: item.referencia || `Merma Viaje ${idViaje}`,
+            operario_uid: _uid,
+            operario_nombre: _name,
+            operario_email: _email,
+            fecha: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
       }
       
-      // Actualizar stock de inventario (solo se modifica si fue stock_disponible, si fue merma qty no cambia pero podemos actualizar)
+      // Actualizar stock de inventario (Total = Disponible + No Disponible)
+      let newTotal = disp + noDisp;
       batch.update(prodRef, {
-        qty: newStock,
-        cantidad: newStock,
-        disponible: newStock,
-        total: newStock + (pData.noDisponible || 0),
-        status: newStock === 0 ? 'no_disponible' : 'disponible',
-        litros_actuales: (pData.litros_por_unidad || 0) * newStock,
-        kg_actuales: (pData.kg_por_unidad || 0) * newStock,
+        qty: newTotal,
+        cantidad: newTotal,
+        disponible: disp,
+        no_disponible: noDisp,
+        total: newTotal,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: _uid
       });

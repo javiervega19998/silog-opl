@@ -44,9 +44,9 @@ function renderItems(items) {
         <thead><tr>
           <th style="white-space:nowrap; text-align:left;">Código</th>
           <th style="white-space:nowrap; text-align:left;">Nombre</th>
-          <th style="white-space:nowrap; text-align:center;">Stock Total</th>
-          <th style="white-space:nowrap; text-align:center;">Disponible</th>
-          <th style="white-space:nowrap; text-align:center;">No Disponible</th>
+          <th style="white-space:nowrap; text-align:center; min-width:90px;">Stock Total</th>
+          <th style="white-space:nowrap; text-align:center; min-width:90px;">Disponible</th>
+          <th style="white-space:nowrap; text-align:center; min-width:115px; padding-right:15px;">No Disponible</th>
           <th style="white-space:nowrap; text-align:left;">Unidad</th>
           <th style="white-space:nowrap; text-align:center;">Acciones</th>
         </tr></thead>
