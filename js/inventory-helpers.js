@@ -91,8 +91,8 @@ function applyFilter() {
   if (currentFilter !== 'all') {
     if (currentFilter === 'disponible') {
       filtered = filtered.filter(i => (i.disponible ?? i.qty ?? i.cantidad ?? 0) > 0);
-    } else if (currentFilter === 'en_transito') {
-      filtered = filtered.filter(i => (i.noDisponible ?? 0) > 0);
+    } else if (currentFilter === 'no_disponible') {
+      filtered = filtered.filter(i => (i.no_disponible ?? i.noDisponible ?? 0) > 0);
     } else if (currentFilter === 'agotado') {
       filtered = filtered.filter(i => (i.disponible ?? i.qty ?? i.cantidad ?? 0) === 0);
     }
