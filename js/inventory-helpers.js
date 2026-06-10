@@ -30,7 +30,7 @@ function renderItems(items) {
   let slidedownBtn = '';
   let tableStyle = '';
   if (items.length > 10) {
-    tableStyle = 'style="max-height: 520px; overflow: hidden; transition: max-height 0.5s ease-in-out; position: relative;" id="inv-table-wrap"';
+    tableStyle = 'style="max-height: 520px; overflow-x: auto; overflow-y: hidden; transition: max-height 0.5s ease-in-out; position: relative;" id="inv-table-wrap"';
     slidedownBtn = `
       <div id="slidedown-btn-wrap" style="text-align:center; margin-top:12px;">
         <button class="btn btn-outline btn-full" onclick="slideDownTable()" style="font-size:0.8rem; border-style:dashed; padding:10px; font-weight:600; color:var(--accent);">Mostrar todos los productos 👇</button>

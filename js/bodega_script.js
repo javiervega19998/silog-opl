@@ -175,37 +175,46 @@ async function _confirmarRecepcion(id, btn){
     const d=await db.collection('logistica_inversa').doc(id).get();
     if(!d.exists) throw new Error('No existe');
     const b=d.data();
-    if(b.estado!=='pendiente') throw new Error('Ya procesado');
+    if(b.estado!=='pendiente' && b.estado!=='recepcion_pendiente') throw new Error('Ya procesado');
 
     await db.runTransaction(async(t)=>{
       const pref=db.collection('inventory').doc(b.producto_id);
       const pdoc=await t.get(pref);
-      let qty=0;
+      let disp=0, noDisp=0;
       if(pdoc.exists){
         const prodData = pdoc.data();
-        qty = prodData.disponible ?? prodData.qty ?? prodData.cantidad ?? 0;
+        disp = parseInt(prodData.disponible) ?? parseInt(prodData.qty) ?? parseInt(prodData.cantidad) ?? 0;
+        noDisp = parseInt(prodData.no_disponible) ?? parseInt(prodData.noDisponible) ?? 0;
       }
       const numCant = parseInt(b.cantidad)||0;
-      t.update(pref,{qty:qty+numCant,disponible:qty+numCant});
+      
+      t.update(pref,{
+        disponible: disp + numCant,
+        qty: disp + numCant + noDisp,
+        cantidad: disp + numCant + noDisp
+      });
+      
       t.update(db.collection('logistica_inversa').doc(id),{
-        estado:'ingresado_bodega',
+        estado:'recibido',
         fecha_recepcion:firebase.firestore.FieldValue.serverTimestamp(),
         receptor_uid:_uid,
         receptor_email:_email
       });
+      
       const mref=db.collection('movimientos_bodega').doc();
       t.set(mref,{
-        tipo:'devolucion',
+        tipo:'ingreso',
+        subtipo:'devolucion',
         producto_id:b.producto_id,
         producto_codigo:b.producto_codigo||'',
         producto_nombre:b.producto_nombre||'',
         cantidad:numCant,
-        referencia:'Ingreso a Bodega (Recepción Logística Inversa)',
+        referencia:'Recepción Logística Inversa',
         operario_uid:_uid,
         operario_nombre:_name||_email,
         fecha:firebase.firestore.FieldValue.serverTimestamp()
       });
-      // Registrar log de auditoría
+      
       t.set(db.collection('audit_log').doc(), {
         tipo: 'recepcion_inversa',
         documento_id: id,
@@ -217,8 +226,9 @@ async function _confirmarRecepcion(id, btn){
     });
     showToast('✅ Recepción confirmada e inventario actualizado','success');
   }catch(e){
-    if(btn) btn.disabled=false;
     showToast('Error: '+e.message,'error');
+  } finally {
+    if(btn) btn.disabled=false;
   }
 }
 window.confirmarRecepcion = withOnceClick(_confirmarRecepcion);
@@ -238,6 +248,58 @@ window.confirmarRecepcionMulti = async function(idsStr, btn) {
   }
 };
 
+async function procesarReclasificacion(id, tipo) {
+  const invDoc = await db.collection('logistica_inversa').doc(id).get();
+  if(!invDoc.exists) return;
+  const inv = invDoc.data();
+  if(inv.estado === 'reclasificado') return;
+
+  await db.runTransaction(async (t) => {
+    t.update(db.collection('logistica_inversa').doc(id), {
+      estado: 'reclasificado',
+      clasificacion: tipo,
+      operario_uid: _uid
+    });
+
+    if(tipo === 'merma') {
+      const prodId = inv.producto_id || '';
+      const cant = parseInt(inv.cantidad) || 0;
+      if (prodId && cant > 0) {
+        const pref = db.collection('inventory').doc(prodId);
+        const pdoc = await t.get(pref);
+        if (pdoc.exists) {
+          const pd = pdoc.data();
+          let disp = parseInt(pd.disponible) || parseInt(pd.qty) || parseInt(pd.cantidad) || 0;
+          let noDisp = parseInt(pd.no_disponible) || parseInt(pd.noDisponible) || 0;
+          
+          let newDisp = Math.max(0, disp - cant);
+          let newNoDisp = noDisp + cant;
+          
+          t.update(pref, {
+            disponible: newDisp,
+            no_disponible: newNoDisp,
+            qty: newDisp + newNoDisp,
+            cantidad: newDisp + newNoDisp
+          });
+          
+          t.set(db.collection('movimientos_bodega').doc(), {
+            tipo: 'merma',
+            subtipo: 'reclasificacion_merma',
+            producto_id: prodId,
+            producto_codigo: inv.producto_codigo || '',
+            producto_nombre: inv.producto_nombre || '',
+            cantidad: cant,
+            operario_uid: _uid,
+            operario_nombre: _name,
+            referencia: 'Reclasificación a Merma',
+            fecha: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      }
+    }
+  });
+}
+
 async function _reclasificar(id, tipo, btn){
   const label=tipo==='merma'?'MERMA':'STOCK DISPONIBLE';
   if(!confirm(`¿Clasificar como ${label}?`))return;
@@ -247,59 +309,12 @@ async function _reclasificar(id, tipo, btn){
     btn.innerHTML = '<span class="spinner"></span>...';
   }
   try{
-    await db.collection('logistica_inversa').doc(id).update({
-      estado:'reclasificado',
-      clasificacion:tipo,
-      operario_uid:_uid
-    });
-    // If stock, create ingreso movement and update inventory
-    if(tipo==='stock_disponible'){
-      const inv=_inversas.find(i=>i.id===id);
-      const prodId = inv?.producto_id || '';
-      const cant = parseInt(inv?.cantidad) || 0;
-      
-      if (prodId && cant > 0) {
-        const prodDoc = await db.collection('inventory').doc(prodId).get();
-        if (prodDoc.exists) {
-          const prodData = prodDoc.data();
-          const currentStock = prodData.qty ?? prodData.cantidad ?? 0;
-          const newStock = currentStock + cant;
-          
-          await db.collection('movimientos_bodega').add({
-            producto_id: prodId,
-            producto_codigo: inv?.producto_codigo || prodData.code || '',
-            producto_nombre: inv?.producto_nombre || prodData.name || prodData.nombre || '',
-            tipo: 'devolucion',
-            cantidad: cant,
-            ubicacion: 'Pendiente asignar',
-            operario_uid: _uid,
-            operario_nombre: _name,
-            referencia: `Dev: ${inv?.cliente || '—'}`,
-            scan_validado: false,
-            fecha: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          
-          const updateData = {
-            qty: newStock,
-            cantidad: newStock,
-            status: newStock === 0 ? 'no_disponible' : 'disponible',
-            litros_actuales: (prodData.litros_por_unidad || 0) * newStock,
-            kg_actuales: (prodData.kg_por_unidad || 0) * newStock,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedBy: _uid
-          };
-          await db.collection('inventory').doc(prodId).update(updateData);
-        } else {
-          console.warn("Product doc not found in inventory:", prodId);
-        }
-      } else {
-        console.warn("Invalid product_id or cantidad in logistica_inversa doc:", prodId, cant);
-      }
-    }
-    showToast(`✅ Clasificado como ${label}`,'success');
+    await procesarReclasificacion(id, tipo);
+    showToast(`✅ Clasificado como ${label}`, 'success');
     await Promise.all([loadInversas(), loadProductos(), typeof loadInventory === 'function' ? loadInventory() : Promise.resolve()]);
   }catch(e){
     showToast('Error: '+e.message,'error');
+  } finally {
     if(btn) {
       btn.disabled = false;
       btn.innerHTML = btn.dataset.originalHtml;
@@ -316,62 +331,9 @@ window.reclasificarMulti = async function(idsStr, tipo, btn) {
   const originalHtml = btn ? btn.innerHTML : '';
   if(btn) btn.innerHTML = '<span class="spinner"></span>';
   try {
-    // Para evitar múltiples confirmaciones, bypass confirm inside _reclasificar by extracting core logic, 
-    // or set a flag. Simplest is to map promises but we must suppress inner confirms.
-    // Instead of overriding, we'll implement the loop directly to avoid the inner confirm alert:
-    await Promise.all(ids.map(async id => {
-      await db.collection('logistica_inversa').doc(id).update({
-        estado:'reclasificado',
-        clasificacion:tipo,
-        operario_uid:_uid
-      });
-      if(tipo==='stock_disponible'){
-        const inv=_inversas.find(i=>i.id===id);
-        const prodId = inv?.producto_id || '';
-        const cant = parseInt(inv?.cantidad) || 0;
-        if(prodId && cant>0){
-          await db.runTransaction(async(t)=>{
-            const pref=db.collection('inventory').doc(prodId);
-            const pdoc=await t.get(pref);
-            let dqty=0;
-            if(pdoc.exists){
-              const pd=pdoc.data();
-              dqty=pd.disponible??pd.qty??pd.cantidad??0;
-            }
-            t.update(pref,{disponible:dqty+cant});
-            t.set(db.collection('movimientos_bodega').doc(),{
-              tipo:'ingreso',
-              subtipo:'devolucion',
-              producto_id:prodId,
-              producto_nombre:inv.producto_nombre,
-              cantidad:cant,
-              operario_uid:_uid,
-              operario_email:_email,
-              operario_nombre:_name,
-              referencia:inv.documento_asociado||inv.motivo,
-              fecha:firebase.firestore.FieldValue.serverTimestamp()
-            });
-          });
-        }
-      } else {
-        const inv=_inversas.find(i=>i.id===id);
-        if(inv && inv.producto_id && parseInt(inv.cantidad)>0){
-          await db.collection('movimientos_bodega').add({
-            tipo:'merma',
-            subtipo:'devolucion_rechazada',
-            producto_id:inv.producto_id,
-            producto_nombre:inv.producto_nombre,
-            cantidad:parseInt(inv.cantidad)||0,
-            operario_uid:_uid,
-            operario_email:_email,
-            operario_nombre:_name,
-            referencia:inv.documento_asociado||inv.motivo,
-            fecha:firebase.firestore.FieldValue.serverTimestamp()
-          });
-        }
-      }
-    }));
+    await Promise.all(ids.map(id => procesarReclasificacion(id, tipo)));
     showToast(`Clasificado como ${label} en lote`, 'success');
+    await Promise.all([loadInversas(), loadProductos(), typeof loadInventory === 'function' ? loadInventory() : Promise.resolve()]);
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
   } finally {
