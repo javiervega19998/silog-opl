@@ -113,9 +113,18 @@ async function loadInventory() {
     applyFilter();
   } catch (e) {
     console.warn('[Inventory] loadInventory error:', e.message);
-    showToast('Error al cargar inventario: ' + e.message, 'error');
+    // Fallback sin orderBy si falta el índice
+    try {
+      const snap2 = await db.collection('inventory').get();
+      allItems = snap2.docs.map(d => ({ id: d.id, ...d.data() }));
+      applyFilter();
+    } catch(e2) {
+      showToast('Error al cargar inventario: ' + e2.message, 'error');
+    }
   }
 }
+// Exportar funciones clave al scope global para interoperabilidad entre módulos y scripts no-módulo
+window.loadInventory = loadInventory;
 
 function openModal(id = null) {
   editingId = id;
@@ -813,3 +822,11 @@ async function checkProductExists(nombre, codigo) {
     throw e;
   }
 }
+
+// ── Global exports (interoperabilidad módulos vs scripts clásicos) ──
+window.openModal    = openModal;
+window.closeModal   = closeModal;
+window.applyFilter  = applyFilter;
+window.editItem     = editItem;
+window.deleteItem   = deleteItem;
+window.checkLowStock = checkLowStock;

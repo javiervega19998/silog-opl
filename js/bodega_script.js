@@ -795,8 +795,8 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const btn = document.getElementById('btn-save-inv');
       btn.disabled = true; btn.textContent = 'Guardando...';
-      const disp = parseInt(document.getElementById('item-qty').value) || 0;
-      const noDisp = parseInt(document.getElementById('item-nodisp').value) || 0;
+      const disp = parseInt(document.getElementById('item-qty')?.value) || 0;
+      const noDisp = parseInt(document.getElementById('item-nodisp')?.value) || 0;
       const qty = disp + noDisp;
       let status = document.getElementById('item-status').value;
       if (qty === 0) status = 'no_disponible';
