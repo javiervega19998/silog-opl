@@ -34,19 +34,19 @@ import { updateInventory } from './js/services.js';
       notes:         document.getElementById('item-notes').value.trim(),
     };
 
-    if (editingId) {
-      data.id = editingId; // Añadir ID para indicar que es una actualización
+    if (window.editingId) {
+      data.id = window.editingId; // Añadir ID para indicar que es una actualización
     }
 
     try {
       await updateInventory(data);
-      if (editingId) {
-        showToast('Ítem actualizado ✅', 'success');
+      if (window.editingId) {
+        if(window.showToast) window.showToast('Ítem actualizado ✅', 'success');
       } else {
-        showToast('Ítem agregado ✅', 'success');
+        if(window.showToast) window.showToast('Ítem agregado ✅', 'success');
       }
-      closeModal();
-      loadInventory();
+      if (window.closeModal) window.closeModal();
+      if (window.loadInventory) window.loadInventory();
     } catch(err) {
       // El error ya fue manejado (mostrado) en el servicio, aquí solo capturamos para evitar crasheos si hay más lógica
       console.warn("La operación fue abortada en el servicio.");

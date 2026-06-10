@@ -498,7 +498,7 @@ function openModalWithCode(code) {
   // Limpiar el formulario
   const form = document.getElementById('inv-form');
   if (form) form.reset();
-  editingId = null;
+  window.editingId = null;
   
   // Modificar título del modal
   document.getElementById('modal-title').textContent = 'Registrar Nuevo Producto (Código Pre-cargado)';
