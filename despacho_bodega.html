@@ -433,6 +433,8 @@ body {
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
+<script src="js/utils.js?v=1"></script>
+<script src="js/inventory-helpers.js?v=2"></script>
 <script>
 let _uid='', _email='', _name='', _role='', _activeTurnoId='', _turnoData=null, _mode='salida';
 let _productos = [];
@@ -559,15 +561,98 @@ function validarProducto() {
   } else {
     select.value = '';
     feedback.style.display = 'block';
-    feedback.style.border = '1px solid var(--danger)';
-    feedback.style.color = '#FCA5A5';
-    feedback.style.background = 'rgba(239, 68, 68, 0.08)';
+    feedback.style.border = '1px solid var(--warning)';
+    feedback.style.color = 'var(--text)';
+    feedback.style.background = 'rgba(245, 158, 11, 0.08)';
     feedback.innerHTML = `
-      <strong>❌ Código no registrado:</strong> "${codeInp.value.trim()}"
+      <strong>❌ Código no registrado:</strong> "${codeInp.value.trim()}"<br><br>
+      <div style="background:var(--bg);padding:12px;border-radius:8px;border:1px dashed var(--warning)">
+        <h4 style="margin-bottom:8px;color:var(--warning)">📦 Registrar Nuevo Producto</h4>
+        <div class="form-row"><label>SKU (Código)</label><input id="new-sku" class="field" value="${codeInp.value.trim().toUpperCase().replace(/\s/g, '')}" oninput="this.value=this.value.toUpperCase().replace(/\\s/g, '')"/></div>
+        <div class="form-row"><label>Nombre del Producto</label><input id="new-name" class="field" placeholder="Ej: Nuevo Lubricante"/></div>
+        <div class="row-2">
+          <div class="form-row"><label>Litros x Unid.</label><input type="number" id="new-liters" class="field" value="0" step="any"/></div>
+          <div class="form-row"><label>Kg x Unid.</label><input type="number" id="new-kilos" class="field" value="0" step="any"/></div>
+        </div>
+        <div class="form-row"><label>Unidad de Medida</label>
+          <select id="new-unit" class="field">
+            <option value="unidad">Unidad</option>
+            <option value="litros">Litros</option>
+            <option value="kg">Kilos</option>
+          </select>
+        </div>
+        <!-- Oculto/Deshabilitado la cantidad inicial según Tarea 1: asignar siempre 0 -->
+        <input type="hidden" id="new-qty" value="0"/>
+        <button type="button" class="btn-submit" id="btn-crear-prod" onclick="crearProductoEnCaliente()" style="padding:10px;font-size:0.85rem;background:var(--warning);color:#000;margin-top:10px">➕ Crear Producto (Stock Cero)</button>
+      </div>
     `;
-    showToast('❌ Producto no encontrado', 'error');
+    showToast('Producto no encontrado. Puedes crearlo ahora.', 'warning');
   }
 }
+
+async function _crearProductoEnCaliente() {
+  const sku = document.getElementById('new-sku').value.trim();
+  const name = document.getElementById('new-name').value.trim();
+  const litros = parseFloat(document.getElementById('new-liters').value) || 0;
+  const kg = parseFloat(document.getElementById('new-kilos').value) || 0;
+  const unit = document.getElementById('new-unit').value || 'unidad';
+  const qty = 0; // REGLA: siempre 0 (disponible=0, noDisponible=0, total=0)
+  
+  if(!sku || !name) {
+    showToast('Complete SKU y Nombre', 'warning');
+    return;
+  }
+
+  const btn = document.getElementById('btn-crear-prod');
+  btn.disabled = true;
+  btn.innerHTML = 'Creando...';
+  
+  try {
+    // Usar la función de Tarea 1: checkProductExists
+    if (typeof checkProductExists === 'function') {
+      await checkProductExists(name, sku);
+    }
+    
+    const docRef = db.collection('inventory').doc(sku); // Asumiendo código como ID o autogenerar
+    await docRef.set({
+      code: sku,
+      sku: sku,
+      name: name,
+      nombre: name,
+      litros_por_unidad: litros,
+      kg_por_unidad: kg,
+      unit: unit,
+      qty: qty,
+      cantidad: qty,
+      disponible: 0,
+      noDisponible: 0,
+      total: 0,
+      litros_actuales: 0,
+      kg_actuales: 0,
+      status: 'no_disponible', // 0 stock
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy: _uid
+    });
+    
+    showToast('✅ Producto creado con éxito (Stock 0)', 'success');
+    
+    // Recargar productos
+    await loadWmsProducts();
+    
+    // Auto-seleccionar y validar
+    document.getElementById('item-codigo').value = sku;
+    validarProducto();
+    
+    // Enfocar el input de cantidad (Flujo post-creación Tarea 1)
+    document.getElementById('item-cant').focus();
+    
+  } catch(e) {
+    showToast('Error al crear: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.innerHTML = '➕ Crear Producto (Stock Cero)';
+  }
+}
+window.crearProductoEnCaliente = withOnceClick(_crearProductoEnCaliente);
 
 function onSelectProductDropdown() {
   const select = document.getElementById('item-producto');
@@ -683,7 +768,7 @@ function removeClient(btn) {
   btn.parentElement.remove();
 }
 
-async function finalizarDespacho() {
+async function _finalizarDespacho() {
   if (_itemsRegistrados.length === 0) {
     showToast('Debe ingresar al menos un producto a la lista', 'warning');
     return;
@@ -713,88 +798,77 @@ async function finalizarDespacho() {
     const hrRef = db.collection('hojas_ruta').doc();
     const tripId = hrRef.id;
     
-    // 1) Actualizar Inventario y Registrar Movimientos WMS
+    // 1) Actualizar Inventario SÓLO PARA LOGÍSTICA INVERSA (Tarea 1). Salidas van a 'en_transito' (Tarea 2)
     for (let item of _itemsRegistrados) {
       const prodRef = db.collection('inventory').doc(item.producto_id);
       
-      // Obtener el stock fresco de este producto
+      if (item.tipo === 'salida') {
+        // TAREA 2: Flujo Despacho -> En Tránsito. 
+        // No descontar inventario ni crear movimiento aquí. Se hará en cerrarJornada().
+        continue;
+      }
+
+      // Logística Inversa (Devolución)
       const pDoc = await prodRef.get();
-      if (!pDoc.exists) throw new Error(`El producto ${item.name} ya no existe en WMS.`);
+      if (!pDoc.exists) continue;
       const pData = pDoc.data();
       const currentStock = pData.qty ?? pData.cantidad ?? 0;
-      
       let newStock = currentStock;
-      
-      if (item.tipo === 'salida') {
-        if (item.cantidad > currentStock) {
-          throw new Error(`Stock insuficiente para ${item.name}. Disponible: ${currentStock}, Solicitado: ${item.cantidad}`);
-        }
-        newStock -= item.cantidad;
+
+      if (item.clasificacion === 'stock_disponible') {
+        newStock += item.cantidad;
         
-        // Registrar movimiento de salida
-        const mRef = db.collection('movimientos_bodega').doc();
+        // Registrar movimiento de ingreso por devolución (logistica_inversa)
+        const mRef = db.collection('movimientos').doc();
         batch.set(mRef, {
-          producto_id: item.producto_id,
-          producto_codigo: item.code,
-          producto_nombre: item.name,
-          tipo: 'salida',
+          tipo: 'logistica_inversa',
+          productoId: item.producto_id,
+          codigoProducto: item.code,
+          nombreProducto: item.name,
           cantidad: item.cantidad,
-          numero_documento: item.referencia,
-          referencia: `Despacho Bodega Silog: ${idViaje}`,
-          observaciones: `Salida de ruta activa en patente ${_turnoData.patente}`,
-          operario_uid: _uid,
-          operario_nombre: _name,
+          unidad: pData.unit || 'unidad',
+          clasificacion: 'stock_disponible',
+          nDocumento: item.referencia,
+          despachoId: idViaje,
+          conductor: { id: _uid, nombre: _name },
+          patente: _turnoData.patente || '',
+          cliente: clients[0] || '',
+          comunaOrigen: document.getElementById('comuna_ruta').value || '',
+          valorServicio: 0,
+          observaciones: 'Re-ingreso a bodega de mercancía devuelta en ruta',
           fecha: firebase.firestore.FieldValue.serverTimestamp(),
-          scan_validado: false
+          jornadaId: _activeTurnoId
         });
       } else {
-        // Logística Inversa (Devolución)
-        if (item.clasificacion === 'stock_disponible') {
-          newStock += item.cantidad;
-          
-          // Registrar movimiento de ingreso por devolución
-          const mRef = db.collection('movimientos_bodega').doc();
-          batch.set(mRef, {
-            producto_id: item.producto_id,
-            producto_codigo: item.code,
-            producto_nombre: item.name,
-            tipo: 'devolucion',
-            cantidad: item.cantidad,
-            numero_documento: item.referencia,
-            referencia: `Devolución Stock: ${idViaje}`,
-            observaciones: `Re-ingreso a bodega de mercancía devuelta en ruta`,
-            operario_uid: _uid,
-            operario_nombre: _name,
-            fecha: firebase.firestore.FieldValue.serverTimestamp(),
-            scan_validado: false
-          });
-        } else {
-          // Merma: no ingresa al stock útil, crea documento en logistica_inversa para registro
-          const liRef = db.collection('logistica_inversa').doc();
-          batch.set(liRef, {
-            cliente: clients[0] || 'Cliente Final',
-            conductor_uid: _uid,
-            conductor_email: _email,
-            conductor_nombre: _name,
-            patente: _turnoData.patente || '',
-            producto_id: item.producto_id,
-            producto_codigo: item.code,
-            producto_nombre: item.name,
-            cantidad: item.cantidad,
-            motivo: `Devolución Merma / Dañado en ruta. Doc: ${item.referencia}`,
-            estado: 'reclasificado',
-            clasificacion: 'merma',
-            fecha_devolucion: firebase.firestore.FieldValue.serverTimestamp(),
-            fecha_recepcion: firebase.firestore.FieldValue.serverTimestamp(),
-            operario_uid: _uid
-          });
-        }
+        // Merma: registrar en logistica_inversa
+        const mRef = db.collection('movimientos').doc();
+        batch.set(mRef, {
+          tipo: 'logistica_inversa',
+          productoId: item.producto_id,
+          codigoProducto: item.code,
+          nombreProducto: item.name,
+          cantidad: item.cantidad,
+          unidad: pData.unit || 'unidad',
+          clasificacion: 'merma',
+          nDocumento: item.referencia,
+          despachoId: idViaje,
+          conductor: { id: _uid, nombre: _name },
+          patente: _turnoData.patente || '',
+          cliente: clients[0] || '',
+          comunaOrigen: document.getElementById('comuna_ruta').value || '',
+          valorServicio: 0,
+          observaciones: 'Merma / Dañado reportado en ruta',
+          fecha: firebase.firestore.FieldValue.serverTimestamp(),
+          jornadaId: _activeTurnoId
+        });
       }
       
-      // Actualizar stock de inventario
+      // Actualizar stock de inventario (solo se modifica si fue stock_disponible, si fue merma qty no cambia pero podemos actualizar)
       batch.update(prodRef, {
         qty: newStock,
         cantidad: newStock,
+        disponible: newStock,
+        total: newStock + (pData.noDisponible || 0),
         status: newStock === 0 ? 'no_disponible' : 'disponible',
         litros_actuales: (pData.litros_por_unidad || 0) * newStock,
         kg_actuales: (pData.kg_por_unidad || 0) * newStock,
@@ -901,7 +975,7 @@ async function finalizarDespacho() {
         referencia: uniqueDocsWms[0] || idViaje,
         distribuidor: 'TotalEnergies',
         nombre_distribuidor: 'TotalEnergies',
-        estado: totalDevoluciones > 0 && totalEntregas === 0 ? 'devuelto' : 'entregado',
+        estado: totalDevoluciones > 0 && totalEntregas === 0 ? 'devuelto' : 'en_transito',
         devolucion_motivo: totalDevoluciones > 0 ? 'Devolución de productos registrada en WMS' : '',
         fecha: firebase.firestore.Timestamp.fromDate(new Date(fechaDespacho + 'T12:00:00')),
         pod_timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -922,6 +996,7 @@ async function finalizarDespacho() {
     alert('Error al registrar despacho: ' + e.message);
   }
 }
+window.finalizarDespacho = withOnceClick(_finalizarDespacho);
 
 function showToast(msg, type='info') {
   const container = document.getElementById('toast-container');

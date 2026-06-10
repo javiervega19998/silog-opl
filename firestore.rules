@@ -233,5 +233,18 @@ function userRol() {
       allow read: if isAuth() && isViewer();
       allow update, delete: if false;
     }
+
+    // ── Auditoría de Movimientos (inmutable) ─────────────────────
+    match /auditoria_movimientos/{id} {
+      allow create: if isAuth();
+      allow read: if isAuth() && isViewer();
+      allow update, delete: if false;
+    }
+
+    // ── Movimientos (generados por cerrarJornada transaction) ────
+    match /movimientos/{id} {
+      allow read, create, update: if isAuth() && isAnyRole();
+      allow delete: if isAuth() && isAdmin();
+    }
   }
 }

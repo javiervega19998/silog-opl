@@ -210,6 +210,7 @@ select.field{appearance:auto;cursor:pointer}
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
+<script src="js/utils.js?v=1"></script>
 <script>
 
 // ── Compresión de imagen antes de upload ──────────────────
@@ -637,7 +638,7 @@ async function iniciarTurno() {
 // Cerrar Turno — compila hoja de ruta para finanzas
 // ═══════════════════════════════════════════════════════
 
-async function cerrarTurno() {
+async function _cerrarTurno() {
   if (!_turnoDocId) { showToast('No hay turno activo','error'); return; }
   
   let tSnap;
@@ -898,9 +899,9 @@ async function cerrarTurno() {
       }
     }
 
-    // 🏭 Generar Movimientos WMS automáticamente (solo TotalEnergies)
+    // 🏭 Generar Movimientos WMS y cerrar Jornada con Transaction (Tarea 2)
     try {
-      await generarMovimientosWMS(_turnoDocId, activeVeh);
+      await cerrarJornada(_turnoDocId, { id: _uid, nombre: _name, patente: activeVeh });
     } catch(wmsErr) {
       console.warn("WMS Sinc Err:", wmsErr);
     }
@@ -912,116 +913,87 @@ async function cerrarTurno() {
     btn.disabled=false; btn.innerHTML='🔴 Finalizar Jornada';
   }
 }
+window.cerrarTurno = withOnceClick(_cerrarTurno);
 
-async function generarMovimientosWMS(turnoId, patente) {
+async function cerrarJornada(turnoId, conductorInfo) {
   try {
-    const hrSnap = await db.collection('hojas_ruta')
+    // a. Leer todos los despachos donde jornadaId==jornadaId y estado=='en_transito'
+    const despachosSnap = await db.collection('despachos')
       .where('turno_id', '==', turnoId)
-      .limit(1).get();
+      .where('estado', '==', 'en_transito')
+      .get();
       
+    if (despachosSnap.empty) return;
+
+    // Buscar la hoja de ruta para extraer los productos, ya que el despacho WMS los guarda allí
+    const hrSnap = await db.collection('hojas_ruta').where('turno_id', '==', turnoId).limit(1).get();
     if (hrSnap.empty) return;
-    const hrDoc = hrSnap.docs[0];
-    const hrData = hrDoc.data();
-    
-    const dist = (hrData.distribuidor || hrData.nombre_distribuidor || '').toLowerCase();
-    if (!dist.includes('total')) return;
-    
-    const items = hrData.productos_despacho || [];
-    if (items.length === 0) return;
-    
-    const movSnap = await db.collection('movimientos_bodega')
-      .where('referencia', '==', `Despacho Bodega Silog: ${hrData.id_viaje}`)
-      .limit(1).get();
-      
-    if (!movSnap.empty) {
-      console.log('Movimientos WMS ya estaban registrados para este turno.');
-      return;
-    }
-    
-    const batch = db.batch();
-    for (let item of items) {
-      const prodRef = db.collection('inventory').doc(item.producto_id);
-      const pDoc = await prodRef.get();
-      if (!pDoc.exists) continue;
-      
-      const pData = pDoc.data();
-      const currentStock = pData.qty ?? pData.cantidad ?? 0;
-      let newStock = currentStock;
-      
-      if (item.tipo === 'salida') {
-        newStock = Math.max(0, currentStock - item.cantidad);
+    const hrData = hrSnap.docs[0].data();
+    const productos = hrData.productos_despacho || [];
+
+    await db.runTransaction(async (transaction) => {
+      // TAREA 2b: Para cada producto, descontar inventory.disponible y crear movimiento
+      for (let item of productos) {
+        if (item.tipo !== 'salida') continue; // Sólo nos importan las salidas (que quedaron en_transito)
         
-        const mRef = db.collection('movimientos_bodega').doc();
-        batch.set(mRef, {
-          producto_id: item.producto_id,
-          producto_codigo: item.code || '',
-          producto_nombre: item.name || '',
-          tipo: 'salida',
-          cantidad: item.cantidad,
-          numero_documento: item.referencia || '',
-          referencia: `Despacho Bodega Silog: ${hrData.id_viaje}`,
-          observaciones: `Salida automática al cierre de turno ${turnoId}`,
-          operario_uid: _uid,
-          operario_nombre: _name,
-          fecha: firebase.firestore.FieldValue.serverTimestamp(),
-          scan_validado: false
+        const prodRef = db.collection('inventory').doc(item.producto_id);
+        const pDoc = await transaction.get(prodRef);
+        if (!pDoc.exists) continue;
+        const pData = pDoc.data();
+        
+        const currentDisp = pData.disponible ?? pData.qty ?? pData.cantidad ?? 0;
+        const newDisp = Math.max(0, currentDisp - item.cantidad);
+        const newTotal = newDisp + (pData.noDisponible || 0);
+        
+        transaction.update(prodRef, {
+          disponible: newDisp,
+          qty: newDisp,
+          cantidad: newDisp,
+          total: newTotal,
+          status: newDisp === 0 ? 'no_disponible' : 'disponible',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-      } else if (item.tipo === 'inversa') {
-        if (item.clasificacion === 'stock_disponible') {
-          newStock = currentStock + item.cantidad;
-          
-          const mRef = db.collection('movimientos_bodega').doc();
-          batch.set(mRef, {
-            producto_id: item.producto_id,
-            producto_codigo: item.code || '',
-            producto_nombre: item.name || '',
-            tipo: 'devolucion',
-            cantidad: item.cantidad,
-            numero_documento: item.referencia || '',
-            referencia: `Devolución Stock: ${hrData.id_viaje}`,
-            observaciones: `Re-ingreso automático por devolución al cierre de turno`,
-            operario_uid: _uid,
-            operario_nombre: _name,
-            fecha: firebase.firestore.FieldValue.serverTimestamp(),
-            scan_validado: false
-          });
-        } else {
-          const liRef = db.collection('logistica_inversa').doc();
-          batch.set(liRef, {
-            cliente: hrData.clientes_despacho?.[0] || 'Cliente Final',
-            conductor_uid: _uid,
-            conductor_email: _email,
-            conductor_nombre: _name,
-            patente: patente.toUpperCase(),
-            producto_id: item.producto_id,
-            producto_codigo: item.code || '',
-            producto_nombre: item.name || '',
-            cantidad: item.cantidad,
-            motivo: `Devolución Merma / Dañado en ruta. Doc: ${item.referencia || ''}`,
-            estado: 'reclasificado',
-            clasificacion: 'merma',
-            fecha_devolucion: firebase.firestore.FieldValue.serverTimestamp(),
-            fecha_recepcion: firebase.firestore.FieldValue.serverTimestamp(),
-            operario_uid: _uid
-          });
-        }
+        
+        const mRef = db.collection('movimientos').doc();
+        transaction.set(mRef, {
+          tipo: 'salida',
+          productoId: item.producto_id,
+          codigoProducto: item.code || '',
+          nombreProducto: item.name || '',
+          cantidad: item.cantidad,
+          unidad: pData.unit || 'unidad',
+          despachoId: hrSnap.docs[0].id,
+          conductor: conductorInfo,
+          patente: conductorInfo.patente || '',
+          cliente: hrData.clientes_despacho?.[0] || 'Cliente Final',
+          comunaOrigen: hrData.comuna || '',
+          valorServicio: hrData.valor_servicio || 0,
+          observaciones: `Cierre de Jornada: Salida confirmada de ruta ${turnoId}`,
+          fecha: firebase.firestore.FieldValue.serverTimestamp(),
+          jornadaId: turnoId
+        });
       }
       
-      batch.update(prodRef, {
-        qty: newStock,
-        cantidad: newStock,
-        status: newStock === 0 ? 'no_disponible' : 'disponible',
-        litros_actuales: (pData.litros_por_unidad || 0) * newStock,
-        kg_actuales: (pData.kg_por_unidad || 0) * newStock,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedBy: _uid
+      // TAREA 2c: Actualizar cada despacho a estado='completado'
+      despachosSnap.forEach(dDoc => {
+        transaction.update(dDoc.ref, {
+          estado: 'completado',
+          cerradoEn: firebase.firestore.FieldValue.serverTimestamp()
+        });
       });
-    }
+      
+      // TAREA 2d: Actualizar jornada a estado='cerrada' (Esto ya lo hace cerrarTurno, pero por requerimiento)
+      const turnoRef = db.collection('turnos').doc(turnoId);
+      transaction.update(turnoRef, {
+        estado: 'cerrado',
+        cerradoEn: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
     
-    await batch.commit();
-    showToast('🏭 Movimientos WMS sincronizados', 'success');
+    showToast('🏭 Jornada cerrada, inventario y movimientos registrados (Transacción)', 'success');
   } catch(err) {
-    console.error('Error generando movimientos WMS al cierre:', err);
+    console.error('Error en cerrarJornada transaction:', err);
+    throw err;
   }
 }
 </script>

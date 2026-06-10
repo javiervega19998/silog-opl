@@ -68,63 +68,143 @@ function renderInversas(){
   if(!_inversas.length){list.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
 
-  list.innerHTML=_inversas.map(inv=>{
-    const st=inv.estado||'recepcion_pendiente';
-    const badgeCls={recepcion_pendiente:'badge-pend',recibido:'badge-recv',reclasificado:'badge-done'}[st]||'badge-pend';
-    const badgeTxt={recepcion_pendiente:'⏳ Pendiente',recibido:'📥 Recibido',reclasificado:'✅ Reclasificado'}[st]||st;
-    const fecha=inv.fecha_devolucion?formatDate(inv.fecha_devolucion):'—';
+  // Agrupar por Cliente + Conductor + Motivo (simula una agrupación por viaje/documento)
+  const grupos = {};
+  _inversas.forEach(inv => {
+    const key = `${inv.cliente||'SinCliente'}|${inv.conductor_email||'SinConductor'}|${inv.motivo||'SinMotivo'}`;
+    if (!grupos[key]) grupos[key] = {
+      cliente: inv.cliente,
+      conductor: inv.conductor_email?.split('@')[0] || inv.conductor_nombre,
+      motivo: inv.motivo,
+      fecha: inv.fecha_devolucion ? formatDate(inv.fecha_devolucion) : '—',
+      items: [],
+      estadoGlobal: 'reclasificado' // se calculará el mínimo estado
+    };
+    grupos[key].items.push(inv);
+  });
 
-    let actions='';
-    if(st==='recepcion_pendiente'){
-      actions=`<div class="inv-actions">
-        <button class="inv-btn" onclick="confirmarRecepcion('${inv.id}', this)">📥 Confirmar Recepción</button>
-      </div>`;
-    } else if(st==='recibido'){
-      actions=`<div class="inv-actions">
-        <button class="inv-btn inv-btn-stock" onclick="reclasificar('${inv.id}','stock_disponible', this)">📦 Stock Disponible</button>
-        <button class="inv-btn inv-btn-merma" onclick="reclasificar('${inv.id}','merma', this)">🗑️ Merma</button>
-      </div>`;
-    }
+  const order={recepcion_pendiente:0, recibido:1, reclasificado:2};
+  const gruposArr = Object.values(grupos);
+  gruposArr.forEach(g => {
+    let minE = 2;
+    g.items.forEach(i => {
+      const eVal = order[i.estado||'recepcion_pendiente']??9;
+      if (eVal < minE) minE = eVal;
+    });
+    g.estadoGlobal = minE === 0 ? 'recepcion_pendiente' : (minE === 1 ? 'recibido' : 'reclasificado');
+  });
 
-    return `<div class="inv-item">
-      <div class="inv-top">
-        <div class="inv-client">${sanitize(inv.cliente||'—')}</div>
-        <div class="inv-badge ${badgeCls}">${badgeTxt}</div>
+  gruposArr.sort((a,b) => order[a.estadoGlobal] - order[b.estadoGlobal]);
+
+  list.innerHTML = gruposArr.map((g, idx) => {
+    const badgeCls={recepcion_pendiente:'badge-pend',recibido:'badge-recv',reclasificado:'badge-done'}[g.estadoGlobal]||'badge-pend';
+    const badgeTxt={recepcion_pendiente:'⏳ Pendiente',recibido:'📥 Recibido',reclasificado:'✅ Reclasificado'}[g.estadoGlobal]||g.estadoGlobal;
+    
+    // Generar las filas de los productos dentro del acordeón
+    const itemsHtml = g.items.map(inv => {
+      let actions = '';
+      if(inv.estado==='recepcion_pendiente'){
+        actions = `<button class="inv-btn" style="padding:4px 8px;font-size:0.75rem" onclick="confirmarRecepcion('${inv.id}', this)">📥 Confirmar</button>`;
+      } else if(inv.estado==='recibido'){
+        actions = `
+          <button class="inv-btn inv-btn-stock" style="padding:4px 8px;font-size:0.75rem" onclick="reclasificar('${inv.id}','stock_disponible', this)">📦 Stock</button>
+          <button class="inv-btn inv-btn-merma" style="padding:4px 8px;font-size:0.75rem" onclick="reclasificar('${inv.id}','merma', this)">🗑️ Merma</button>
+        `;
+      } else {
+        actions = `<span style="font-size:.75rem;color:var(--text2)">Clasificado: <b style="color:${inv.clasificacion==='merma'?'var(--danger)':'var(--success)'}">${inv.clasificacion==='merma'?'🗑️ Merma':'📦 Stock'}</b></span>`;
+      }
+
+      return `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg); padding:8px; margin-bottom:6px; border-radius:6px; border:1px solid var(--border);">
+          <div>
+            <strong style="font-size:0.8rem">${sanitize(inv.producto_nombre || 'Producto')}</strong><br>
+            <small style="color:var(--text2)">Cant: <b>${inv.cantidad}</b> | Cód: ${sanitize(inv.producto_codigo||'')}</small>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center">
+            ${actions}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="inv-item" style="padding:0; overflow:hidden;">
+        <!-- Header del Acordeón -->
+        <div style="padding:16px; cursor:pointer; background:var(--surface);" onclick="document.getElementById('acc-${idx}').style.display = document.getElementById('acc-${idx}').style.display === 'none' ? 'block' : 'none'">
+          <div class="inv-top">
+            <div class="inv-client">${sanitize(g.cliente||'—')}</div>
+            <div class="inv-badge ${badgeCls}">${badgeTxt}</div>
+          </div>
+          <div class="inv-meta">📅 ${g.fecha} · 🚛 Conductor: ${sanitize(g.conductor||'—')}</div>
+          <div class="inv-motivo">💬 ${sanitize(g.motivo||'Sin motivo')}</div>
+          <div style="text-align:center; font-size:0.75rem; color:var(--text2); margin-top:8px;">
+            🔽 Ver ${g.items.length} productos
+          </div>
+        </div>
+        <!-- Contenido del Acordeón -->
+        <div id="acc-${idx}" style="display:none; padding:12px; background:rgba(0,0,0,0.2); border-top:1px solid var(--border);">
+          ${itemsHtml}
+        </div>
       </div>
-      <div class="inv-meta">📅 ${fecha} · 🚛 ${sanitize(inv.conductor_email||'—').split('@')[0]}</div>
-      <div class="inv-motivo">💬 ${sanitize(inv.motivo||'Sin motivo')}</div>
-      ${inv.foto_url?`<img src="${inv.foto_url}" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:8px"/>`:''}
-      ${actions}
-      ${st==='reclasificado'?`<div style="font-size:.75rem;color:var(--text2);margin-top:4px">Clasificado: <b style="color:${inv.clasificacion==='merma'?'var(--danger)':'var(--success)'}"> ${inv.clasificacion==='merma'?'🗑️ Merma':'📦 Stock'}</b></div>`:''}
-    </div>`;
+    `;
   }).join('');
 }
 
-async function confirmarRecepcion(id, btn){
-  if(!confirm('¿Confirmar que la mercadería ingresó a bodega?'))return;
-  if(btn) {
-    btn.disabled = true;
-    btn.dataset.originalHtml = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Procesando...';
-  }
+async function _confirmarRecepcion(id, btn){
+  if(btn) btn.disabled=true;
   try{
-    await db.collection('logistica_inversa').doc(id).update({
-      estado:'recibido',
-      fecha_recepcion:firebase.firestore.FieldValue.serverTimestamp(),
-      operario_uid:_uid
+    const d=await db.collection('logistica_inversa').doc(id).get();
+    if(!d.exists) throw new Error('No existe');
+    const b=d.data();
+    if(b.estado!=='pendiente') throw new Error('Ya procesado');
+
+    await db.runTransaction(async(t)=>{
+      const pref=db.collection('inventory').doc(b.producto_id);
+      const pdoc=await t.get(pref);
+      let qty=0;
+      if(pdoc.exists){
+        const prodData = pdoc.data();
+        qty = prodData.disponible ?? prodData.qty ?? prodData.cantidad ?? 0;
+      }
+      const numCant = parseInt(b.cantidad)||0;
+      t.update(pref,{qty:qty+numCant,disponible:qty+numCant});
+      t.update(db.collection('logistica_inversa').doc(id),{
+        estado:'ingresado_bodega',
+        fecha_recepcion:firebase.firestore.FieldValue.serverTimestamp(),
+        receptor_uid:_uid,
+        receptor_email:_email
+      });
+      const mref=db.collection('movimientos_bodega').doc();
+      t.set(mref,{
+        tipo:'devolucion',
+        producto_id:b.producto_id,
+        producto_codigo:b.producto_codigo||'',
+        producto_nombre:b.producto_nombre||'',
+        cantidad:numCant,
+        referencia:'Ingreso a Bodega (Recepción Logística Inversa)',
+        operario_uid:_uid,
+        operario_nombre:_name||_email,
+        fecha:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      // Registrar log de auditoría
+      t.set(db.collection('audit_log').doc(), {
+        tipo: 'recepcion_inversa',
+        documento_id: id,
+        producto_id: b.producto_id,
+        cantidad: numCant,
+        usuario: _email,
+        fecha: firebase.firestore.FieldValue.serverTimestamp()
+      });
     });
-    showToast('📥 Recepción confirmada','success');
-    await loadInversas();
+    showToast('✅ Recepción confirmada e inventario actualizado','success');
   }catch(e){
+    if(btn) btn.disabled=false;
     showToast('Error: '+e.message,'error');
-    if(btn) {
-      btn.disabled = false;
-      btn.innerHTML = btn.dataset.originalHtml;
-    }
   }
 }
+window.confirmarRecepcion = withOnceClick(_confirmarRecepcion);
 
-async function reclasificar(id, tipo, btn){
+async function _reclasificar(id, tipo, btn){
   const label=tipo==='merma'?'MERMA':'STOCK DISPONIBLE';
   if(!confirm(`¿Clasificar como ${label}?`))return;
   if(btn) {
@@ -192,6 +272,7 @@ async function reclasificar(id, tipo, btn){
     }
   }
 }
+window.reclasificar = withOnceClick(_reclasificar);
 
 // ═══ PRODUCTOS ═══
 async function loadProductos(){
@@ -453,23 +534,152 @@ function renderMovimientos(){
   const empty=document.getElementById('mov-empty');
   if(!_movimientos.length){list.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
+  
+  const currentRole = (typeof userRole !== 'undefined') ? userRole.toLowerCase().trim() : 'operador';
+  const isAdmin = ['admin','administrador'].includes(currentRole);
+
   list.innerHTML=_movimientos.map(m=>{
     const isIn=['ingreso','devolucion','abastecimiento','ajuste_pos'].includes(m.tipo);
     const icons={ingreso:'📥',salida:'📤',despacho:'🚛',merma:'🗑️',devolucion:'🔄',abastecimiento:'📥',ajuste:'🔧'};
     const iconCls={ingreso:'mov-in',salida:'mov-out',despacho:'mov-out',merma:'mov-out',devolucion:'mov-dev',abastecimiento:'mov-in',ajuste:'mov-adj'};
     const prod=_productos.find(p=>p.id===m.producto_id);
-    return `<div class="mov-item">
-      <div class="mov-icon ${iconCls[m.tipo]||'mov-adj'}">${icons[m.tipo]||'📦'}</div>
-      <div class="mov-info">
-        <div class="mv-prod">${sanitize(prod?.nombre||m.referencia||m.tipo)}</div>
-        <div class="mv-meta">${m.fecha?formatDateTime(m.fecha):'—'} · ${sanitize(m.operario_nombre||'—')}</div>
+
+    let adminHtml = '';
+    if (isAdmin) {
+      adminHtml = `
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+          <button class="btn btn-sm" style="padding:4px 8px; font-size:0.7rem; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:4px; cursor:pointer;" onclick="editarMovimiento('${m.id}')">✏️</button>
+          <button class="btn btn-sm" style="padding:4px 8px; font-size:0.7rem; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); color:#EF4444; border-radius:4px; cursor:pointer;" onclick="eliminarMovimiento('${m.id}')">🗑️</button>
+        </div>
+      `;
+    }
+
+    return `<div class="mov-item" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; flex:1; gap:12px; min-width:0;">
+        <div class="mov-icon ${iconCls[m.tipo]||'mov-adj'}">${icons[m.tipo]||'📦'}</div>
+        <div class="mov-info" style="min-width:0;">
+          <div class="mv-prod" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sanitize(prod?.nombre||m.referencia||m.tipo)}</div>
+          <div class="mv-meta">${m.fecha?formatDateTime(m.fecha):'—'} · ${sanitize(m.operario_nombre||'—')}</div>
+        </div>
       </div>
-      <div class="mov-qty ${isIn?'pos':'neg'}">${isIn?'+':'-'}${m.cantidad||0}</div>
+      <div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
+        <div class="mov-qty ${isIn?'pos':'neg'}">${isIn?'+':'-'}${m.cantidad||0}</div>
+        ${adminHtml}
+      </div>
     </div>`;
   }).join('');
 }
 
-async function registrarMovimiento(dir){
+async function eliminarMovimiento(id) {
+  if (!confirm('¿Estás seguro de eliminar este movimiento? El inventario será recalculado.')) return;
+  
+  const mov = _movimientos.find(m => m.id === id);
+  if (!mov) return;
+  
+  try {
+    await db.runTransaction(async (transaction) => {
+      const movRef = db.collection('movimientos_bodega').doc(id);
+      const prodRef = db.collection('inventory').doc(mov.producto_id);
+      
+      const pDoc = await transaction.get(prodRef);
+      if (pDoc.exists) {
+        const pData = pDoc.data();
+        const currentStock = pData.qty ?? pData.cantidad ?? 0;
+        
+        const isIn = ['ingreso','devolucion','abastecimiento','ajuste_pos'].includes(mov.tipo);
+        
+        // Revertir
+        let newStock = currentStock;
+        if (isIn) {
+          newStock = Math.max(0, currentStock - (mov.cantidad || 0));
+        } else {
+          newStock = currentStock + (mov.cantidad || 0);
+        }
+        
+        transaction.update(prodRef, {
+          qty: newStock,
+          cantidad: newStock,
+          status: newStock === 0 ? 'no_disponible' : 'disponible',
+          litros_actuales: (pData.litros_por_unidad || 0) * newStock,
+          kg_actuales: (pData.kg_por_unidad || 0) * newStock,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      transaction.delete(movRef);
+    });
+    
+    showToast('✅ Movimiento eliminado e inventario recalculado', 'success');
+    await Promise.all([loadMovimientos(), loadProductos(), typeof loadInventory === 'function' ? loadInventory() : Promise.resolve()]);
+  } catch(e) {
+    console.error(e);
+    showToast('Error al eliminar: ' + e.message, 'error');
+  }
+}
+
+async function editarMovimiento(id) {
+  const mov = _movimientos.find(m => m.id === id);
+  if (!mov) return;
+  
+  const newCantStr = prompt(`Editar cantidad para ${mov.producto_nombre || mov.tipo}:\n(Cantidad actual: ${mov.cantidad})`, mov.cantidad);
+  if (newCantStr === null) return;
+  
+  const newCant = parseInt(newCantStr);
+  if (isNaN(newCant) || newCant < 0) {
+    showToast('Cantidad inválida', 'warning');
+    return;
+  }
+  
+  try {
+    await db.runTransaction(async (transaction) => {
+      const movRef = db.collection('movimientos_bodega').doc(id);
+      const prodRef = db.collection('inventory').doc(mov.producto_id);
+      
+      const pDoc = await transaction.get(prodRef);
+      if (pDoc.exists) {
+        const pData = pDoc.data();
+        const currentStock = pData.qty ?? pData.cantidad ?? 0;
+        const isIn = ['ingreso','devolucion','abastecimiento','ajuste_pos'].includes(mov.tipo);
+        
+        let tempStock = currentStock;
+        if (isIn) {
+          tempStock = Math.max(0, currentStock - (mov.cantidad || 0));
+        } else {
+          tempStock = currentStock + (mov.cantidad || 0);
+        }
+        
+        let newStock = 0;
+        if (isIn) {
+          newStock = tempStock + newCant;
+        } else {
+          newStock = Math.max(0, tempStock - newCant);
+        }
+        
+        transaction.update(prodRef, {
+          qty: newStock,
+          cantidad: newStock,
+          status: newStock === 0 ? 'no_disponible' : 'disponible',
+          litros_actuales: (pData.litros_por_unidad || 0) * newStock,
+          kg_actuales: (pData.kg_por_unidad || 0) * newStock,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      
+      transaction.update(movRef, {
+        cantidad: newCant,
+        fecha_edicion: firebase.firestore.FieldValue.serverTimestamp(),
+        editado_por: _uid
+      });
+    });
+    
+    showToast('✅ Movimiento editado e inventario recalculado', 'success');
+    await Promise.all([loadMovimientos(), loadProductos(), typeof loadInventory === 'function' ? loadInventory() : Promise.resolve()]);
+  } catch(e) {
+    console.error(e);
+    showToast('Error al editar: ' + e.message, 'error');
+  }
+}
+
+async function _registrarMovimiento(dir){
   const isIn=dir==='ingreso';
   const prodId=document.getElementById(isIn?'ing-producto':'sal-producto').value;
   const tipo=document.getElementById(isIn?'ing-tipo':'sal-tipo').value;
@@ -490,7 +700,7 @@ async function registrarMovimiento(dir){
     }
     if(cant>stock){
       showToast(`❌ Acción no válida: Cantidad supera el stock disponible (${stock}).`, 'error');
-      alert(`La acción no es válida:\nLa cantidad de salida solicitada (${cant}) supera la cantidad disponible actual en bodega (${stock}).`);
+      alert(`La acción no es válida:\nEstás intentando registrar una salida de ${cant} unidades, pero el producto seleccionado solo cuenta con ${stock} unidades en stock.`);
       return;
     }
   }
@@ -503,40 +713,59 @@ async function registrarMovimiento(dir){
   }
 
   try{
-    // Save movement
-    await db.collection('movimientos_bodega').add({
-      producto_id:prodId,
-      tipo:isIn?tipo:(tipo==='despacho'?'salida':tipo),
-      cantidad:cant,
-      ubicacion:ubicacion,
-      operario_uid:_uid,operario_nombre:_name,
-      referencia:ref,scan_validado:false,
-      fecha:firebase.firestore.FieldValue.serverTimestamp()
+    await db.runTransaction(async(t)=>{
+      const pref=db.collection('inventory').doc(prodId);
+      const pdoc=await t.get(pref);
+      let stock=0;
+      if(pdoc.exists){
+        const prodData = pdoc.data();
+        stock = prodData.disponible ?? prodData.qty ?? prodData.cantidad ?? 0;
+      }
+
+      if(!isIn && cant>stock){
+        throw new Error(`Stock insuficiente (Actual: ${stock}, Solicitado: ${cant}).`);
+      }
+
+      let n=stock+(isIn?cant:-cant);
+      if(n<0) n=0;
+      t.update(pref,{qty:n,disponible:n});
+
+      const mref=db.collection('movimientos_bodega').doc();
+      t.set(mref,{
+        tipo:isIn?tipo:'salida',
+        producto_id:prodId,
+        producto_codigo:prod.code||'',
+        producto_nombre:prod.name||prod.nombre||'',
+        cantidad:cant,
+        referencia:ref,
+        ubicacion:ubicacion,
+        operario_uid:_uid,
+        operario_nombre:_name||_email,
+        fecha:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      // Log auditoría
+      t.set(db.collection('audit_log').doc(), {
+        tipo: 'movimiento_manual',
+        direccion: dir,
+        producto_id: prodId,
+        cantidad: cant,
+        usuario: _email,
+        fecha: firebase.firestore.FieldValue.serverTimestamp()
+      });
     });
 
-    // Update stock
-    const newStock=(prod?.qty??prod?.cantidad??0)+(isIn?cant:-cant);
-    const updateData={
-      qty: newStock,
-      cantidad: newStock,
-      status: newStock===0?'no_disponible':'disponible',
-      litros_actuales: (prod?.litros_por_unidad || 0) * newStock,
-      kg_actuales: (prod?.kg_por_unidad || 0) * newStock,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedBy: _uid
-    };
-    if(ubicacion&&isIn) updateData.location=ubicacion;
-    await db.collection('inventory').doc(prodId).update(updateData);
-
-    showToast(`✅ ${isIn?'Ingreso':'Salida'} registrado: ${cant} ${prod?.unit||prod?.unidad||'un'}`,'success');
-    // Reset
+    showToast('✅ Movimiento registrado','success');
     document.getElementById(isIn?'ing-cant':'sal-cant').value='';
     document.getElementById(isIn?'ing-ref':'sal-ref').value='';
     document.getElementById(isIn?'ing-codigo':'sal-codigo').value='';
     document.getElementById(isIn?'ing-valid-feedback':'sal-valid-feedback').style.display='none';
     await Promise.all([loadProductos(),loadMovimientos()]);
   }catch(e){
-    showToast('Error: '+e.message,'error');
+    if(e.message.includes('Stock insuficiente')) {
+      alert(`⚠️ ${e.message}`);
+    } else {
+      showToast('Error: '+e.message,'error');
+    }
   }finally{
     if(btn) {
       btn.disabled = false;

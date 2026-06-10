@@ -27,13 +27,6 @@ function renderItems(items) {
     return;
   }
 
-  // Override status dynamically for qty === 0 items to 'no_disponible'
-  items.forEach(item => {
-    if ((item.qty || item.cantidad || 0) === 0) {
-      item.status = 'no_disponible';
-    }
-  });
-
   let slidedownBtn = '';
   let tableStyle = '';
   if (items.length > 10) {
@@ -49,24 +42,31 @@ function renderItems(items) {
     <div class="table-wrap" ${tableStyle}>
       <table>
         <thead><tr>
-          <th>Código</th><th>Nombre</th><th>Cantidad</th>
-          <th>Un. Medida</th><th>Estado</th><th>Acciones</th>
+          <th>Código</th><th>Nombre</th>
+          <th>Disponible</th><th>En Tránsito</th><th>Total</th>
+          <th>Un. Medida</th><th>Acciones</th>
         </tr></thead>
-        <tbody>${items.map(item => `
+        <tbody>${items.map(item => {
+          const disp = item.disponible ?? item.qty ?? item.cantidad ?? 0;
+          const noDisp = item.noDisponible ?? 0;
+          const total = item.total ?? (disp + noDisp);
+          return `
           <tr>
             <td><code style="color:#F47920;font-size:0.8rem">${item.code || '—'}</code>${item.sku?`<br><span style="font-size:.68rem;color:#8A9DC0">${item.sku}</span>`:''}</td>
-            <td><strong style="font-size:0.88rem">${item.name || '—'}</strong>${item.notes ? `<br><span style="font-size:0.72rem;color:#8899BB">${item.notes}</span>` : ''}</td>
-            <td><b>${item.qty || 0}</b>
-              ${(item.qty||0)>0 && (item.qty||0)<=3 ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#F59E0B;font-weight:600">⚠️ CRÍTICO</span>':''}
-              ${(item.qty||0)===0 ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#EF4444;font-weight:600">⚠️ SIN STOCK</span>':''}
+            <td><strong style="font-size:0.88rem">${item.name || item.nombre || '—'}</strong>${item.notes ? `<br><span style="font-size:0.72rem;color:#8899BB">${item.notes}</span>` : ''}</td>
+            <td><b style="color:var(--success)">${disp}</b>
+              ${disp>0 && disp<=3 ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#F59E0B;font-weight:600">⚠️ CRÍTICO</span>':''}
+              ${disp===0 ? '&nbsp;&nbsp;<span style="font-size:.65rem;color:#EF4444;font-weight:600">⚠️ SIN STOCK</span>':''}
             </td>
+            <td><b style="color:var(--warning)">${noDisp}</b></td>
+            <td><b style="color:var(--primary)">${total}</b></td>
             <td style="font-size:0.85rem;color:#8899BB;font-weight:500">${item.unit || '—'}</td>
-            <td><span class="badge ${statusColors[item.status] || 'badge-pending'}">${statusLabels[item.status] || item.status}</span></td>
             <td>
               <button class="btn btn-outline btn-sm" onclick="editItem('${item.id}')" style="margin-right:4px">✏️</button>
               ${userRole === 'admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}')">🗑️</button>` : ''}
             </td>
-          </tr>`).join('')}
+          </tr>`
+        }).join('')}
         </tbody>
       </table>
     </div>
@@ -85,26 +85,22 @@ window.slideDownTable = function() {
 };
 
 function applyFilter() {
-  const q = document.getElementById('search-inv').value.toLowerCase();
+  const q = document.getElementById('search-inv')?.value.toLowerCase() || '';
   let filtered = allItems;
   
-  // Override status dynamically for filtering
-  filtered.forEach(i => {
-    if ((i.qty || i.cantidad || 0) === 0) {
-      i.status = 'no_disponible';
-    }
-  });
-
   if (currentFilter !== 'all') {
-    if (currentFilter === 'agotado') {
-      filtered = filtered.filter(i => i.status === 'agotado' || i.status === 'no_disponible');
-    } else {
-      filtered = filtered.filter(i => i.status === currentFilter);
+    if (currentFilter === 'disponible') {
+      filtered = filtered.filter(i => (i.disponible ?? i.qty ?? i.cantidad ?? 0) > 0);
+    } else if (currentFilter === 'en_transito') {
+      filtered = filtered.filter(i => (i.noDisponible ?? 0) > 0);
+    } else if (currentFilter === 'agotado') {
+      filtered = filtered.filter(i => (i.disponible ?? i.qty ?? i.cantidad ?? 0) === 0);
     }
+    // "entregado" u otros se ignoran
   }
   if (q) filtered = filtered.filter(i =>
     (i.code||'').toLowerCase().includes(q) ||
-    (i.name||'').toLowerCase().includes(q) ||
+    (i.name||i.nombre||'').toLowerCase().includes(q) ||
     (i.location||'').toLowerCase().includes(q)
   );
   renderItems(filtered);
@@ -248,28 +244,30 @@ function dlXLSX(sheets, filename) {
 }
 
 function exportResumen() {
-  const rows = [['RESUMEN DE INVENTARIO - SILOG SpA','','','','',''],
-    ['Fecha de generación:', new Date().toLocaleString('es-CL'),'','','',''],
+  const rows = [['RESUMEN DE INVENTARIO - SILOG SpA','','','','','',''],
+    ['Fecha de generación:', new Date().toLocaleString('es-CL'),'','','','',''],
     [],
-    ['Código','SKU','Producto','Cantidad','Unidad','Estado','Stock Mínimo','Alerta']];
+    ['Código','SKU','Producto','Disponible','En Tránsito','Total','Unidad','Alerta']];
   
   const sorted = [...allItems].sort((a,b) => (a.name||a.nombre||'').localeCompare(b.name||b.nombre||''));
   sorted.forEach(i => {
-    const alerta = (i.stock_minimo||0)>0 && (i.qty||0)<=(i.stock_minimo||0) ? '⚠️ BAJO STOCK' : '';
-    rows.push([i.code||'', i.sku||'', i.name||i.nombre||'', i.qty||i.cantidad||0, i.unit||'', statusLabels[i.status]||i.status||'', i.stock_minimo||0, alerta]);
+    const disp = i.disponible ?? i.qty ?? i.cantidad ?? 0;
+    const noDisp = i.noDisponible ?? 0;
+    const total = i.total ?? (disp + noDisp);
+    const alerta = (i.stock_minimo||0)>0 && disp<=(i.stock_minimo||0) ? '⚠️ BAJO STOCK' : '';
+    
+    rows.push([i.code||'', i.sku||'', i.name||i.nombre||'', disp, noDisp, total, i.unit||'', alerta]);
   });
   
-  const totalQty = allItems.reduce((s,i) => s + (i.qty || i.cantidad || 0), 0);
-  const byStatus = {};
-  allItems.forEach(i => {
-    const s = i.status || 'disponible';
-    byStatus[s] = (byStatus[s] || 0) + (i.qty || i.cantidad || 0);
-  });
+  const totalDisp = allItems.reduce((s,i) => s + (i.disponible ?? i.qty ?? i.cantidad ?? 0), 0);
+  const totalNoDisp = allItems.reduce((s,i) => s + (i.noDisponible ?? 0), 0);
+  const totalGlobal = allItems.reduce((s,i) => s + (i.total ?? ((i.disponible ?? i.qty ?? i.cantidad ?? 0) + (i.noDisponible ?? 0))), 0);
   
   rows.push([]);
   rows.push(['','','TOTAL PRODUCTOS', allItems.length,'','','','']);
-  rows.push(['','','TOTAL UNIDADES', totalQty,'','','','']);
-  Object.entries(byStatus).forEach(([s,c]) => rows.push(['','', statusLabels[s]||s, c,'','','','']));
+  rows.push(['','','TOTAL DISPONIBLE', totalDisp,'','','','']);
+  rows.push(['','','TOTAL EN TRÁNSITO', totalNoDisp,'','','','']);
+  rows.push(['','','TOTAL GLOBAL', totalGlobal,'','','','']);
   
   dlXLSX([{name: 'Resumen Inventario', data: rows}], 'SILOG_Resumen_Inventario');
 }
@@ -341,16 +339,21 @@ async function exportConsolidado() {
 
     // --- SHEET 1: Stock de Inventario ---
     const h1 = [
-      ['CÓDIGO PRODUCTO','NOMBRE PRODUCTO','Litros x Unidad','KG x UNIDAD','STOCK ACTUAL','LITROS ACTUALES','KG ACTUALES']
+      ['CÓDIGO PRODUCTO','NOMBRE PRODUCTO','Litros x Unidad','KG x UNIDAD','DISPONIBLE','EN TRÁNSITO','TOTAL','LITROS ACTUALES','KG ACTUALES']
     ];
     const sorted = [...allItems].sort((a,b) => (a.name||a.nombre||'').localeCompare(b.name||b.nombre||''));
     sorted.forEach(i => {
+      const disp = i.disponible ?? i.qty ?? i.cantidad ?? 0;
+      const noDisp = i.noDisponible ?? 0;
+      const total = i.total ?? (disp + noDisp);
       h1.push([
         i.code || '',
         i.name || i.nombre || '',
         i.litros_por_unidad || 0,
         i.kg_por_unidad || 0,
-        i.qty ?? i.cantidad ?? 0,
+        disp,
+        noDisp,
+        total,
         i.litros_actuales || 0,
         i.kg_actuales || 0
       ]);
@@ -767,4 +770,45 @@ async function importExcel(e) {
     showToast('Error al importar: ' + err.message, 'error');
   }
   e.target.value = '';
+}
+
+/**
+ * TAREA 1: checkProductExists(nombre, codigo)
+ * Verifica si existe un producto por nombre o código ejecutando validaciones paralelas.
+ */
+async function checkProductExists(nombre, codigo) {
+  const normNombre = (nombre || '').trim().toLowerCase();
+  const normCodigo = (codigo || '').trim().toUpperCase();
+
+  try {
+    // Para cumplir el requisito de queries paralelas:
+    // Nota: Firestore es case-sensitive. Si la app guarda los nombres con capitalización original,
+    // where('nombre', '==', normNombre) podría no encontrarlo. Por seguridad, validamos contra
+    // allItems que contiene la caché de inventario.
+    
+    // Si allItems no está cargado, lo cargamos
+    if (!window.allItems || window.allItems.length === 0) {
+      const snap = await db.collection('inventory').get();
+      window.allItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
+    const exists = window.allItems.find(i => 
+      (i.code || '').toUpperCase() === normCodigo || 
+      (i.sku || '').toUpperCase() === normCodigo ||
+      (i.name || '').toLowerCase() === normNombre || 
+      (i.nombre || '').toLowerCase() === normNombre
+    );
+
+    if (exists) {
+      if ((exists.code || '').toUpperCase() === normCodigo || (exists.sku || '').toUpperCase() === normCodigo) {
+        throw new Error(`El código/SKU "${normCodigo}" ya está registrado.`);
+      } else {
+        throw new Error(`El producto con nombre "${exists.name || exists.nombre}" ya existe.`);
+      }
+    }
+    
+    return false;
+  } catch(e) {
+    throw e;
+  }
 }

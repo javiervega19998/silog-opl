@@ -43,6 +43,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 .gi-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
 .gi-fuel{background:rgba(245,158,11,.15)}
 .gi-toll{background:rgba(37,99,235,.15)}
+.gi-park{background:rgba(16,185,129,.15)}
 .gi-info .gi-type{font-size:.82rem;font-weight:600}
 .gi-info .gi-date{font-size:.7rem;color:var(--text2)}
 .gi-amount{font-size:1rem;font-weight:800;color:var(--accent)}
@@ -70,6 +71,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
   <div class="tab-row">
     <button class="tab-btn active" id="tb-fuel" onclick="showType('fuel')"><span class="tab-icon">⛽</span>Combustible</button>
     <button class="tab-btn" id="tb-toll" onclick="showType('toll')"><span class="tab-icon">🛣️</span>Peaje</button>
+    <button class="tab-btn" id="tb-park" onclick="showType('park')"><span class="tab-icon">🅿️</span>Estacion.</button>
   </div>
 
   <!-- FUEL FORM -->
@@ -106,6 +108,25 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
     </div>
   </div>
 
+  <!-- PARKING FORM -->
+  <div id="form-park" style="display:none">
+    <div class="card">
+      <h3>🅿️ Registro de Estacionamiento</h3>
+      <div class="form-group">
+        <label>Monto Total (CLP)</label>
+        <input class="field" type="number" id="park-monto" placeholder="Ej: 2500" inputmode="numeric"/>
+      </div>
+      <div class="form-group">
+        <label>Ubicación / Dirección (opcional)</label>
+        <input class="field" type="text" id="park-ubicacion" placeholder="Ej: Mall Plaza Sur"/>
+      </div>
+      <input type="file" id="park-photo" accept="image/*" capture="environment" style="display:none" onchange="onPhoto('park',event)"/>
+      <button class="photo-btn" id="park-photo-btn" onclick="document.getElementById('park-photo').click()">📸 Adjuntar Boleta (obligatorio)</button>
+      <img id="park-preview" class="photo-preview"/>
+      <button class="btn-save" onclick="registrarGasto('estacionamiento')">💾 Registrar Estacionamiento</button>
+    </div>
+  </div>
+
   <!-- Total bar -->
   <div class="total-bar">
     <span class="total-lbl">Total Gastos del Turno</span>
@@ -124,6 +145,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/auth.js?v=7"></script>
+<script src="js/utils.js?v=1"></script>
 <script>
 
 // ── Compresión de imagen antes de upload ──────────────────
@@ -148,7 +170,7 @@ async function compressImage(file, maxWidth, quality) {
   });
 }
 let _uid='',_email='',_name='',_turnoId='',_gastos=[];
-let _fuelFile=null, _tollFile=null;
+let _fuelFile=null, _tollFile=null, _parkFile=null;
 let _isViewer = false;
 
 requireAuth(async(user,data)=>{
@@ -269,12 +291,16 @@ async function loadAllGastosAdmin() {
     
     list.innerHTML = _gastos.map(g => {
       const isFuel = g.tipo === 'combustible';
+      const isPark = g.tipo === 'estacionamiento';
+      const iconCls=isFuel?'gi-fuel':(isPark?'gi-park':'gi-toll');
+      const icon=isFuel?'⛽':(isPark?'🅿️':'🛣️');
+      const label=isFuel?'Combustible':(isPark?'Estacionamiento':'Peaje');
       const dateVal = g.fecha ? formatDate(g.fecha) + ' ' + formatTime(g.fecha) : '—';
       return `<div class="gasto-item" style="cursor:pointer" onclick="viewBoleta('${g.foto_boleta_url || ''}')">
         <div class="gi-left">
-          <div class="gi-icon ${isFuel?'gi-fuel':'gi-toll'}">${isFuel?'⛽':'🛣️'}</div>
+          <div class="gi-icon ${iconCls}">${icon}</div>
           <div class="gi-info">
-            <div class="gi-type">${isFuel?'Combustible':'Peaje'}${isFuel&&g.litros?' · '+g.litros+'L':''}</div>
+            <div class="gi-type">${label}${isFuel&&g.litros?' · '+g.litros+'L':''}${isPark&&g.ubicacion?' · '+sanitize(g.ubicacion):''}</div>
             <div class="gi-date">${sanitize(g.conductor_email || 'Sistema')} · ${dateVal}</div>
           </div>
         </div>
@@ -289,14 +315,16 @@ async function loadAllGastosAdmin() {
 function showType(t){
   document.getElementById('form-fuel').style.display=t==='fuel'?'block':'none';
   document.getElementById('form-toll').style.display=t==='toll'?'block':'none';
+  document.getElementById('form-park').style.display=t==='park'?'block':'none';
   document.getElementById('tb-fuel').classList.toggle('active',t==='fuel');
   document.getElementById('tb-toll').classList.toggle('active',t==='toll');
+  document.getElementById('tb-park').classList.toggle('active',t==='park');
 }
 
 function onPhoto(type,e){
   const file=e.target.files[0];
   if(!file)return;
-  if(type==='fuel')_fuelFile=file; else _tollFile=file;
+  if(type==='fuel')_fuelFile=file; else if(type==='toll')_tollFile=file; else _parkFile=file;
   const reader=new FileReader();
   reader.onload=ev=>{
     document.getElementById(type+'-preview').src=ev.target.result;
@@ -307,11 +335,13 @@ function onPhoto(type,e){
   reader.readAsDataURL(file);
 }
 
-async function registrarGasto(tipo){
+async function _registrarGasto(tipo){
   const isFuel=tipo==='combustible';
-  const montoVal=document.getElementById(isFuel?'fuel-monto':'toll-monto').value.trim();
+  const isPark=tipo==='estacionamiento';
+  const formId = isFuel ? 'fuel' : (isPark ? 'park' : 'toll');
+  const montoVal=document.getElementById(formId+'-monto').value.trim();
   const litrosVal=isFuel?document.getElementById('fuel-litros').value.trim():'0';
-  const file=isFuel?_fuelFile:_tollFile;
+  const file=isFuel?_fuelFile:(isPark?_parkFile:_tollFile);
 
   if(montoVal===''){showToast('Ingresa el monto','error');return;}
   const monto=parseInt(montoVal,10);
@@ -325,7 +355,7 @@ async function registrarGasto(tipo){
   }
   if(!file){showToast('📸 La foto de la boleta es obligatoria','error');return;}
 
-  const btn=document.querySelector(`#form-${isFuel?'fuel':'toll'} .btn-save`);
+  const btn=document.querySelector(`#form-${formId} .btn-save`);
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Guardando…';
 
   try{
@@ -333,21 +363,29 @@ async function registrarGasto(tipo){
     await ref.put((await compressImage(file)));
     const fotoUrl=await ref.getDownloadURL();
 
-    await db.collection('gastos_ruta').add({
+    const docData = {
       turno_id:_turnoId,tipo:tipo,monto_clp:monto,litros:litros,
       foto_boleta_url:fotoUrl,descripcion:'',
       conductor_uid:_uid,conductor_email:_email,
       fecha:firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
+    if(isPark) {
+      const ubicacion = document.getElementById('park-ubicacion')?.value.trim() || '';
+      docData.ubicacion = ubicacion;
+    }
+    await db.collection('gastos_ruta').add(docData);
 
-    showToast(`✅ ${isFuel?'Combustible':'Peaje'} registrado`,'success');
+    const labelTipo = isFuel ? 'Combustible' : (isPark ? 'Estacionamiento' : 'Peaje');
+    showToast(`✅ ${labelTipo} registrado`,'success');
     // Reset
     if(isFuel){document.getElementById('fuel-litros').value='';document.getElementById('fuel-monto').value='';document.getElementById('fuel-preview').style.display='none';document.getElementById('fuel-photo-btn').textContent='📸 Adjuntar Boleta (obligatorio)';document.getElementById('fuel-photo-btn').classList.remove('has-photo');_fuelFile=null;}
+    else if(isPark){document.getElementById('park-monto').value='';document.getElementById('park-ubicacion').value='';document.getElementById('park-preview').style.display='none';document.getElementById('park-photo-btn').textContent='📸 Adjuntar Boleta (obligatorio)';document.getElementById('park-photo-btn').classList.remove('has-photo');_parkFile=null;}
     else{document.getElementById('toll-monto').value='';document.getElementById('toll-preview').style.display='none';document.getElementById('toll-photo-btn').textContent='📸 Adjuntar Boleta (obligatorio)';document.getElementById('toll-photo-btn').classList.remove('has-photo');_tollFile=null;}
     await loadGastos();
   }catch(e){showToast('Error: '+e.message,'error');}
-  btn.disabled=false;btn.innerHTML=`💾 Registrar ${isFuel?'Combustible':'Peaje'}`;
+  btn.disabled=false;btn.innerHTML=`💾 Registrar ${isFuel?'Combustible':(isPark?'Estacionamiento':'Peaje')}`;
 }
+window.registrarGasto = withOnceClick(_registrarGasto);
 
 async function loadGastos(){
   try{
@@ -372,12 +410,16 @@ function renderGastos(){
   list.innerHTML=_gastos.map(g=>{
     total+=g.monto_clp||0;
     const isFuel=g.tipo==='combustible';
+    const isPark=g.tipo==='estacionamiento';
+    const iconCls=isFuel?'gi-fuel':(isPark?'gi-park':'gi-toll');
+    const icon=isFuel?'⛽':(isPark?'🅿️':'🛣️');
+    const label=isFuel?'Combustible':(isPark?'Estacionamiento':'Peaje');
     const fecha=g.fecha?formatTime(g.fecha):'—';
     return `<div class="gasto-item">
       <div class="gi-left">
-        <div class="gi-icon ${isFuel?'gi-fuel':'gi-toll'}">${isFuel?'⛽':'🛣️'}</div>
+        <div class="gi-icon ${iconCls}">${icon}</div>
         <div class="gi-info">
-          <div class="gi-type">${isFuel?'Combustible':'Peaje'}${isFuel&&g.litros?' · '+g.litros+'L':''}</div>
+          <div class="gi-type">${label}${isFuel&&g.litros?' · '+g.litros+'L':''}${isPark&&g.ubicacion?' · '+sanitize(g.ubicacion):''}</div>
           <div class="gi-date">${fecha}</div>
         </div>
       </div>

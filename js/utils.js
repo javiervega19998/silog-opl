@@ -64,3 +64,26 @@ function auditLog(action, details) {
     console.warn('[audit] Error:', e.message);
   }
 }
+
+/**
+ * Envuelve una función asíncrona para evitar ejecuciones múltiples (Doble Click).
+ * Equivalente al hook useOnceClick solicitado. Utiliza un closure en lugar de useRef.
+ * @param {Function} handler - Función asíncrona a ejecutar.
+ * @param {number} cooldown - Tiempo de bloqueo en ms (default 2000).
+ * @returns {Function} - Función envuelta.
+ */
+function withOnceClick(handler, cooldown = 2000) {
+  let fired = false;
+  return async function(...args) {
+    if (fired) {
+      console.warn('Acción bloqueada: prevención de doble click.');
+      return;
+    }
+    fired = true;
+    try {
+      return await handler.apply(this, args);
+    } finally {
+      setTimeout(() => { fired = false; }, cooldown);
+    }
+  };
+}
