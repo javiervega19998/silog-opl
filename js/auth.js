@@ -209,13 +209,22 @@ function renderNavbar(userData) {
   const nameEl   = document.getElementById('user-name');
   const roleEl   = document.getElementById('user-role');
   const avatarEl = document.getElementById('user-avatar');
+  const nombre = userData.nombre || userData.name || (userData.correo_electronico || userData.email || '').split('@')[0];
   if (nameEl) {
-    const nombre = userData.nombre || userData.name || (userData.correo_electronico || userData.email || '').split('@')[0];
     nameEl.textContent = nombre;
   }
-  if (avatarEl && (userData.foto_url || userData.photoURL)) {
-    avatarEl.src = userData.foto_url || userData.photoURL;
-    avatarEl.style.display = 'block';
+  if (avatarEl) {
+    const foto = userData.foto_url || userData.photoURL;
+    if (foto) {
+      avatarEl.style.backgroundImage = `url('${foto}')`;
+      avatarEl.style.backgroundSize = 'cover';
+      avatarEl.style.backgroundPosition = 'center';
+      avatarEl.textContent = '';
+    } else {
+      avatarEl.style.backgroundImage = 'none';
+      avatarEl.textContent = nombre ? nombre.charAt(0).toUpperCase() : '?';
+    }
+    avatarEl.style.display = 'flex';
   }
   if (roleEl) {
     const rawRole = (userData.rol || userData.role || 'conductor').toLowerCase();
