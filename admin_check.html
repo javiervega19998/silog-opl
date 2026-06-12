@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Check</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="js/firebase-config.js"></script>
+</head>
+<body>
+  <h1>Check Mermas Migradas</h1>
+  <button onclick="check()">Revisar</button>
+  <pre id="log"></pre>
+
+  <script>
+    async function check() {
+      const snap = await db.collection('movimientos_bodega').where('_migrado_backfill', '==', true).get();
+      let res = [];
+      snap.forEach(d => {
+         res.push(d.data());
+      });
+      document.getElementById('log').textContent = JSON.stringify(res, null, 2);
+    }
+  </script>
+</body>
+</html>

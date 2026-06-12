@@ -178,7 +178,7 @@ async function showTab(tab) {
   else if (tab === 'inversa') await loadInversaConfig();
   else if (tab === 'despachos') await loadDespachosAdmin();
   else if (tab === 'discrepancias') await loadDiscrepancias();
-  else if (tab === 'viajes') await loadViajesAdmin();
+  else if (tab === 'viajes') await loadViajes();
 }
 
 // Registrar eventos de tabulación dinámicamente
@@ -840,8 +840,8 @@ window.registrarMantencionVehiculo = async (patente, vehiculoId) => {
     if (typeof showToast === 'function') showToast(`✅ Mantención de ${patente} registrada correctamente.`, 'success');
     
     // Recargar vista para recalcular las alertas (Fase 4)
-    if (typeof loadViajesAdmin === 'function') {
-      await loadViajesAdmin();
+    if (typeof loadViajes === 'function') {
+      await loadViajes();
     }
   } catch (error) {
     console.error('Error al registrar mantención:', error);

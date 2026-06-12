@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>WMS Fix Inventario (Recálculo Exacto)</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <style>
+    body { font-family: monospace; background: #111; color: #0f0; padding: 20px; }
+    button { padding: 10px 20px; font-size: 16px; background: #0f0; color: #000; border: none; cursor: pointer; }
+    button:disabled { background: #555; color: #888; cursor: not-allowed; }
+    #log { margin-top: 20px; white-space: pre-wrap; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h1>Silog WMS - Reparación de Inventario (NaN)</h1>
+  <p>Este script reconstruirá los valores de Disponible y No Disponible sumando la totalidad de los movimientos históricos para asegurar exactitud matemática perfecta.</p>
+  <button id="btn-run" onclick="runFix()">Restaurar Inventario</button>
+  <div id="log"></div>
+
+  <script>
+    function logMsg(msg) {
+      document.getElementById('log').textContent += msg + '\n';
+      console.log(msg);
+    }
+
+    async function runFix() {
+      const btn = document.getElementById('btn-run');
+      btn.disabled = true;
+      btn.textContent = 'Reconstruyendo desde cero...';
+      
+      try {
+        logMsg('1. Descargando TODOS los movimientos_bodega para reconstrucción matemática...');
+        const movSnap = await db.collection('movimientos_bodega').get();
+        
+        // productId -> { disp: 0, noDisp: 0 }
+        const totals = {};
+        const cutoff = new Date('2026-06-10T06:00:00Z').getTime();
+
+        movSnap.forEach(doc => {
+          const m = doc.data();
+          if (!m.producto_id) return;
+          const pId = m.producto_id;
+          const cant = parseInt(m.cantidad) || 0;
+          if (!totals[pId]) totals[pId] = { disp: 0, noDisp: 0 };
+
+          const isIn = ['ingreso', 'devolucion', 'abastecimiento', 'ajuste_pos'].includes(m.tipo);
+          const isOut = ['salida', 'despacho', 'despacho_ruta', 'ajuste_neg'].includes(m.tipo);
+
+          if (isIn) {
+            totals[pId].disp += cant;
+          } else if (isOut) {
+            totals[pId].disp -= cant;
+          } else if (m.tipo === 'merma' || m.tipo === 'devolucion_rechazada') {
+            totals[pId].noDisp += cant;
+            
+            // Lógica de compensación para mermas que tuvieron un 'ingreso' previo en bodega
+            if (m.subtipo === 'reclasificacion_merma') {
+              totals[pId].disp -= cant;
+            } else if (m.subtipo === 'devolucion_rechazada' && !m._migrado_backfill) {
+              let ts = Date.now();
+              if (m.fecha && m.fecha.toMillis) ts = m.fecha.toMillis();
+              
+              if (ts < cutoff) {
+                // Merma de bodega antigua que tuvo ingreso previo
+                totals[pId].disp -= cant;
+              }
+            }
+          }
+        });
+
+        logMsg(`-> Calculados historiales exactos para ${Object.keys(totals).length} productos.`);
+
+        logMsg('2. Aplicando reparación al inventario...');
+        const invSnap = await db.collection('inventory').get();
+        const batch = db.batch();
+        let updated = 0;
+
+        invSnap.forEach(doc => {
+          const pId = doc.id;
+          const data = doc.data();
+          
+          let calc = totals[pId];
+          if (!calc) {
+            // Si no tiene movimientos, aseguramos que al menos no sea NaN
+            calc = { disp: 0, noDisp: 0 };
+          }
+
+          const disp = Math.max(0, calc.disp);
+          const noDisp = Math.max(0, calc.noDisp);
+          const total = disp + noDisp;
+          
+          // Preservar valores originales si existían y no eran NaN, o sobreescribir con el cálculo exacto
+          // En este punto, como tenemos la historia completa, usamos el cálculo exacto como fuente de la verdad.
+          
+          // Actualizar SI O SI para limpiar los NaN
+          batch.update(db.collection('inventory').doc(pId), {
+            disponible: disp,
+            no_disponible: noDisp,
+            qty: total,
+            cantidad: total,
+            total: total
+          });
+          
+          logMsg(`   Producto ${pId} restaurado a -> Disp: ${disp}, No Disp: ${noDisp}, Total: ${total}`);
+          updated++;
+        });
+
+        if (updated > 0) {
+          logMsg('Ejecutando COMMIT a la base de datos...');
+          await batch.commit();
+          logMsg('¡INVENTARIO REPARADO EXITOSAMENTE! Ya puedes revisar la app.');
+        } else {
+          logMsg('No se encontraron productos para actualizar.');
+        }
+
+      } catch(err) {
+        logMsg('ERROR: ' + err.message);
+        console.error(err);
+      } finally {
+        btn.textContent = 'Proceso Completado';
+      }
+    }
+  </script>
+</body>
+</html>

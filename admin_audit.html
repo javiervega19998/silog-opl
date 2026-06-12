@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Auditora Profunda de Inventario</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f6fa; color: #333; padding: 20px; }
+    h1 { color: #2c3e50; }
+    button { padding: 10px 20px; font-size: 16px; background: #3498db; color: #fff; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; }
+    button:hover { background: #2980b9; }
+    button:disabled { background: #95a5a6; cursor: not-allowed; }
+    .btn-danger { background: #e74c3c; }
+    .btn-danger:hover { background: #c0392b; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+    th { background: #34495e; color: #fff; }
+    .bad { background: #ffeaa7; font-weight: bold; }
+    .critical { background: #ff7675; color: #fff; font-weight: bold; }
+    .good { background: #55efc4; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Panel de Auditora y Reparacin de Inventario (WMS)</h1>
+  <p>Este panel cruza toda la informacin de Bodega, Logstica Inversa y Excel para encontrar las fallas matemticas y repararlas.</p>
+  
+  <div>
+    <button id="btn-audit" onclick="runAudit()">1. Iniciar Auditora Profunda</button>
+    <button id="btn-fix" onclick="runFix()" class="btn-danger" style="display:none;">2. Aplicar Reparacin Exacta</button>
+  </div>
+  
+  <h3 id="status"></h3>
+  <div id="results"></div>
+
+  <script>
+    const baseStock = {
+      "110382": 4, "110801": 12, "112594": 3, "120659": 1, "130089": 2, "140069": 6, "152102": 2, "161211": 1, "161212": 45, "161222": 2, "161226": 2, "164424": 12, "164479": 7, "164551": 0, "164560": 3, "165879": 0, "170391": 3, "170443": 0, "170862": 0, "177040": 3, "178454": 2, "178456": 0, "178458": 2, "179449": 1, "183336": 3, "183337": 10, "183760": 4, "187147": 89, "187183": 2, "187184": 20, "195722": 8, "195723": 0, "204024": 15, "205476": 15, "207848": 1, "207849": 2, "207910": 0, "208127": 2, "208281": 1, "208510": 1, "209045": 15, "209911": 40, "209912": 6, "210256": 44, "210746": 2, "211575": 2, "212425": 35, "212601": 6, "213656": 0, "213658": 3, "213824": 0, "214146": 5, "217029": 0, "217637": 10, "218555": 1, "218575": 45, "218589": 8, "218590": 10, "218613": 4, "218664": 4, "218665": 4, "218673": 2, "218732": 0, "218739": 10, "218741": 10, "218742": 4, "218750": 1, "218751": 0, "218923": 6, "218927": 24, "227129": 2, "227131": 39, "230488": 4, "230490": 4, "231119": 1, "232695": 36, "232696": 1, "232697": 0, "233555": 3, "233556": 10, "233659": 1, "234138": 35, "236110": 2, "236260": 0, "236539": 1, "236563": 4, "236564": 10, "236570": 3, "236615": 5, "236616": 80, "236745": 18, "236793": 8, "236794": 30, "236809": 4, "1100004": 0
+    };
+
+    let finalCalculation = {};
+
+    // Verificar autenticación antes de permitir interactuar
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) {
+        document.getElementById('status').innerHTML = '<span style="color:#e74c3c;font-weight:bold">⚠️ Sesión no iniciada. Redirigiendo al login...</span>';
+        document.getElementById('btn-audit').disabled = true;
+        setTimeout(() => { window.location.href = 'index.html'; }, 2500);
+      }
+    });
+
+    async function runAudit() {
+      document.getElementById('btn-audit').disabled = true;
+      document.getElementById('status').innerText = "Analizando bases de datos... por favor espera.";
+      
+      try {
+        const invSnap = await db.collection('inventory').get();
+        const movBodegaSnap = await db.collection('movimientos_bodega').get();
+        const movSnap = await db.collection('movimientos').get(); // Cargar la logstica inversa antigua tambin!
+        const logInversaSnap = await db.collection('logistica_inversa').get(); // Cargar la logstica inversa nueva!
+        
+        const snapshotTime = new Date('2026-06-08T20:42:14-04:00').getTime();
+        const totals = {};
+
+        // 1. Inicializar con Stock Excel
+        invSnap.forEach(doc => {
+          const data = doc.data();
+          const code = data.code || data.producto_codigo || data.SKU || '';
+          totals[doc.id] = {
+            id: doc.id,
+            code: code,
+            name: data.name || data.nombre || '',
+            stockExcel: baseStock[code] || 0,
+            dbDisp: parseInt(data.disponible) || 0,
+            dbNoDisp: parseInt(data.no_disponible) || 0,
+            calcDisp: baseStock[code] || 0,
+            calcNoDisp: 0,
+            mermasEncontradas: 0,
+            ingresosEncontrados: 0,
+            salidasEncontradas: 0,
+            logs: []
+          };
+        });
+
+        // 2. Procesar movimientos_bodega
+        movBodegaSnap.forEach(doc => {
+          const m = doc.data();
+          let pId = m.producto_id;
+          
+          if (!pId || !totals[pId]) {
+            const mCode = String(m.producto_codigo || '').trim().toLowerCase();
+            pId = Object.keys(totals).find(k => String(totals[k].code).trim().toLowerCase() === mCode);
+          }
+          if (!pId || !totals[pId]) return;
+          
+          const cant = parseInt(m.cantidad) || 0;
+          if (cant === 0) return;
+
+          let ts = 0;
+          if (m.fecha && m.fecha.toMillis) ts = m.fecha.toMillis();
+
+          if (m.tipo === 'merma' || m.tipo === 'devolucion_rechazada') {
+            totals[pId].calcNoDisp += cant;
+            totals[pId].mermasEncontradas += cant;
+            totals[pId].logs.push(`+${cant} Merma (${m.subtipo || m.tipo})`);
+
+            // Descontar del disponible si fue una reclasificacin que inflaba el stock base
+            if (m.subtipo === 'reclasificacion_merma') {
+              totals[pId].calcDisp -= cant;
+              totals[pId].logs.push(`-${cant} Disp (Reclasificacin)`);
+            }
+          } else if (ts > snapshotTime) {
+            const isIn = ['ingreso', 'devolucion', 'abastecimiento', 'ajuste_pos'].includes(m.tipo);
+            const isOut = ['salida', 'despacho', 'despacho_ruta', 'ajuste_neg'].includes(m.tipo);
+            
+            if (isIn) {
+              totals[pId].calcDisp += cant;
+              totals[pId].ingresosEncontrados += cant;
+              totals[pId].logs.push(`+${cant} Ingreso posterior`);
+            } else if (isOut) {
+              totals[pId].calcDisp -= cant;
+              totals[pId].salidasEncontradas += cant;
+              totals[pId].logs.push(`-${cant} Salida posterior`);
+            }
+          }
+        });
+
+        // 3. Cruzar informacin con la coleccin 'movimientos' original (Logstica Inversa Cruda)
+        // Por si acaso el script anterior no migro algo, o si hay devoluciones clasificadas como merma.
+        movSnap.forEach(doc => {
+          const m = doc.data();
+          if (m.clasificacion === 'merma' && !m._migrado_backfill) {
+            let pId = m.productoId || m.producto_id;
+            
+            if (!pId || !totals[pId]) {
+              const mCode = String(m.codigoProducto || '').trim().toLowerCase();
+              pId = Object.keys(totals).find(k => String(totals[k].code).trim().toLowerCase() === mCode);
+            }
+            if (!pId || !totals[pId]) return;
+
+            const cant = parseInt(m.cantidad) || 0;
+            if (cant === 0) return;
+
+            totals[pId].calcNoDisp += cant;
+            totals[pId].mermasEncontradas += cant;
+            totals[pId].logs.push(`+${cant} Merma (Desde col. Movimientos antigua)`);
+            // No restamos del disponible porque estos no estaban sumados al Excel
+          }
+        });
+
+        // 3.5. Cruzar informacin con la coleccin 'logistica_inversa' nueva
+        logInversaSnap.forEach(doc => {
+          const m = doc.data();
+          if (m.clasificacion === 'merma') {
+            let pId = m.producto_id;
+            if (!pId || !totals[pId]) {
+              const mCode = String(m.producto_codigo || '').trim().toLowerCase();
+              pId = Object.keys(totals).find(k => String(totals[k].code).trim().toLowerCase() === mCode);
+            }
+            if (!pId || !totals[pId]) return;
+
+            const cant = parseInt(m.cantidad) || 0;
+            if (cant === 0) return;
+
+            totals[pId].calcNoDisp += cant;
+            totals[pId].mermasEncontradas += cant;
+            totals[pId].logs.push(`+${cant} Merma (Desde col. Logstica Inversa)`);
+          }
+        });
+
+        finalCalculation = totals;
+
+        // Renderizar tabla
+        let html = `<table>
+          <thead>
+            <tr>
+              <th>Cdigo</th>
+              <th>Producto</th>
+              <th>Base Excel (08/06)</th>
+              <th>Total Mermas Detectadas</th>
+              <th>Ingresos/Salidas Post.</th>
+              <th style="background:#8e44ad">Stock Disponible Calculado</th>
+              <th style="background:#c0392b">No Disponible Calculado</th>
+              <th style="background:#7f8c8d">Estado Actual BD (Disp | No Disp)</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+        for (const pId of Object.keys(totals)) {
+          const t = totals[pId];
+          const dbStateStr = `${t.dbDisp} | ${t.dbNoDisp}`;
+          const calcStateStr = `${t.calcDisp} | ${t.calcNoDisp}`;
+          const isMatch = (t.dbDisp === t.calcDisp && t.dbNoDisp === t.calcNoDisp);
+
+          html += `<tr class="${!isMatch ? 'critical' : 'good'}">
+            <td>${t.code}</td>
+            <td style="text-align:left;">${t.name}</td>
+            <td>${t.stockExcel}</td>
+            <td>${t.mermasEncontradas}</td>
+            <td>+${t.ingresosEncontrados} / -${t.salidasEncontradas}</td>
+            <td>${t.calcDisp}</td>
+            <td>${t.calcNoDisp}</td>
+            <td>${dbStateStr}</td>
+          </tr>`;
+        }
+        
+        html += `</tbody></table>`;
+        document.getElementById('results').innerHTML = html;
+        document.getElementById('status').innerText = "Auditora Completada. Revisa la tabla de discrepancias abajo.";
+        document.getElementById('btn-fix').style.display = 'inline-block';
+
+      } catch(err) {
+        document.getElementById('status').innerText = "Error: " + err.message;
+      }
+    }
+
+    async function runFix() {
+      if (!confirm("Esto escribir los valores de la columna 'Calculado' en la base de datos para todos los productos. Ests seguro?")) return;
+      
+      const btn = document.getElementById('btn-fix');
+      btn.disabled = true;
+      btn.innerText = "Reparando...";
+
+      try {
+        const batch = db.batch();
+        let count = 0;
+        for (const pId of Object.keys(finalCalculation)) {
+          const t = finalCalculation[pId];
+          const disp = Math.max(0, t.calcDisp);
+          const noDisp = Math.max(0, t.calcNoDisp);
+          const total = disp + noDisp;
+          
+          batch.update(db.collection('inventory').doc(pId), {
+            disponible: disp,
+            no_disponible: noDisp,
+            qty: total,
+            cantidad: total,
+            total: total
+          });
+          count++;
+        }
+        const commitPromise = batch.commit();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout al guardar en Firebase. Revisa tu conexin a internet.")), 15000));
+        await Promise.race([commitPromise, timeoutPromise]);
+        
+        document.getElementById('status').innerText = `Reparacin Exitosa! Se corrigieron ${count} productos en la base de datos.`;
+      } catch(e) {
+        document.getElementById('status').innerText = "Error al reparar: " + e.message;
+        document.getElementById('btn-fix').disabled = false;
+        document.getElementById('btn-fix').innerText = "2. Aplicar Reparacin Exacta";
+      }
+    }
+  </script>
+</body>
+</html>

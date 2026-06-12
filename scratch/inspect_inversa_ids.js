@@ -15,33 +15,24 @@ function pv(v){
   if(!v) return null;
   if(v.stringValue!==undefined) return v.stringValue;
   if(v.integerValue!==undefined) return parseInt(v.integerValue);
-  if(v.doubleValue!==undefined) return parseFloat(v.doubleValue);
-  if(v.booleanValue!==undefined) return v.booleanValue;
   return null;
 }
 
 async function main() {
   const token = await getToken();
   
-  console.log('Querying inventory documents...');
-  const res = await httpReq('GET', `${BASE}/inventory?pageSize=300`, token);
+  const res = await httpReq('GET', `${BASE}/logistica_inversa?pageSize=300`, token);
   const docs = res.d.documents || [];
   
-  console.log(`Found ${docs.length} documents in inventory.`);
-  
-  console.log('ID | CODE | NOMBRE | DISPONIBLE | NO_DISPONIBLE | QTY | TOTAL');
-  console.log('-'.repeat(100));
+  console.log('ID | CODE | PRODUCT_ID (in doc) | NOM');
+  console.log('-'.repeat(80));
   for (const doc of docs) {
     const f = doc.fields || {};
     const id = doc.name.split('/').pop();
-    const code = pv(f.code) || pv(f.producto_codigo) || pv(f.SKU) || '';
-    const name = pv(f.name) || pv(f.nombre) || '';
-    const disponible = pv(f.disponible) ?? 0;
-    const no_disponible = pv(f.no_disponible) ?? 0;
-    const qty = pv(f.qty) ?? pv(f.cantidad) ?? 0;
-    const total = pv(f.total) ?? 0;
-    
-    console.log(`${id} | ${code} | ${name} | ${disponible} | ${no_disponible} | ${qty} | ${total}`);
+    const code = pv(f.producto_codigo);
+    const prodId = pv(f.producto_id) || pv(f.productoId);
+    const nom = pv(f.producto_nombre);
+    console.log(`${id} | ${code} | ${prodId} | ${nom}`);
   }
 }
 

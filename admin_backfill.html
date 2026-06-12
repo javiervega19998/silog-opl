@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>WMS Backfill Mermas</title>
+  <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <!-- Add Firebase products that you want to use -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <!-- Config -->
+  <script src="js/firebase-config.js"></script>
+
+  <style>
+    body { font-family: monospace; background: #111; color: #0f0; padding: 20px; }
+    button { padding: 10px 20px; font-size: 16px; background: #0f0; color: #000; border: none; cursor: pointer; }
+    button:disabled { background: #555; color: #888; cursor: not-allowed; }
+    #log { margin-top: 20px; white-space: pre-wrap; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h1>Silog WMS - Corrección de Mermas Históricas</h1>
+  <p>Este script trasladará los viajes generados desde Despachos Bodega a la tabla correcta, y recalculará el inventario No Disponible.</p>
+  <button id="btn-run" onclick="runBackfill()">Ejecutar Backfill</button>
+  <div id="log"></div>
+
+  <script>
+    function logMsg(msg) {
+      document.getElementById('log').textContent += msg + '\n';
+      console.log(msg);
+    }
+
+    async function runBackfill() {
+      const btn = document.getElementById('btn-run');
+      btn.disabled = true;
+      btn.textContent = 'Procesando... No cierres esta ventana.';
+      
+      try {
+        let migratedFromMovimientos = 0;
+        let inventoryUpdated = 0;
+        
+        const batch = db.batch();
+        
+        logMsg('1. Escaneando colección `movimientos` por registros huérfanos de conductores...');
+        const movSnap = await db.collection('movimientos').get();
+        for (const doc of movSnap.docs) {
+          const data = doc.data();
+          if (data.tipo === 'logistica_inversa' || data.tipo === 'salida') {
+            const mRef = db.collection('movimientos_bodega').doc();
+            
+            let nuevoTipo = 'ingreso';
+            let nuevoSubtipo = 'devolucion';
+            
+            if (data.tipo === 'salida') {
+              nuevoTipo = 'salida';
+              nuevoSubtipo = 'despacho_ruta';
+            } else if (data.clasificacion === 'merma') {
+              nuevoTipo = 'merma';
+              nuevoSubtipo = 'devolucion_rechazada';
+            }
+            
+            batch.set(mRef, {
+              tipo: nuevoTipo,
+              subtipo: nuevoSubtipo,
+              producto_id: data.productoId || '',
+              producto_codigo: data.codigoProducto || '',
+              producto_nombre: data.nombreProducto || '',
+              cantidad: data.cantidad || 0,
+              referencia: data.nDocumento || data.observaciones || 'Migrado de Despachos Bodega',
+              operario_uid: data.conductor?.id || '',
+              operario_nombre: data.conductor?.nombre || '',
+              fecha: data.fecha || firebase.firestore.FieldValue.serverTimestamp(),
+              _migrado_backfill: true
+            });
+            
+            batch.delete(db.collection('movimientos').doc(doc.id));
+            migratedFromMovimientos++;
+          }
+        }
+        logMsg(`-> Encontrados ${migratedFromMovimientos} movimientos huérfanos para migrar.`);
+
+        logMsg('2. Escaneando `movimientos_bodega` para contabilizar MERMAS reales...');
+        const mermasPorProducto = {}; 
+        const mermasAntiguas = {}; 
+
+        const mbSnap = await db.collection('movimientos_bodega').where('tipo', '==', 'merma').get();
+        mbSnap.forEach(d => {
+          const data = d.data();
+          if (data.producto_id && data.cantidad) {
+            const cant = parseInt(data.cantidad) || 0;
+            mermasPorProducto[data.producto_id] = (mermasPorProducto[data.producto_id] || 0) + cant;
+            
+            // Si fue antes de junio 10, la merma no descontó del disponible en el código viejo
+            const cutoff = new Date('2026-06-10T06:00:00Z').getTime();
+            let ts = Date.now();
+            if (data.fecha && data.fecha.toMillis) ts = data.fecha.toMillis();
+            
+            if (ts < cutoff) {
+              mermasAntiguas[data.producto_id] = (mermasAntiguas[data.producto_id] || 0) + cant;
+            }
+          }
+        });
+
+        // Sumar también las que acabamos de migrar
+        for (const doc of movSnap.docs) {
+          const data = doc.data();
+          if (data.tipo === 'logistica_inversa' && data.clasificacion === 'merma') {
+            const cant = parseInt(data.cantidad) || 0;
+            if (data.productoId && cant > 0) {
+              mermasPorProducto[data.productoId] = (mermasPorProducto[data.productoId] || 0) + cant;
+              mermasAntiguas[data.productoId] = (mermasAntiguas[data.productoId] || 0) + cant;
+            }
+          }
+        }
+        logMsg(`-> Calculado stock real de mermas para ${Object.keys(mermasPorProducto).length} productos únicos.`);
+
+        logMsg('3. Cruzando y Ajustando Inventario...');
+        const invSnap = await db.collection('inventory').get();
+        invSnap.forEach(doc => {
+          const data = doc.data();
+          const pId = doc.id;
+          
+          let disp = parseInt(data.disponible) ?? parseInt(data.qty) ?? parseInt(data.cantidad) ?? 0;
+          let noDisp = parseInt(data.no_disponible) ?? parseInt(data.noDisponible) ?? 0;
+          
+          const correctNoDisp = mermasPorProducto[pId] || 0;
+          const discountFromDisp = mermasAntiguas[pId] || 0;
+          
+          if (noDisp !== correctNoDisp || discountFromDisp > 0) {
+            if (discountFromDisp > 0) {
+              disp = Math.max(0, disp - discountFromDisp);
+              logMsg(`   Producto ${pId}: Restando ${discountFromDisp} del Disponible (Mermas no descontadas antiguamente)`);
+            }
+            
+            noDisp = correctNoDisp;
+            const total = disp + noDisp;
+            
+            batch.update(db.collection('inventory').doc(pId), {
+              disponible: disp,
+              no_disponible: noDisp,
+              qty: total,
+              cantidad: total,
+              total: total
+            });
+            logMsg(`   Producto ${pId} Actualizado -> Disponible: ${disp}, No Disponible: ${noDisp}, Total: ${total}`);
+            inventoryUpdated++;
+          }
+        });
+
+        if (migratedFromMovimientos > 0 || inventoryUpdated > 0) {
+          logMsg('Grabando datos en la base de datos (Commit)...');
+          await batch.commit();
+          logMsg('¡MIGRACIÓN Y CORRECCIÓN EXITOSA!');
+        } else {
+          logMsg('No se requirió ninguna corrección. El inventario estaba cuadrado.');
+        }
+
+      } catch (err) {
+        logMsg('ERROR: ' + err.message);
+        console.error(err);
+      } finally {
+        btn.textContent = 'Proceso Terminado';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -23,26 +23,47 @@ function pv(v){
 async function main() {
   const token = await getToken();
   
-  console.log('Querying inventory documents...');
-  const res = await httpReq('GET', `${BASE}/inventory?pageSize=300`, token);
+  console.log('Querying logistica_inversa documents...');
+  const res = await httpReq('GET', `${BASE}/logistica_inversa?pageSize=300`, token);
   const docs = res.d.documents || [];
   
-  console.log(`Found ${docs.length} documents in inventory.`);
+  console.log(`Found ${docs.length} documents in logistica_inversa.`);
   
-  console.log('ID | CODE | NOMBRE | DISPONIBLE | NO_DISPONIBLE | QTY | TOTAL');
-  console.log('-'.repeat(100));
+  const mermas = [];
+  const others = [];
+  
   for (const doc of docs) {
     const f = doc.fields || {};
     const id = doc.name.split('/').pop();
-    const code = pv(f.code) || pv(f.producto_codigo) || pv(f.SKU) || '';
-    const name = pv(f.name) || pv(f.nombre) || '';
-    const disponible = pv(f.disponible) ?? 0;
-    const no_disponible = pv(f.no_disponible) ?? 0;
-    const qty = pv(f.qty) ?? pv(f.cantidad) ?? 0;
-    const total = pv(f.total) ?? 0;
+    const cliente = pv(f.cliente);
+    const conductor = pv(f.conductor_nombre) || pv(f.conductor_email);
+    const producto_codigo = pv(f.producto_codigo);
+    const producto_nombre = pv(f.producto_nombre);
+    const cantidad = pv(f.cantidad) || 0;
+    const estado = pv(f.estado);
+    const clasificacion = pv(f.clasificacion);
     
-    console.log(`${id} | ${code} | ${name} | ${disponible} | ${no_disponible} | ${qty} | ${total}`);
+    const item = { id, cliente, conductor, producto_codigo, producto_nombre, cantidad, estado, clasificacion };
+    if (clasificacion === 'merma') {
+      mermas.push(item);
+    } else {
+      others.push(item);
+    }
   }
+  
+  console.log('\nCLASSIFIED AS MERMA:');
+  console.log('ID | CODE | PRODUCTO | CANT | ESTADO | CLASIFICACION | CLIENTE');
+  console.log('-'.repeat(100));
+  mermas.forEach(m => {
+    console.log(`${m.id} | ${m.producto_codigo} | ${m.producto_nombre} | ${m.cantidad} | ${m.estado} | ${m.clasificacion} | ${m.cliente}`);
+  });
+  
+  console.log('\nOTHERS IN LOGISTICA INVERSA (Not Merma):');
+  console.log('ID | CODE | PRODUCTO | CANT | ESTADO | CLASIFICACION | CLIENTE');
+  console.log('-'.repeat(100));
+  others.forEach(m => {
+    console.log(`${m.id} | ${m.producto_codigo} | ${m.producto_nombre} | ${m.cantidad} | ${m.estado} | ${m.clasificacion} | ${m.cliente}`);
+  });
 }
 
 main().catch(e => console.error(e));

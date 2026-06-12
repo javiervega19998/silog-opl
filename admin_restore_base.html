@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>WMS Restore Base Stock</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <style>
+    body { font-family: monospace; background: #111; color: #0f0; padding: 20px; }
+    button { padding: 10px 20px; font-size: 16px; background: #0f0; color: #000; border: none; cursor: pointer; }
+    button:disabled { background: #555; color: #888; cursor: not-allowed; }
+    #log { margin-top: 20px; white-space: pre-wrap; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h1>Silog WMS - Restauracin de Inventario</h1>
+  <p>Este script recuperar el inventario base exacto a partir del backup automtico (08/06/2026) y aplicar los movimientos recientes para restablecer la base de datos a la normalidad perfecta.</p>
+  <button id="btn-run" onclick="runFix()">Restaurar Inventario Completo</button>
+  <div id="log"></div>
+
+  <script>
+    function logMsg(msg) {
+      document.getElementById('log').textContent += msg + '\n';
+      console.log(msg);
+    }
+
+    const baseStock = {
+      "110382": 4, "110801": 12, "112594": 3, "120659": 1, "130089": 2, "140069": 6, "152102": 2, "161211": 1, "161212": 45, "161222": 2, "161226": 2, "164424": 12, "164479": 7, "164551": 0, "164560": 3, "165879": 0, "170391": 3, "170443": 0, "170862": 0, "177040": 3, "178454": 2, "178456": 0, "178458": 2, "179449": 1, "183336": 3, "183337": 10, "183760": 4, "187147": 89, "187183": 2, "187184": 20, "195722": 8, "195723": 0, "204024": 15, "205476": 15, "207848": 1, "207849": 2, "207910": 0, "208127": 2, "208281": 1, "208510": 1, "209045": 15, "209911": 40, "209912": 6, "210256": 44, "210746": 2, "211575": 2, "212425": 35, "212601": 6, "213656": 0, "213658": 3, "213824": 0, "214146": 5, "217029": 0, "217637": 10, "218555": 1, "218575": 45, "218589": 8, "218590": 10, "218613": 4, "218664": 4, "218665": 4, "218673": 2, "218732": 0, "218739": 10, "218741": 10, "218742": 4, "218750": 1, "218751": 0, "218923": 6, "218927": 24, "227129": 2, "227131": 39, "230488": 4, "230490": 4, "231119": 1, "232695": 36, "232696": 1, "232697": 0, "233555": 3, "233556": 10, "233659": 1, "234138": 35, "236110": 2, "236260": 0, "236539": 1, "236563": 4, "236564": 10, "236570": 3, "236615": 5, "236616": 80, "236745": 18, "236793": 8, "236794": 30, "236809": 4, "1100004": 0
+    };
+
+    async function runFix() {
+      const btn = document.getElementById('btn-run');
+      btn.disabled = true;
+      btn.textContent = 'Restaurando...';
+      
+      try {
+        logMsg('1. Descargando movimientos para sincronizacin de fecha...');
+        const movSnap = await db.collection('movimientos_bodega').get();
+        
+        // Snapshot tomado el 08 de Junio a las 20:42:14 (Hora Chile, UTC-4)
+        const snapshotTime = new Date('2026-06-08T20:42:14-04:00').getTime();
+        const fixTime = new Date('2026-06-10T00:00:00-04:00').getTime();
+        
+        const totals = {};
+
+        // Inicializar con el base stock de la foto
+        const invSnap = await db.collection('inventory').get();
+        invSnap.forEach(doc => {
+          const data = doc.data();
+          const code = data.code || data.producto_codigo || data.SKU || '';
+          totals[doc.id] = { disp: baseStock[code] || 0, noDisp: 0, code: code };
+        });
+
+        movSnap.forEach(doc => {
+          const m = doc.data();
+          let pId = m.producto_id;
+          
+          if (!pId && m.producto_codigo) {
+            pId = Object.keys(totals).find(k => totals[k].code === m.producto_codigo);
+          }
+          if (!pId) return;
+          
+          const cant = parseInt(m.cantidad) || 0;
+          
+          if (!totals[pId]) return;
+          
+          let ts = 0;
+          if (m.fecha && m.fecha.toMillis) {
+            ts = m.fecha.toMillis();
+          }
+
+          if (m.tipo === 'merma' || m.tipo === 'devolucion_rechazada') {
+            // Mermas siempre se suman a no_disponible, sin importar la fecha, porque el backup original no cont las mermas bien
+            totals[pId].noDisp += cant;
+            
+            // Evaluamos si esta merma tena un ingreso previo (inflando el stock visible) que debemos descontar
+            let deductDisp = false;
+            if (m.subtipo === 'reclasificacion_merma') {
+              deductDisp = true;
+            } else if (m.subtipo === 'devolucion_rechazada' && !m._migrado_backfill && ts < fixTime) {
+              deductDisp = true;
+            }
+
+            if (deductDisp) {
+              totals[pId].disp -= cant;
+            }
+          } else {
+            // Movimientos regulares (ingreso, salida, despacho) solo los aplicamos si ocurrieron DESPUS de la foto
+            if (ts > snapshotTime) {
+              const isIn = ['ingreso', 'devolucion', 'abastecimiento', 'ajuste_pos'].includes(m.tipo);
+              const isOut = ['salida', 'despacho', 'despacho_ruta', 'ajuste_neg'].includes(m.tipo);
+              
+              if (isIn) {
+                totals[pId].disp += cant;
+              } else if (isOut) {
+                totals[pId].disp -= cant;
+              }
+            }
+          }
+        });
+
+        logMsg('2. Aplicando valores restaurados a base de datos...');
+        const batch = db.batch();
+        let updated = 0;
+
+        for (const pId of Object.keys(totals)) {
+          const calc = totals[pId];
+          const disp = Math.max(0, calc.disp);
+          const noDisp = Math.max(0, calc.noDisp);
+          const total = disp + noDisp;
+          
+          batch.update(db.collection('inventory').doc(pId), {
+            disponible: disp,
+            no_disponible: noDisp,
+            qty: total,
+            cantidad: total,
+            total: total
+          });
+          
+          logMsg(`   Producto ${calc.code} restaurado -> Disp: ${disp}, No Disp: ${noDisp}, Total: ${total}`);
+          updated++;
+        }
+
+        if (updated > 0) {
+          logMsg('Ejecutando COMMIT a la base de datos...');
+          await batch.commit();
+          logMsg('INVENTARIO REPARADO EXITOSAMENTE! Ya puedes revisar la app.');
+        } else {
+          logMsg('No se encontraron productos para actualizar.');
+        }
+
+      } catch(err) {
+        logMsg('ERROR: ' + err.message);
+        console.error(err);
+      } finally {
+        btn.textContent = 'Proceso Completado';
+      }
+    }
+  </script>
+</body>
+</html>
